@@ -761,19 +761,35 @@ function SortableSection({
                 </span>
                 {section.title}
               </h2>
-              {/* Estimated videos pill - uses filtered lessons */}
+              {/* Priority breakdown pills */}
               {(() => {
-                const sectionVideos = filteredLessons
-                  .filter((l) => l.status !== "maybe")
-                  .reduce((acc, lesson) => {
-                    if (lesson.icon === "code") return acc + 2;
-                    return acc + 1;
-                  }, 0);
-                return sectionVideos > 0 ? (
-                  <span className="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-                    ~{sectionVideos} videos
-                  </span>
-                ) : null;
+                const priorityCounts = { 1: 0, 2: 0, 3: 0 };
+                for (const lesson of filteredLessons) {
+                  if (lesson.status === "maybe") continue;
+                  const p = lesson.priority ?? 2;
+                  if (p === 1) priorityCounts[1]++;
+                  else if (p === 2) priorityCounts[2]++;
+                  else if (p === 3) priorityCounts[3]++;
+                }
+                return (
+                  <div className="flex items-center gap-1">
+                    {priorityCounts[1] > 0 && (
+                      <span className="inline-flex items-center rounded-md bg-gray-500/20 text-gray-500 px-2 py-0.5 text-xs font-medium">
+                        {priorityCounts[1]} P1
+                      </span>
+                    )}
+                    {priorityCounts[2] > 0 && (
+                      <span className="inline-flex items-center rounded-md bg-gray-500/20 text-gray-500 px-2 py-0.5 text-xs font-medium">
+                        {priorityCounts[2]} P2
+                      </span>
+                    )}
+                    {priorityCounts[3] > 0 && (
+                      <span className="inline-flex items-center rounded-md bg-gray-500/20 text-gray-500 px-2 py-0.5 text-xs font-medium">
+                        {priorityCounts[3]} P3
+                      </span>
+                    )}
+                  </div>
+                );
               })()}
             </div>
             <div className="flex items-center gap-1 opacity-0 group-hover/section:opacity-100 transition-opacity">
