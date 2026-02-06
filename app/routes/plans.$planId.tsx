@@ -774,12 +774,12 @@ function SortableSection({
                 return (
                   <div className="flex items-center gap-1">
                     {priorityCounts[1] > 0 && (
-                      <span className="inline-flex items-center rounded-md bg-gray-500/20 text-gray-500 px-2 py-0.5 text-xs font-medium">
+                      <span className="inline-flex items-center rounded-md bg-red-500/20 text-red-600 px-2 py-0.5 text-xs font-medium">
                         {priorityCounts[1]} P1
                       </span>
                     )}
                     {priorityCounts[2] > 0 && (
-                      <span className="inline-flex items-center rounded-md bg-gray-500/20 text-gray-500 px-2 py-0.5 text-xs font-medium">
+                      <span className="inline-flex items-center rounded-md bg-yellow-500/20 text-yellow-600 px-2 py-0.5 text-xs font-medium">
                         {priorityCounts[2]} P2
                       </span>
                     )}
