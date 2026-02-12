@@ -64,7 +64,10 @@ export const InlineSuggestion = () => {
                 {suggestionText}
               </p>
             ) : (
-              <p className="text-sm text-gray-500">Generating suggestion...</p>
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-700/50 rounded animate-pulse w-3/4" />
+                <div className="h-4 bg-gray-700/50 rounded animate-pulse w-1/2" />
+              </div>
             )}
           </div>
           <Button
