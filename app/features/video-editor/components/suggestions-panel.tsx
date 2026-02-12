@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { Loader2Icon, RefreshCwIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 const partsToText = (parts: UIMessage["parts"]) => {
@@ -56,11 +56,19 @@ export function SuggestionsPanel(props: SuggestionsPanelProps) {
     );
   }, [sendMessage, setMessages]);
 
-  // Trigger suggestion when lastTranscribedClipId changes and suggestions are enabled
+  // Track the previous lastTranscribedClipId to detect new transcriptions
+  const lastTranscribedClipIdRef = useRef<string | null>(null);
+
+  // Trigger suggestion when a new clip is transcribed and suggestions are enabled
   useEffect(() => {
-    if (enabled && props.lastTranscribedClipId) {
+    if (
+      enabled &&
+      props.lastTranscribedClipId &&
+      props.lastTranscribedClipId !== lastTranscribedClipIdRef.current
+    ) {
       triggerSuggestion();
     }
+    lastTranscribedClipIdRef.current = props.lastTranscribedClipId;
   }, [enabled, props.lastTranscribedClipId, triggerSuggestion]);
 
   const handleEnabledChange = (checked: boolean) => {
@@ -91,7 +99,7 @@ export function SuggestionsPanel(props: SuggestionsPanelProps) {
               variant="ghost"
               size="sm"
               onClick={triggerSuggestion}
-              disabled={isStreaming || !props.lastTranscribedClipId}
+              disabled={isStreaming}
               className="h-6 w-6 p-0"
             >
               <RefreshCwIcon
@@ -111,18 +119,11 @@ export function SuggestionsPanel(props: SuggestionsPanelProps) {
                 {suggestionText}
               </p>
             )}
-            {!isStreaming && !suggestionText && props.lastTranscribedClipId && (
+            {!isStreaming && !suggestionText && (
               <p className="text-sm text-gray-500">
                 Click refresh to generate a suggestion.
               </p>
             )}
-            {!isStreaming &&
-              !suggestionText &&
-              !props.lastTranscribedClipId && (
-                <p className="text-sm text-gray-500">
-                  Record and transcribe a clip to get suggestions.
-                </p>
-              )}
           </ScrollArea>
         </div>
       )}
