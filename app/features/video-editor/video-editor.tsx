@@ -27,7 +27,10 @@ import {
   makeVideoEditorReducer,
   type videoStateReducer,
 } from "./video-state-reducer";
-import { VideoEditorContext } from "./video-editor-context";
+import {
+  VideoEditorContext,
+  type SuggestionState,
+} from "./video-editor-context";
 
 const useVideoEditor = (props: {
   items: TimelineItem[];
@@ -168,10 +171,12 @@ export const VideoEditor = (props: {
   const revalidator = useRevalidator();
 
   // Suggestion state for sharing between SuggestionsPanel and ClipTimeline
-  const [suggestionState, setSuggestionState] = useState({
+  const [suggestionState, setSuggestionState] = useState<SuggestionState>({
     suggestionText: "",
     isStreaming: false,
     enabled: false,
+    error: null,
+    triggerSuggestion: () => {},
   });
 
   // State for clip section naming modal

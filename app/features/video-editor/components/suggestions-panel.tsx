@@ -1,13 +1,11 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileTree } from "@/components/FileTree";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { AlertCircleIcon, Loader2Icon, RefreshCwIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import type { Clip, FrontendInsertionPoint } from "../clip-state-reducer";
+import type { SuggestionState } from "../video-editor-context";
 
 type FileMetadata = {
   path: string;
@@ -69,11 +67,7 @@ export type SuggestionsPanelProps = {
   clips: Clip[];
   insertionPoint: FrontendInsertionPoint;
   files: FileMetadata[];
-  onSuggestionStateChange?: (state: {
-    suggestionText: string;
-    isStreaming: boolean;
-    enabled: boolean;
-  }) => void;
+  onSuggestionStateChange?: (state: SuggestionState) => void;
 };
 
 const SUGGESTIONS_ENABLED_KEY = "suggestions-enabled";
@@ -172,8 +166,17 @@ export function SuggestionsPanel(props: SuggestionsPanelProps) {
       suggestionText,
       isStreaming,
       enabled,
+      error: error ?? null,
+      triggerSuggestion,
     });
-  }, [suggestionText, isStreaming, enabled, props.onSuggestionStateChange]);
+  }, [
+    suggestionText,
+    isStreaming,
+    enabled,
+    error,
+    triggerSuggestion,
+    props.onSuggestionStateChange,
+  ]);
 
   const handleEnabledChange = (checked: boolean) => {
     setEnabled(checked);
@@ -202,62 +205,13 @@ export function SuggestionsPanel(props: SuggestionsPanelProps) {
         </Label>
       </div>
 
-      {enabled && (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium text-gray-300">
-                Next clip suggestion
-              </h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={triggerSuggestion}
-                disabled={isStreaming}
-                className="h-6 w-6 p-0"
-              >
-                <RefreshCwIcon
-                  className={`h-4 w-4 ${isStreaming ? "animate-spin" : ""}`}
-                />
-              </Button>
-            </div>
-            <ScrollArea className="h-[150px] rounded border border-gray-700 bg-gray-800/50 p-3">
-              {error && (
-                <div className="flex items-start gap-2 text-sm text-red-400">
-                  <AlertCircleIcon className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span>
-                    Failed to generate suggestion. Click refresh to try again.
-                  </span>
-                </div>
-              )}
-              {!error && isStreaming && !suggestionText && (
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Loader2Icon className="h-4 w-4 animate-spin" />
-                  Generating suggestion...
-                </div>
-              )}
-              {!error && suggestionText && (
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {suggestionText}
-                </p>
-              )}
-              {!error && !isStreaming && !suggestionText && (
-                <p className="text-sm text-gray-500">
-                  Click refresh to generate a suggestion.
-                </p>
-              )}
-            </ScrollArea>
-          </div>
-
-          {props.files.length > 0 && (
-            <div className="border-t border-gray-700 pt-4">
-              <FileTree
-                files={props.files}
-                enabledFiles={enabledFiles}
-                onEnabledFilesChange={handleEnabledFilesChange}
-              />
-            </div>
-          )}
+      {enabled && props.files.length > 0 && (
+        <div className="border-t border-gray-700 pt-4">
+          <FileTree
+            files={props.files}
+            enabledFiles={enabledFiles}
+            onEnabledFilesChange={handleEnabledFilesChange}
+          />
         </div>
       )}
     </div>

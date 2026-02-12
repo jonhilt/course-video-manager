@@ -22,6 +22,8 @@ export type SuggestionState = {
   suggestionText: string;
   isStreaming: boolean;
   enabled: boolean;
+  error: Error | null;
+  triggerSuggestion: () => void;
 };
 
 export type VideoEditorContextType = {
