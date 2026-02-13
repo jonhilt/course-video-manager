@@ -791,7 +791,7 @@ export function InnerComponent(props: Route.ComponentProps) {
             <Video src={`/videos/${videoId}`} />
           </div>
           {/* Tab buttons */}
-          <div className="flex gap-1 px-4 py-2">
+          <div className="flex gap-1 px-4 pt-2 pb-4">
             <button
               onClick={() => setSidebarTab("context")}
               className={cn(
@@ -893,6 +893,7 @@ export function InnerComponent(props: Route.ComponentProps) {
                     </ScrollArea>
                   </div>
                 )}
+                <hr className="border-border my-6" />
                 {/* Course structure toggle */}
                 {courseStructure && (
                   <div className="flex items-start gap-2 py-1 px-2">
@@ -924,6 +925,7 @@ export function InnerComponent(props: Route.ComponentProps) {
                     </div>
                   </div>
                 )}
+                <hr className="border-border my-6" />
                 {/* File tree - lesson-connected videos */}
                 {!isStandalone && (
                   <div className="space-y-2">
