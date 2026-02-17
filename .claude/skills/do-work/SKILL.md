@@ -13,6 +13,8 @@ Complete implementation workflow from exploration to commit.
 
 ### Phase 2: Implement
 
+If you're touching code that interacts with the database, follow the [DB TDD workflow](DB-TDD.md).
+
 ### Phase 3: Feedback Loops
 
 Run each check, fix issues, and re-run until clean. Do these sequentially:
