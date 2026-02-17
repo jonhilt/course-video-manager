@@ -1,7 +1,7 @@
 import { RepoParserService } from "@/services/repo-parser";
 import type { Route } from "./+types/api.repos.add";
 import { Console, Effect, Schema } from "effect";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { DBFunctionsService } from "@/services/db-service";
 import { withDatabaseDump } from "@/services/dump-service";
 import { data } from "react-router";
@@ -65,7 +65,6 @@ export const action = async ({ request }: Route.ActionArgs) => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };

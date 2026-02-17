@@ -1,6 +1,6 @@
 import { Console, Effect } from "effect";
 import type { Route } from "./+types/api.videos.$videoId.reveal";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { data } from "react-router";
 import { getVideoPath } from "@/lib/get-video";
 import { exec } from "node:child_process";
@@ -54,7 +54,6 @@ export const action = async (args: Route.ActionArgs) => {
       Console.error(`Error revealing video: ${e}`);
       return Effect.die(data("Failed to reveal file", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };

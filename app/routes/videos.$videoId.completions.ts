@@ -1,5 +1,5 @@
 import { DBFunctionsService } from "@/services/db-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import {
   acquireTextWritingContext,
   createModelMessagesForTextWritingAgent,
@@ -133,7 +133,6 @@ export const action = async (args: Route.ActionArgs) => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };

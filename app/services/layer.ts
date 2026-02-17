@@ -1,4 +1,4 @@
-import { Layer } from "effect";
+import { Layer, ManagedRuntime } from "effect";
 import { DBFunctionsService } from "./db-service";
 import { DrizzleService } from "./drizzle-service";
 import { DatabaseDumpService } from "./dump-service";
@@ -13,3 +13,5 @@ export const layerLive = Layer.mergeAll(
   DBFunctionsService.Default,
   NodeContext.layer
 ).pipe(Layer.provide(DrizzleService.Default));
+
+export const runtimeLive = ManagedRuntime.make(layerLive);

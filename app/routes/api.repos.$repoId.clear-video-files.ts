@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect";
 import type { Route } from "./+types/api.repos.$repoId.clear-video-files";
 import { DBFunctionsService } from "@/services/db-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { FileSystem } from "@effect/platform";
 import { getVideoPath } from "@/lib/get-video";
 
@@ -41,7 +41,6 @@ export const action = async (args: Route.ActionArgs) => {
         error: `Failed to clear video files: ${error}`,
       })
     ),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };

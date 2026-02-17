@@ -1,7 +1,7 @@
 import { DBFunctionsService } from "@/services/db-service";
 import { Console, Effect } from "effect";
 import type { Route } from "./+types/clips.$clipId.first-frame";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { TotalTypeScriptCLIService } from "@/services/tt-cli-service";
 import { createReadStream } from "fs";
 import { data } from "react-router";
@@ -38,7 +38,6 @@ export const loader = async (args: Route.LoaderArgs) => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };

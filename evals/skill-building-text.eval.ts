@@ -1,4 +1,4 @@
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import {
   acquireTextWritingContext,
   createModelMessagesForTextWritingAgent,
@@ -62,11 +62,7 @@ evalite.each([
           return { input: context };
         })
       )
-    ).pipe(
-      Effect.map(Array.takeRight(EVALS_TO_RUN)),
-      Effect.provide(layerLive),
-      Effect.runPromise
-    );
+    ).pipe(Effect.map(Array.takeRight(EVALS_TO_RUN)), runtimeLive.runPromise);
   },
   columns: ({ input, output }) => {
     const numberOfHeadings = (output as string)

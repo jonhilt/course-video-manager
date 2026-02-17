@@ -1,7 +1,7 @@
 import { Config, Console, Effect } from "effect";
 import { FileSystem } from "@effect/platform";
 import { DBFunctionsService } from "@/services/db-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import type { Route } from "./+types/api.repoVersions.$versionId.export-unexported";
 import {
   TotalTypeScriptCLIService,
@@ -96,7 +96,6 @@ export const action = async (args: Route.ActionArgs) => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };

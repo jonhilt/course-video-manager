@@ -10,7 +10,7 @@ import {
   flow,
   Schema,
 } from "effect";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { DBFunctionsService } from "@/services/db-service";
 import { Command, FileSystem } from "@effect/platform";
 import path from "node:path";
@@ -354,7 +354,6 @@ export const action = async ({ request }: Route.ActionArgs) => {
     Effect.catchAll((_e) => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };

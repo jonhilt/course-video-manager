@@ -48,7 +48,7 @@ import type { planStateReducer } from "@/features/course-planner/plan-state-redu
 import type { Route } from "./+types/plans.$planId";
 import { Console, Effect } from "effect";
 import { DBFunctionsService } from "@/services/db-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import {
   DndContext,
   closestCenter,
@@ -98,8 +98,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };
 

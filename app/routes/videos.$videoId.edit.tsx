@@ -16,7 +16,7 @@ import type { BeatType } from "@/services/tt-cli-service";
 import { useOBSConnector } from "@/features/video-editor/obs-connector";
 import { VideoEditor } from "@/features/video-editor/video-editor";
 import { DBFunctionsService } from "@/services/db-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 import { useEffectReducer } from "use-effect-reducer";
@@ -202,8 +202,7 @@ export const loader = async (args: Route.LoaderArgs) => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };
 

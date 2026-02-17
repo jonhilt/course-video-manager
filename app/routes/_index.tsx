@@ -36,7 +36,7 @@ import { useFocusRevalidate } from "@/hooks/use-focus-revalidate";
 import { getVideoPath } from "@/lib/get-video";
 import { cn } from "@/lib/utils";
 import { DBFunctionsService } from "@/services/db-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { formatSecondsToTimeCode } from "@/services/utils";
 import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
@@ -215,8 +215,7 @@ export const loader = async (args: Route.LoaderArgs) => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };
 

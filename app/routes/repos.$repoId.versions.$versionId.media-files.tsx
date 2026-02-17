@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { useFocusRevalidate } from "@/hooks/use-focus-revalidate";
 import { DBFunctionsService } from "@/services/db-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { Console, Effect } from "effect";
 import { ArrowLeft, Check, Copy } from "lucide-react";
 import { useState } from "react";
@@ -32,8 +32,7 @@ export const loader = async (args: Route.LoaderArgs) => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };
 

@@ -1,6 +1,6 @@
 import { DBFunctionsService } from "@/services/db-service";
 import { withDatabaseDump } from "@/services/dump-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { Config, Console, Effect, Schema } from "effect";
 import { FileSystem } from "@effect/platform";
 import type { Route } from "./+types/api.repos.$repoId.create-version";
@@ -71,7 +71,6 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
     Effect.catchAll(() =>
       Effect.die(data("Internal server error", { status: 500 }))
     ),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };

@@ -1,6 +1,6 @@
 import { DBFunctionsService } from "@/services/db-service";
 import { withDatabaseDump } from "@/services/dump-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { TotalTypeScriptCLIService } from "@/services/tt-cli-service";
 import { Console, Effect, Schema } from "effect";
 import type { Route } from "./+types/videos.$videoId.append-from-obs";
@@ -119,7 +119,6 @@ export const action = async (args: Route.ActionArgs) => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };

@@ -1,7 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { DBFunctionsService } from "@/services/db-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { Console, Effect } from "effect";
 import { ArchiveRestore } from "lucide-react";
 import { useState } from "react";
@@ -32,8 +32,7 @@ export const loader = async (_args: Route.LoaderArgs) => {
     };
   }).pipe(
     Effect.tapErrorCause((e) => Console.dir(e, { depth: null })),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };
 

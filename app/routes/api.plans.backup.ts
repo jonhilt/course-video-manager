@@ -1,7 +1,7 @@
 import { Console, Effect } from "effect";
 import { FileSystem, Path } from "@effect/platform";
 import type { Route } from "./+types/api.plans.backup";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { data } from "react-router";
 
 // Store the backup file in the repo root, git-ignored
@@ -33,7 +33,6 @@ export const action = async (args: Route.ActionArgs) => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };

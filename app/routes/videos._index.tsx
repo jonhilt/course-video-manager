@@ -12,7 +12,7 @@ import { useFocusRevalidate } from "@/hooks/use-focus-revalidate";
 import { getVideoPath } from "@/lib/get-video";
 import { formatSecondsToTimeCode } from "@/services/utils";
 import { DBFunctionsService } from "@/services/db-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 import {
@@ -61,8 +61,7 @@ export const loader = async () => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };
 

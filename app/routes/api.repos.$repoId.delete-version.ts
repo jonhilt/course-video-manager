@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect";
 import type { Route } from "./+types/api.repos.$repoId.delete-version";
 import { DBFunctionsService } from "@/services/db-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import { withDatabaseDump } from "@/services/dump-service";
 
 const deleteVersionSchema = Schema.Struct({
@@ -41,7 +41,6 @@ export const action = async (args: Route.ActionArgs) => {
       })
     ),
     withDatabaseDump,
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };

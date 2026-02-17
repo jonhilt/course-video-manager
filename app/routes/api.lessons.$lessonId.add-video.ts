@@ -1,6 +1,6 @@
 import { Console, Effect, Schema } from "effect";
 import { DBFunctionsService } from "@/services/db-service";
-import { layerLive } from "@/services/layer";
+import { runtimeLive } from "@/services/layer";
 import type { Route } from "./+types/api.lessons.$lessonId.add-video";
 import { data, redirect } from "react-router";
 import { withDatabaseDump } from "@/services/dump-service";
@@ -44,7 +44,6 @@ export const action = async (args: Route.ActionArgs) => {
     Effect.catchAll(() => {
       return Effect.die(data("Internal server error", { status: 500 }));
     }),
-    Effect.provide(layerLive),
-    Effect.runPromise
+    runtimeLive.runPromise
   );
 };
