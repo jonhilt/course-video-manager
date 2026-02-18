@@ -13,10 +13,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { DependencySelector } from "@/components/dependency-selector";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { usePlanReducer } from "@/hooks/use-plan-reducer";
@@ -29,7 +27,6 @@ import {
   Code,
   Copy,
   GripVertical,
-  Link2,
   MessageCircle,
   MoreVertical,
   Play,
@@ -215,6 +212,8 @@ interface FlattenedLesson {
   number: string;
   title: string;
   sectionId: string;
+  sectionTitle: string;
+  sectionNumber: number;
   priority: LessonPriority;
 }
 
@@ -305,10 +304,6 @@ function SortableLesson({
 
   const orderViolations = checkDependencyViolation(lesson, allLessons);
   const priorityViolations = checkPriorityViolation(lesson, allLessons);
-  const hasOrderViolation = orderViolations.length > 0;
-  const hasPriorityViolation = priorityViolations.length > 0;
-  const hasAnyViolation = hasOrderViolation || hasPriorityViolation;
-  const hasDependencies = (lesson.dependencies?.length ?? 0) > 0;
 
   return (
     <div
@@ -420,72 +415,23 @@ function SortableLesson({
                     </span>
                     <span className="text-sm">{lesson.title}</span>
                   </div>
-                  {/* Dependency dropdown */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className={`text-xs flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-muted ${
-                          hasAnyViolation
-                            ? "bg-amber-500/20 text-amber-600"
-                            : "text-muted-foreground hover:text-foreground"
-                        }`}
-                        title={
-                          hasOrderViolation && hasPriorityViolation
-                            ? `Order violation: depends on later lessons (${orderViolations.map((v) => v.number).join(", ")}). Priority violation: P${lesson.priority ?? 2} depends on lower priority lessons (${priorityViolations.map((v) => `${v.number} P${v.priority}`).join(", ")})`
-                            : hasOrderViolation
-                              ? `Order violation: depends on later lessons (${orderViolations.map((v) => v.number).join(", ")})`
-                              : hasPriorityViolation
-                                ? `Priority violation: P${lesson.priority ?? 2} depends on lower priority lessons (${priorityViolations.map((v) => `${v.number} P${v.priority}`).join(", ")})`
-                                : undefined
-                        }
-                      >
-                        <Link2 className="w-3 h-3" />
-                        {hasDependencies && (
-                          <>
-                            {lesson.dependencies
-                              ?.map(
-                                (id) =>
-                                  allLessons.find((l) => l.id === id)?.number
-                              )
-                              .filter(Boolean)
-                              .join(", ")}
-                            {hasAnyViolation && (
-                              <AlertTriangle className="w-3 h-3" />
-                            )}
-                          </>
-                        )}
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuLabel>Dependencies</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {allLessons
-                        .filter((l) => l.id !== lesson.id)
-                        .map((l) => (
-                          <DropdownMenuCheckboxItem
-                            key={l.id}
-                            checked={
-                              lesson.dependencies?.includes(l.id) ?? false
-                            }
-                            onCheckedChange={(checked) => {
-                              const newDeps = checked
-                                ? [...(lesson.dependencies ?? []), l.id]
-                                : (lesson.dependencies ?? []).filter(
-                                    (d) => d !== l.id
-                                  );
-                              dispatch({
-                                type: "lesson-dependencies-changed",
-                                sectionId,
-                                lessonId: lesson.id,
-                                dependencies: newDeps,
-                              });
-                            }}
-                          >
-                            {l.number} {l.title}
-                          </DropdownMenuCheckboxItem>
-                        ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {/* Dependency selector */}
+                  <DependencySelector
+                    lessonId={lesson.id}
+                    dependencies={lesson.dependencies ?? []}
+                    allLessons={allLessons}
+                    onDependenciesChange={(newDeps) =>
+                      dispatch({
+                        type: "lesson-dependencies-changed",
+                        sectionId,
+                        lessonId: lesson.id,
+                        dependencies: newDeps,
+                      })
+                    }
+                    orderViolations={orderViolations}
+                    priorityViolations={priorityViolations}
+                    lessonPriority={lesson.priority ?? 2}
+                  />
                   {/* Priority pill */}
                   <button
                     className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-sm font-medium ${
@@ -964,6 +910,8 @@ function PlanDetailPageContent({ loaderData }: Route.ComponentProps) {
         number: `${sectionIndex + 1}.${lessonIndex + 1}`,
         title: lesson.title,
         sectionId: section.id,
+        sectionTitle: section.title,
+        sectionNumber: sectionIndex + 1,
         priority: lesson.priority ?? 2,
       }));
     }
