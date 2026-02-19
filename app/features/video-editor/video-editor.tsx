@@ -11,6 +11,7 @@ import { useClipboardOperations } from "./hooks/use-clipboard-operations";
 import { useCallback, useMemo, useState } from "react";
 import { useFetcher, useRevalidator } from "react-router";
 import { StandaloneFilePasteModal } from "@/components/standalone-file-paste-modal";
+import { LessonFilePasteModal } from "@/components/lesson-file-paste-modal";
 import { useEffectReducer } from "use-effect-reducer";
 import type {
   Clip,
@@ -506,14 +507,24 @@ export const VideoEditor = (props: {
           onAddClipSectionAt={props.onAddClipSectionAt}
         />
 
-        {/* Standalone File Paste Modal */}
-        <StandaloneFilePasteModal
-          videoId={props.videoId}
-          open={isPasteModalOpen}
-          onOpenChange={handlePasteModalClose}
-          existingFiles={props.standaloneFiles}
-          onFileCreated={handleFileCreated}
-        />
+        {/* File Paste Modal */}
+        {props.lessonId ? (
+          <LessonFilePasteModal
+            videoId={props.videoId}
+            open={isPasteModalOpen}
+            onOpenChange={handlePasteModalClose}
+            existingFiles={props.files}
+            onFileCreated={handleFileCreated}
+          />
+        ) : (
+          <StandaloneFilePasteModal
+            videoId={props.videoId}
+            open={isPasteModalOpen}
+            onOpenChange={handlePasteModalClose}
+            existingFiles={props.standaloneFiles}
+            onFileCreated={handleFileCreated}
+          />
+        )}
 
         {/* Rename Video Modal */}
         <RenameVideoModal
