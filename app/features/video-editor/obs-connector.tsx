@@ -2,7 +2,7 @@ import type { DB } from "@/db/schema";
 import { OBSWebSocket } from "obs-websocket-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectReducer, type EffectReducer } from "use-effect-reducer";
-import type { ApiInsertionPoint } from "./clip-state-reducer";
+import type { ApiInsertionPoint } from "@/services/clip-service";
 import {
   useSpeechDetector,
   useWatchForSpeechDetected,

@@ -8,6 +8,12 @@ import {
   type TtCliAdapter,
 } from "./clip-service-handler";
 import type { ClipService } from "./clip-service";
+import {
+  toDatabaseInsertionPoint,
+  type FrontendId,
+  type DatabaseId,
+  type FrontendTimelineItem,
+} from "./clip-service";
 
 let pglite: PGlite;
 let testDb: ReturnType<typeof drizzle<typeof schema>>;
@@ -626,6 +632,227 @@ describe("ClipService", () => {
         existingClip!.id,
         result[0]!.id,
       ]);
+    });
+  });
+});
+
+// ============================================================================
+// toDatabaseInsertionPoint Tests
+// ============================================================================
+
+// Helper factories for frontend timeline items
+const makeClipOnDatabase = (overrides: {
+  frontendId: FrontendId;
+  databaseId: DatabaseId;
+}): FrontendTimelineItem => ({
+  type: "on-database",
+  frontendId: overrides.frontendId,
+  databaseId: overrides.databaseId,
+});
+
+const makeSectionOnDatabase = (overrides: {
+  frontendId: FrontendId;
+  databaseId: DatabaseId;
+}): FrontendTimelineItem => ({
+  type: "clip-section-on-database",
+  frontendId: overrides.frontendId,
+  databaseId: overrides.databaseId,
+});
+
+const makeOptimisticClip = (overrides: {
+  frontendId: FrontendId;
+}): FrontendTimelineItem => ({
+  type: "optimistically-added",
+  frontendId: overrides.frontendId,
+});
+
+const makeOptimisticSection = (overrides: {
+  frontendId: FrontendId;
+}): FrontendTimelineItem => ({
+  type: "clip-section-optimistically-added",
+  frontendId: overrides.frontendId,
+});
+
+describe("toDatabaseInsertionPoint", () => {
+  describe("after-clip pointing at optimistic clip after a persisted section", () => {
+    it("should resolve to after-clip-section when the nearest persisted item before the optimistic clip is a section", () => {
+      const items: FrontendTimelineItem[] = [
+        makeClipOnDatabase({
+          frontendId: "clip-1" as FrontendId,
+          databaseId: "db-1" as DatabaseId,
+        }),
+        makeSectionOnDatabase({
+          frontendId: "section-1" as FrontendId,
+          databaseId: "db-section-1" as DatabaseId,
+        }),
+        makeOptimisticClip({
+          frontendId: "opt-1" as FrontendId,
+        }),
+      ];
+
+      const result = toDatabaseInsertionPoint(
+        { type: "after-clip", frontendClipId: "opt-1" as FrontendId },
+        items
+      );
+
+      expect(result).toEqual({
+        type: "after-clip-section",
+        clipSectionId: "db-section-1",
+      });
+    });
+
+    it("should resolve to after-clip-section when section is the only item before optimistic clip", () => {
+      const items: FrontendTimelineItem[] = [
+        makeSectionOnDatabase({
+          frontendId: "section-1" as FrontendId,
+          databaseId: "db-section-1" as DatabaseId,
+        }),
+        makeOptimisticClip({
+          frontendId: "opt-1" as FrontendId,
+        }),
+      ];
+
+      const result = toDatabaseInsertionPoint(
+        { type: "after-clip", frontendClipId: "opt-1" as FrontendId },
+        items
+      );
+
+      expect(result).toEqual({
+        type: "after-clip-section",
+        clipSectionId: "db-section-1",
+      });
+    });
+
+    it("should resolve to after-clip when the nearest persisted item is a clip (not a section)", () => {
+      const items: FrontendTimelineItem[] = [
+        makeSectionOnDatabase({
+          frontendId: "section-1" as FrontendId,
+          databaseId: "db-section-1" as DatabaseId,
+        }),
+        makeClipOnDatabase({
+          frontendId: "clip-1" as FrontendId,
+          databaseId: "db-1" as DatabaseId,
+        }),
+        makeOptimisticClip({
+          frontendId: "opt-1" as FrontendId,
+        }),
+      ];
+
+      const result = toDatabaseInsertionPoint(
+        { type: "after-clip", frontendClipId: "opt-1" as FrontendId },
+        items
+      );
+
+      expect(result).toEqual({
+        type: "after-clip",
+        databaseClipId: "db-1",
+      });
+    });
+  });
+
+  describe("after-clip-section pointing at an optimistic section after a persisted section", () => {
+    it("should resolve to after-clip-section of the nearest persisted section before the optimistic one", () => {
+      const items: FrontendTimelineItem[] = [
+        makeSectionOnDatabase({
+          frontendId: "section-1" as FrontendId,
+          databaseId: "db-section-1" as DatabaseId,
+        }),
+        makeClipOnDatabase({
+          frontendId: "clip-1" as FrontendId,
+          databaseId: "db-1" as DatabaseId,
+        }),
+        makeOptimisticSection({
+          frontendId: "opt-section-1" as FrontendId,
+        }),
+      ];
+
+      const result = toDatabaseInsertionPoint(
+        {
+          type: "after-clip-section",
+          frontendClipSectionId: "opt-section-1" as FrontendId,
+        },
+        items
+      );
+
+      expect(result).toEqual({
+        type: "after-clip",
+        databaseClipId: "db-1",
+      });
+    });
+
+    it("should resolve to after-clip-section when the nearest persisted item before optimistic section is a persisted section", () => {
+      const items: FrontendTimelineItem[] = [
+        makeSectionOnDatabase({
+          frontendId: "section-1" as FrontendId,
+          databaseId: "db-section-1" as DatabaseId,
+        }),
+        makeOptimisticSection({
+          frontendId: "opt-section-1" as FrontendId,
+        }),
+      ];
+
+      const result = toDatabaseInsertionPoint(
+        {
+          type: "after-clip-section",
+          frontendClipSectionId: "opt-section-1" as FrontendId,
+        },
+        items
+      );
+
+      expect(result).toEqual({
+        type: "after-clip-section",
+        clipSectionId: "db-section-1",
+      });
+    });
+  });
+
+  describe("start", () => {
+    it("should return start", () => {
+      const result = toDatabaseInsertionPoint({ type: "start" }, []);
+      expect(result).toEqual({ type: "start" });
+    });
+  });
+
+  describe("end", () => {
+    it("should return start when there are no persisted items", () => {
+      const result = toDatabaseInsertionPoint({ type: "end" }, [
+        makeOptimisticClip({ frontendId: "opt-1" as FrontendId }),
+      ]);
+      expect(result).toEqual({ type: "start" });
+    });
+
+    it("should return after-clip when last persisted item is a clip", () => {
+      const items: FrontendTimelineItem[] = [
+        makeClipOnDatabase({
+          frontendId: "clip-1" as FrontendId,
+          databaseId: "db-1" as DatabaseId,
+        }),
+      ];
+
+      const result = toDatabaseInsertionPoint({ type: "end" }, items);
+      expect(result).toEqual({
+        type: "after-clip",
+        databaseClipId: "db-1",
+      });
+    });
+
+    it("should return after-clip-section when last persisted item is a section", () => {
+      const items: FrontendTimelineItem[] = [
+        makeClipOnDatabase({
+          frontendId: "clip-1" as FrontendId,
+          databaseId: "db-1" as DatabaseId,
+        }),
+        makeSectionOnDatabase({
+          frontendId: "section-1" as FrontendId,
+          databaseId: "db-section-1" as DatabaseId,
+        }),
+      ];
+
+      const result = toDatabaseInsertionPoint({ type: "end" }, items);
+      expect(result).toEqual({
+        type: "after-clip-section",
+        clipSectionId: "db-section-1",
+      });
     });
   });
 });

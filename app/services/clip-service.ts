@@ -61,6 +61,166 @@ export type TimelineItem =
 export type ReorderDirection = "up" | "down";
 
 // ============================================================================
+// Frontend Insertion Point Types (for toDatabaseInsertionPoint)
+// ============================================================================
+
+/**
+ * Branded string types for frontend vs database IDs.
+ * Frontend IDs are temporary (UUID generated on the client).
+ * Database IDs come from the database after persistence.
+ */
+export type FrontendId = string & { readonly __brand: "FrontendId" };
+export type DatabaseId = string & { readonly __brand: "DatabaseId" };
+
+/**
+ * Frontend insertion point - uses frontend IDs.
+ * Used by the video editor reducer to track where new clips should go.
+ */
+export type FrontendInsertionPoint =
+  | { type: "start" }
+  | { type: "after-clip"; frontendClipId: FrontendId }
+  | { type: "after-clip-section"; frontendClipSectionId: FrontendId }
+  | { type: "end" };
+
+/**
+ * Frontend timeline item types - items can be optimistic (not yet persisted)
+ * or on-database (already saved).
+ */
+export type FrontendTimelineItem =
+  | { type: "on-database"; frontendId: FrontendId; databaseId: DatabaseId }
+  | { type: "optimistically-added"; frontendId: FrontendId }
+  | {
+      type: "clip-section-on-database";
+      frontendId: FrontendId;
+      databaseId: DatabaseId;
+    }
+  | { type: "clip-section-optimistically-added"; frontendId: FrontendId };
+
+/**
+ * API insertion point with branded database IDs.
+ * This is the return type of toDatabaseInsertionPoint.
+ */
+export type ApiInsertionPoint =
+  | { type: "start" }
+  | { type: "after-clip"; databaseClipId: DatabaseId }
+  | { type: "after-clip-section"; clipSectionId: DatabaseId };
+
+/**
+ * Converts a frontend insertion point to a database insertion point.
+ * This resolves optimistic items to their nearest persisted ancestor.
+ *
+ * @param insertionPoint - The frontend insertion point (may reference optimistic items)
+ * @param items - The current frontend timeline items
+ * @returns An ApiInsertionPoint with branded database IDs
+ */
+export const toDatabaseInsertionPoint = (
+  insertionPoint: FrontendInsertionPoint,
+  items: FrontendTimelineItem[]
+): ApiInsertionPoint => {
+  if (insertionPoint.type === "start") {
+    return { type: "start" };
+  }
+
+  if (insertionPoint.type === "after-clip") {
+    const frontendClipIndex = items.findIndex(
+      (c) => c.frontendId === insertionPoint.frontendClipId
+    );
+    if (frontendClipIndex === -1) {
+      throw new Error("Clip not found");
+    }
+
+    const previousPersistedItem = items
+      .slice(0, frontendClipIndex + 1)
+      .findLast(
+        (c) => c.type === "on-database" || c.type === "clip-section-on-database"
+      );
+
+    if (!previousPersistedItem) {
+      return { type: "start" };
+    }
+
+    if (previousPersistedItem.type === "clip-section-on-database") {
+      return {
+        type: "after-clip-section",
+        clipSectionId: previousPersistedItem.databaseId,
+      };
+    }
+
+    return {
+      type: "after-clip",
+      databaseClipId: previousPersistedItem.databaseId,
+    };
+  }
+
+  if (insertionPoint.type === "after-clip-section") {
+    const frontendClipSectionIndex = items.findIndex(
+      (c) => c.frontendId === insertionPoint.frontendClipSectionId
+    );
+    if (frontendClipSectionIndex === -1) {
+      throw new Error("Clip section not found");
+    }
+
+    const section = items[frontendClipSectionIndex]!;
+
+    // If the section is persisted, use the new after-clip-section API type
+    if (section.type === "clip-section-on-database") {
+      return {
+        type: "after-clip-section",
+        clipSectionId: section.databaseId,
+      };
+    }
+
+    // Optimistic section (no DB ID yet) — fall back to last persisted item before it
+    const previousPersistedItem = items
+      .slice(0, frontendClipSectionIndex + 1)
+      .findLast(
+        (c) => c.type === "on-database" || c.type === "clip-section-on-database"
+      );
+
+    if (!previousPersistedItem) {
+      return { type: "start" };
+    }
+
+    if (previousPersistedItem.type === "clip-section-on-database") {
+      return {
+        type: "after-clip-section",
+        clipSectionId: previousPersistedItem.databaseId,
+      };
+    }
+
+    return {
+      type: "after-clip",
+      databaseClipId: previousPersistedItem.databaseId,
+    };
+  }
+
+  if (insertionPoint.type === "end") {
+    // Find the last persisted item (clip or section)
+    const lastPersistedItem = items.findLast(
+      (c) => c.type === "on-database" || c.type === "clip-section-on-database"
+    );
+
+    if (!lastPersistedItem) {
+      return { type: "start" };
+    }
+
+    if (lastPersistedItem.type === "clip-section-on-database") {
+      return {
+        type: "after-clip-section",
+        clipSectionId: lastPersistedItem.databaseId,
+      };
+    }
+
+    return {
+      type: "after-clip",
+      databaseClipId: lastPersistedItem.databaseId,
+    };
+  }
+
+  throw new Error("Invalid insertion point");
+};
+
+// ============================================================================
 // Input Types for Methods
 // ============================================================================
 
