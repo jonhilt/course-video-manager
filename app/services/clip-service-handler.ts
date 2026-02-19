@@ -13,6 +13,7 @@ import type * as schema from "@/db/schema";
 import { compareOrderStrings } from "@/lib/sort-by-order";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgliteDatabase } from "drizzle-orm/pglite";
+import { Effect } from "effect";
 import { generateNKeysBetween } from "fractional-indexing";
 import {
   createClipService,
@@ -64,19 +65,26 @@ function windowsToWSL(windowsPath: string): string {
 // Helper: Get all items for a video sorted by order
 // ============================================================================
 
-async function getOrderedItems(db: DrizzleDB, videoId: string) {
-  const allClips = await db.query.clips.findMany({
-    where: and(eq(clips.videoId, videoId), eq(clips.archived, false)),
-    orderBy: asc(clips.order),
-  });
+const getOrderedItems = Effect.fn("getOrderedItems")(function* (
+  db: DrizzleDB,
+  videoId: string
+) {
+  const allClips = yield* Effect.promise(() =>
+    db.query.clips.findMany({
+      where: and(eq(clips.videoId, videoId), eq(clips.archived, false)),
+      orderBy: asc(clips.order),
+    })
+  );
 
-  const allClipSections = await db.query.clipSections.findMany({
-    where: and(
-      eq(clipSections.videoId, videoId),
-      eq(clipSections.archived, false)
-    ),
-    orderBy: asc(clipSections.order),
-  });
+  const allClipSections = yield* Effect.promise(() =>
+    db.query.clipSections.findMany({
+      where: and(
+        eq(clipSections.videoId, videoId),
+        eq(clipSections.archived, false)
+      ),
+      orderBy: asc(clipSections.order),
+    })
+  );
 
   const allItems = [
     ...allClips.map((c) => ({ type: "clip" as const, ...c })),
@@ -87,7 +95,93 @@ async function getOrderedItems(db: DrizzleDB, videoId: string) {
   ].sort((a, b) => compareOrderStrings(a.order, b.order));
 
   return allItems;
-}
+});
+
+// ============================================================================
+// Helper: Append clips at an insertion point
+// ============================================================================
+
+const appendClipsAtInsertionPoint = Effect.fn("appendClipsAtInsertionPoint")(
+  function* (
+    db: DrizzleDB,
+    input: ClipServiceEvent & { type: "append-clips" } extends {
+      input: infer I;
+    }
+      ? I
+      : never
+  ) {
+    const { videoId, insertionPoint, clips: inputClips } = input;
+    const allItems = yield* getOrderedItems(db, videoId);
+
+    let prevOrder: string | null = null;
+    let nextOrder: string | null = null;
+
+    if (insertionPoint.type === "start") {
+      const firstItem = allItems[0];
+      nextOrder = firstItem?.order ?? null;
+    } else if (insertionPoint.type === "after-clip") {
+      const insertAfterClipIndex = allItems.findIndex(
+        (item) =>
+          item.type === "clip" && item.id === insertionPoint.databaseClipId
+      );
+
+      if (insertAfterClipIndex === -1) {
+        throw new Error(
+          `Could not find a clip to insert after: ${insertionPoint.databaseClipId}`
+        );
+      }
+
+      const insertAfterItem = allItems[insertAfterClipIndex];
+      prevOrder = insertAfterItem?.order ?? null;
+
+      const nextItem = allItems[insertAfterClipIndex + 1];
+      nextOrder = nextItem?.order ?? null;
+    } else if (insertionPoint.type === "after-clip-section") {
+      const insertAfterSectionIndex = allItems.findIndex(
+        (item) =>
+          item.type === "clip-section" &&
+          item.id === insertionPoint.clipSectionId
+      );
+
+      if (insertAfterSectionIndex === -1) {
+        throw new Error(
+          `Could not find a clip section to insert after: ${insertionPoint.clipSectionId}`
+        );
+      }
+
+      const insertAfterItem = allItems[insertAfterSectionIndex];
+      prevOrder = insertAfterItem?.order ?? null;
+
+      const nextItem = allItems[insertAfterSectionIndex + 1];
+      nextOrder = nextItem?.order ?? null;
+    }
+
+    const orders = generateNKeysBetween(
+      prevOrder,
+      nextOrder,
+      inputClips.length
+    );
+
+    const clipsResult = yield* Effect.promise(() =>
+      db
+        .insert(clips)
+        .values(
+          inputClips.map((clip, index) => ({
+            videoId,
+            videoFilename: clip.inputVideo,
+            sourceStartTime: clip.startTime,
+            sourceEndTime: clip.endTime,
+            order: orders[index]!,
+            archived: false,
+            text: "",
+          }))
+        )
+        .returning()
+    );
+
+    return clipsResult;
+  }
+);
 
 // ============================================================================
 // Handler
@@ -101,448 +195,399 @@ async function getOrderedItems(db: DrizzleDB, videoId: string) {
  * @param event - The event to handle
  * @param ttCli - Optional TotalTypeScriptCLI adapter (required for append-from-obs)
  */
-export async function handleClipServiceEvent(
-  db: DrizzleDB,
-  event: ClipServiceEvent,
-  ttCli?: TtCliAdapter
-): Promise<unknown> {
-  switch (event.type) {
-    case "create-video": {
-      const [video] = await db
-        .insert(videos)
-        .values({
-          path: event.path,
-          originalFootagePath: "",
-          lessonId: null,
-        })
-        .returning();
-
-      if (!video) {
-        throw new Error("Failed to create video");
-      }
-
-      return video;
-    }
-
-    case "get-timeline": {
-      const allItems = await getOrderedItems(db, event.videoId);
-
-      const timeline: TimelineItem[] = allItems.map((item) => {
-        if (item.type === "clip") {
-          const { type, ...clipData } = item;
-          return { type: "clip", data: clipData };
-        } else {
-          const { type, ...sectionData } = item;
-          return { type: "clip-section", data: sectionData };
-        }
-      });
-
-      return timeline;
-    }
-
-    case "append-clips": {
-      const { videoId, insertionPoint, clips: inputClips } = event.input;
-      const allItems = await getOrderedItems(db, videoId);
-
-      let prevOrder: string | null = null;
-      let nextOrder: string | null = null;
-
-      if (insertionPoint.type === "start") {
-        const firstItem = allItems[0];
-        nextOrder = firstItem?.order ?? null;
-      } else if (insertionPoint.type === "after-clip") {
-        const insertAfterClipIndex = allItems.findIndex(
-          (item) =>
-            item.type === "clip" && item.id === insertionPoint.databaseClipId
+export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
+  function* (db: DrizzleDB, event: ClipServiceEvent, ttCli?: TtCliAdapter) {
+    switch (event.type) {
+      case "create-video": {
+        const [video] = yield* Effect.promise(() =>
+          db
+            .insert(videos)
+            .values({
+              path: event.path,
+              originalFootagePath: "",
+              lessonId: null,
+            })
+            .returning()
         );
 
-        if (insertAfterClipIndex === -1) {
-          throw new Error(
-            `Could not find a clip to insert after: ${insertionPoint.databaseClipId}`
-          );
+        if (!video) {
+          throw new Error("Failed to create video");
         }
 
-        const insertAfterItem = allItems[insertAfterClipIndex];
-        prevOrder = insertAfterItem?.order ?? null;
+        return video;
+      }
 
-        const nextItem = allItems[insertAfterClipIndex + 1];
-        nextOrder = nextItem?.order ?? null;
-      } else if (insertionPoint.type === "after-clip-section") {
-        const insertAfterSectionIndex = allItems.findIndex(
-          (item) =>
-            item.type === "clip-section" &&
-            item.id === insertionPoint.clipSectionId
+      case "get-timeline": {
+        const allItems = yield* getOrderedItems(db, event.videoId);
+
+        const timeline: TimelineItem[] = allItems.map((item) => {
+          if (item.type === "clip") {
+            const { type, ...clipData } = item;
+            return { type: "clip", data: clipData };
+          } else {
+            const { type, ...sectionData } = item;
+            return { type: "clip-section", data: sectionData };
+          }
+        });
+
+        return timeline;
+      }
+
+      case "append-clips": {
+        return yield* appendClipsAtInsertionPoint(db, event.input);
+      }
+
+      case "append-from-obs": {
+        if (!ttCli) {
+          throw new Error("TtCliAdapter is required for append-from-obs");
+        }
+
+        const { videoId, filePath, insertionPoint } = event.input;
+
+        // Convert Windows path to WSL path if provided
+        const resolvedFilePath = filePath ? windowsToWSL(filePath) : undefined;
+
+        // Get all clips (including archived) to find the last clip with this input video
+        const allClipsIncludingArchived = yield* Effect.promise(() =>
+          db.query.clips.findMany({
+            where: eq(clips.videoId, videoId),
+          })
         );
 
-        if (insertAfterSectionIndex === -1) {
-          throw new Error(
-            `Could not find a clip section to insert after: ${insertionPoint.clipSectionId}`
-          );
+        // Find clips with this input video and get the one with the latest end time
+        const clipsWithThisInputVideo = allClipsIncludingArchived
+          .filter((clip) => clip.videoFilename === resolvedFilePath)
+          .sort((a, b) => b.sourceStartTime - a.sourceStartTime);
+
+        const lastClipWithThisInputVideo = clipsWithThisInputVideo[0];
+
+        // Calculate start time: end time of last clip - 1 second for silence gap
+        const resolvedStartTime =
+          typeof lastClipWithThisInputVideo?.sourceEndTime === "number"
+            ? Math.max(lastClipWithThisInputVideo.sourceEndTime - 1, 0)
+            : undefined;
+
+        // Call CLI to detect clips
+        const latestOBSVideoClips = yield* Effect.promise(() =>
+          ttCli.getLatestOBSVideoClips({
+            filePath: resolvedFilePath,
+            startTime: resolvedStartTime,
+          })
+        );
+
+        if (latestOBSVideoClips.clips.length === 0) {
+          return [];
         }
 
-        const insertAfterItem = allItems[insertAfterSectionIndex];
-        prevOrder = insertAfterItem?.order ?? null;
+        // Re-fetch clips for deduplication (in case they changed during CLI detection)
+        const allClipsForDedup = yield* Effect.promise(() =>
+          db.query.clips.findMany({
+            where: eq(clips.videoId, videoId),
+          })
+        );
 
-        const nextItem = allItems[insertAfterSectionIndex + 1];
-        nextOrder = nextItem?.order ?? null;
-      }
+        // Filter out clips that already exist (deduplicate by videoFilename + startTime + endTime)
+        const clipsToAdd = latestOBSVideoClips.clips.filter(
+          (clip) =>
+            !allClipsForDedup.some(
+              (existingClip) =>
+                existingClip.videoFilename === clip.inputVideo &&
+                existingClip.sourceStartTime === clip.startTime &&
+                existingClip.sourceEndTime === clip.endTime
+            )
+        );
 
-      const orders = generateNKeysBetween(
-        prevOrder,
-        nextOrder,
-        inputClips.length
-      );
+        if (clipsToAdd.length === 0) {
+          return [];
+        }
 
-      const clipsResult = await db
-        .insert(clips)
-        .values(
-          inputClips.map((clip, index) => ({
-            videoId,
-            videoFilename: clip.inputVideo,
-            sourceStartTime: clip.startTime,
-            sourceEndTime: clip.endTime,
-            order: orders[index]!,
-            archived: false,
-            text: "",
-          }))
-        )
-        .returning();
-
-      return clipsResult;
-    }
-
-    case "append-from-obs": {
-      if (!ttCli) {
-        throw new Error("TtCliAdapter is required for append-from-obs");
-      }
-
-      const { videoId, filePath, insertionPoint } = event.input;
-
-      // Convert Windows path to WSL path if provided
-      const resolvedFilePath = filePath ? windowsToWSL(filePath) : undefined;
-
-      // Get all clips (including archived) to find the last clip with this input video
-      const allClipsIncludingArchived = await db.query.clips.findMany({
-        where: eq(clips.videoId, videoId),
-      });
-
-      // Find clips with this input video and get the one with the latest end time
-      const clipsWithThisInputVideo = allClipsIncludingArchived
-        .filter((clip) => clip.videoFilename === resolvedFilePath)
-        .sort((a, b) => b.sourceStartTime - a.sourceStartTime);
-
-      const lastClipWithThisInputVideo = clipsWithThisInputVideo[0];
-
-      // Calculate start time: end time of last clip - 1 second for silence gap
-      const resolvedStartTime =
-        typeof lastClipWithThisInputVideo?.sourceEndTime === "number"
-          ? Math.max(lastClipWithThisInputVideo.sourceEndTime - 1, 0)
-          : undefined;
-
-      // Call CLI to detect clips
-      const latestOBSVideoClips = await ttCli.getLatestOBSVideoClips({
-        filePath: resolvedFilePath,
-        startTime: resolvedStartTime,
-      });
-
-      if (latestOBSVideoClips.clips.length === 0) {
-        return [];
-      }
-
-      // Re-fetch clips for deduplication (in case they changed during CLI detection)
-      const allClipsForDedup = await db.query.clips.findMany({
-        where: eq(clips.videoId, videoId),
-      });
-
-      // Filter out clips that already exist (deduplicate by videoFilename + startTime + endTime)
-      const clipsToAdd = latestOBSVideoClips.clips.filter(
-        (clip) =>
-          !allClipsForDedup.some(
-            (existingClip) =>
-              existingClip.videoFilename === clip.inputVideo &&
-              existingClip.sourceStartTime === clip.startTime &&
-              existingClip.sourceEndTime === clip.endTime
-          )
-      );
-
-      if (clipsToAdd.length === 0) {
-        return [];
-      }
-
-      // Insert clips at the specified insertion point
-      // Reuse the append-clips logic by recursively calling the handler
-      const appendClipsEvent: ClipServiceEvent = {
-        type: "append-clips",
-        input: {
+        return yield* appendClipsAtInsertionPoint(db, {
           videoId,
           insertionPoint,
           clips: clipsToAdd,
-        },
-      };
-
-      return handleClipServiceEvent(db, appendClipsEvent, ttCli);
-    }
-
-    case "archive-clips": {
-      for (const clipId of event.clipIds) {
-        await db
-          .update(clips)
-          .set({ archived: true })
-          .where(eq(clips.id, clipId));
+        });
       }
-      return;
-    }
 
-    case "update-clips": {
-      for (const clip of event.clips) {
-        await db
-          .update(clips)
-          .set({
-            scene: clip.scene,
-            profile: clip.profile,
-            beatType: clip.beatType,
+      case "archive-clips": {
+        for (const clipId of event.clipIds) {
+          yield* Effect.promise(() =>
+            db.update(clips).set({ archived: true }).where(eq(clips.id, clipId))
+          );
+        }
+        return;
+      }
+
+      case "update-clips": {
+        for (const clip of event.clips) {
+          yield* Effect.promise(() =>
+            db
+              .update(clips)
+              .set({
+                scene: clip.scene,
+                profile: clip.profile,
+                beatType: clip.beatType,
+              })
+              .where(eq(clips.id, clip.id))
+          );
+        }
+        return;
+      }
+
+      case "update-beat": {
+        yield* Effect.promise(() =>
+          db
+            .update(clips)
+            .set({ beatType: event.beatType })
+            .where(eq(clips.id, event.clipId))
+        );
+        return;
+      }
+
+      case "reorder-clip": {
+        const clip = yield* Effect.promise(() =>
+          db.query.clips.findFirst({
+            where: eq(clips.id, event.clipId),
           })
-          .where(eq(clips.id, clip.id));
-      }
-      return;
-    }
+        );
 
-    case "update-beat": {
-      await db
-        .update(clips)
-        .set({ beatType: event.beatType })
-        .where(eq(clips.id, event.clipId));
-      return;
-    }
+        if (!clip) {
+          throw new Error(`Clip not found: ${event.clipId}`);
+        }
 
-    case "reorder-clip": {
-      const clip = await db.query.clips.findFirst({
-        where: eq(clips.id, event.clipId),
-      });
+        const allItems = yield* getOrderedItems(db, clip.videoId);
 
-      if (!clip) {
-        throw new Error(`Clip not found: ${event.clipId}`);
-      }
+        const itemIndex = allItems.findIndex(
+          (item) => item.type === "clip" && item.id === event.clipId
+        );
+        const targetIndex =
+          event.direction === "up" ? itemIndex - 1 : itemIndex + 1;
 
-      const allItems = await getOrderedItems(db, clip.videoId);
+        if (targetIndex < 0 || targetIndex >= allItems.length) {
+          return;
+        }
 
-      const itemIndex = allItems.findIndex(
-        (item) => item.type === "clip" && item.id === event.clipId
-      );
-      const targetIndex =
-        event.direction === "up" ? itemIndex - 1 : itemIndex + 1;
+        let newOrder: string;
+        if (event.direction === "up") {
+          const prevItem = allItems[targetIndex - 1];
+          const nextItem = allItems[targetIndex];
+          const prevOrder = prevItem?.order ?? null;
+          const nextOrder = nextItem!.order;
+          const [order] = generateNKeysBetween(prevOrder, nextOrder, 1);
+          newOrder = order!;
+        } else {
+          const prevItem = allItems[targetIndex];
+          const nextItem = allItems[targetIndex + 1];
+          const prevOrder = prevItem!.order;
+          const nextOrder = nextItem?.order ?? null;
+          const [order] = generateNKeysBetween(prevOrder, nextOrder, 1);
+          newOrder = order!;
+        }
 
-      if (targetIndex < 0 || targetIndex >= allItems.length) {
+        yield* Effect.promise(() =>
+          db
+            .update(clips)
+            .set({ order: newOrder })
+            .where(eq(clips.id, event.clipId))
+        );
         return;
       }
 
-      let newOrder: string;
-      if (event.direction === "up") {
-        const prevItem = allItems[targetIndex - 1];
-        const nextItem = allItems[targetIndex];
-        const prevOrder = prevItem?.order ?? null;
-        const nextOrder = nextItem!.order;
+      case "create-clip-section-at-insertion-point": {
+        const { videoId, name, insertionPoint } = event.input;
+        const allItems = yield* getOrderedItems(db, videoId);
+
+        let prevOrder: string | null = null;
+        let nextOrder: string | null = null;
+
+        if (insertionPoint.type === "start") {
+          const firstItem = allItems[0];
+          nextOrder = firstItem?.order ?? null;
+        } else if (insertionPoint.type === "after-clip") {
+          const insertAfterClipIndex = allItems.findIndex(
+            (item) =>
+              item.type === "clip" && item.id === insertionPoint.databaseClipId
+          );
+
+          if (insertAfterClipIndex === -1) {
+            throw new Error(
+              `Could not find a clip to insert after: ${insertionPoint.databaseClipId}`
+            );
+          }
+
+          const insertAfterItem = allItems[insertAfterClipIndex];
+          prevOrder = insertAfterItem?.order ?? null;
+
+          const nextItem = allItems[insertAfterClipIndex + 1];
+          nextOrder = nextItem?.order ?? null;
+        } else if (insertionPoint.type === "after-clip-section") {
+          const insertAfterSectionIndex = allItems.findIndex(
+            (item) =>
+              item.type === "clip-section" &&
+              item.id === insertionPoint.clipSectionId
+          );
+
+          if (insertAfterSectionIndex === -1) {
+            throw new Error(
+              `Could not find a clip section to insert after: ${insertionPoint.clipSectionId}`
+            );
+          }
+
+          const insertAfterItem = allItems[insertAfterSectionIndex];
+          prevOrder = insertAfterItem?.order ?? null;
+
+          const nextItem = allItems[insertAfterSectionIndex + 1];
+          nextOrder = nextItem?.order ?? null;
+        }
+
         const [order] = generateNKeysBetween(prevOrder, nextOrder, 1);
-        newOrder = order!;
-      } else {
-        const prevItem = allItems[targetIndex];
-        const nextItem = allItems[targetIndex + 1];
-        const prevOrder = prevItem!.order;
-        const nextOrder = nextItem?.order ?? null;
-        const [order] = generateNKeysBetween(prevOrder, nextOrder, 1);
-        newOrder = order!;
-      }
 
-      await db
-        .update(clips)
-        .set({ order: newOrder })
-        .where(eq(clips.id, event.clipId));
-      return;
-    }
-
-    case "create-clip-section-at-insertion-point": {
-      const { videoId, name, insertionPoint } = event.input;
-      const allItems = await getOrderedItems(db, videoId);
-
-      let prevOrder: string | null = null;
-      let nextOrder: string | null = null;
-
-      if (insertionPoint.type === "start") {
-        const firstItem = allItems[0];
-        nextOrder = firstItem?.order ?? null;
-      } else if (insertionPoint.type === "after-clip") {
-        const insertAfterClipIndex = allItems.findIndex(
-          (item) =>
-            item.type === "clip" && item.id === insertionPoint.databaseClipId
+        const [clipSection] = yield* Effect.promise(() =>
+          db
+            .insert(clipSections)
+            .values({
+              videoId,
+              name,
+              order: order!,
+              archived: false,
+            })
+            .returning()
         );
 
-        if (insertAfterClipIndex === -1) {
+        if (!clipSection) {
+          throw new Error("Failed to create clip section");
+        }
+
+        return clipSection;
+      }
+
+      case "create-clip-section-at-position": {
+        const { videoId, name, position, targetItemId, targetItemType } =
+          event.input;
+        const allItems = yield* getOrderedItems(db, videoId);
+
+        const targetIndex = allItems.findIndex(
+          (item) => item.type === targetItemType && item.id === targetItemId
+        );
+
+        if (targetIndex === -1) {
           throw new Error(
-            `Could not find a clip to insert after: ${insertionPoint.databaseClipId}`
+            `Could not find target ${targetItemType}: ${targetItemId}`
           );
         }
 
-        const insertAfterItem = allItems[insertAfterClipIndex];
-        prevOrder = insertAfterItem?.order ?? null;
+        let prevOrder: string | null = null;
+        let nextOrder: string | null = null;
 
-        const nextItem = allItems[insertAfterClipIndex + 1];
-        nextOrder = nextItem?.order ?? null;
-      } else if (insertionPoint.type === "after-clip-section") {
-        const insertAfterSectionIndex = allItems.findIndex(
-          (item) =>
-            item.type === "clip-section" &&
-            item.id === insertionPoint.clipSectionId
-        );
-
-        if (insertAfterSectionIndex === -1) {
-          throw new Error(
-            `Could not find a clip section to insert after: ${insertionPoint.clipSectionId}`
-          );
+        if (position === "before") {
+          nextOrder = allItems[targetIndex]?.order ?? null;
+          const prevItem = allItems[targetIndex - 1];
+          prevOrder = prevItem?.order ?? null;
+        } else {
+          prevOrder = allItems[targetIndex]?.order ?? null;
+          const nextItem = allItems[targetIndex + 1];
+          nextOrder = nextItem?.order ?? null;
         }
 
-        const insertAfterItem = allItems[insertAfterSectionIndex];
-        prevOrder = insertAfterItem?.order ?? null;
+        const [order] = generateNKeysBetween(prevOrder, nextOrder, 1);
 
-        const nextItem = allItems[insertAfterSectionIndex + 1];
-        nextOrder = nextItem?.order ?? null;
-      }
-
-      const [order] = generateNKeysBetween(prevOrder, nextOrder, 1);
-
-      const [clipSection] = await db
-        .insert(clipSections)
-        .values({
-          videoId,
-          name,
-          order: order!,
-          archived: false,
-        })
-        .returning();
-
-      if (!clipSection) {
-        throw new Error("Failed to create clip section");
-      }
-
-      return clipSection;
-    }
-
-    case "create-clip-section-at-position": {
-      const { videoId, name, position, targetItemId, targetItemType } =
-        event.input;
-      const allItems = await getOrderedItems(db, videoId);
-
-      const targetIndex = allItems.findIndex(
-        (item) => item.type === targetItemType && item.id === targetItemId
-      );
-
-      if (targetIndex === -1) {
-        throw new Error(
-          `Could not find target ${targetItemType}: ${targetItemId}`
+        const [clipSection] = yield* Effect.promise(() =>
+          db
+            .insert(clipSections)
+            .values({
+              videoId,
+              name,
+              order: order!,
+              archived: false,
+            })
+            .returning()
         );
+
+        if (!clipSection) {
+          throw new Error("Failed to create clip section");
+        }
+
+        return clipSection;
       }
 
-      let prevOrder: string | null = null;
-      let nextOrder: string | null = null;
-
-      if (position === "before") {
-        nextOrder = allItems[targetIndex]?.order ?? null;
-        const prevItem = allItems[targetIndex - 1];
-        prevOrder = prevItem?.order ?? null;
-      } else {
-        prevOrder = allItems[targetIndex]?.order ?? null;
-        const nextItem = allItems[targetIndex + 1];
-        nextOrder = nextItem?.order ?? null;
-      }
-
-      const [order] = generateNKeysBetween(prevOrder, nextOrder, 1);
-
-      const [clipSection] = await db
-        .insert(clipSections)
-        .values({
-          videoId,
-          name,
-          order: order!,
-          archived: false,
-        })
-        .returning();
-
-      if (!clipSection) {
-        throw new Error("Failed to create clip section");
-      }
-
-      return clipSection;
-    }
-
-    case "update-clip-section": {
-      await db
-        .update(clipSections)
-        .set({ name: event.name })
-        .where(eq(clipSections.id, event.clipSectionId));
-      return;
-    }
-
-    case "archive-clip-sections": {
-      for (const clipSectionId of event.clipSectionIds) {
-        await db
-          .update(clipSections)
-          .set({ archived: true })
-          .where(eq(clipSections.id, clipSectionId));
-      }
-      return;
-    }
-
-    case "reorder-clip-section": {
-      const clipSection = await db.query.clipSections.findFirst({
-        where: eq(clipSections.id, event.clipSectionId),
-      });
-
-      if (!clipSection) {
-        throw new Error(`Clip section not found: ${event.clipSectionId}`);
-      }
-
-      const allItems = await getOrderedItems(db, clipSection.videoId);
-
-      const itemIndex = allItems.findIndex(
-        (item) =>
-          item.type === "clip-section" && item.id === event.clipSectionId
-      );
-      const targetIndex =
-        event.direction === "up" ? itemIndex - 1 : itemIndex + 1;
-
-      if (targetIndex < 0 || targetIndex >= allItems.length) {
+      case "update-clip-section": {
+        yield* Effect.promise(() =>
+          db
+            .update(clipSections)
+            .set({ name: event.name })
+            .where(eq(clipSections.id, event.clipSectionId))
+        );
         return;
       }
 
-      let newOrder: string;
-      if (event.direction === "up") {
-        const prevItem = allItems[targetIndex - 1];
-        const nextItem = allItems[targetIndex];
-        const prevOrder = prevItem?.order ?? null;
-        const nextOrder = nextItem!.order;
-        const [order] = generateNKeysBetween(prevOrder, nextOrder, 1);
-        newOrder = order!;
-      } else {
-        const prevItem = allItems[targetIndex];
-        const nextItem = allItems[targetIndex + 1];
-        const prevOrder = prevItem!.order;
-        const nextOrder = nextItem?.order ?? null;
-        const [order] = generateNKeysBetween(prevOrder, nextOrder, 1);
-        newOrder = order!;
+      case "archive-clip-sections": {
+        for (const clipSectionId of event.clipSectionIds) {
+          yield* Effect.promise(() =>
+            db
+              .update(clipSections)
+              .set({ archived: true })
+              .where(eq(clipSections.id, clipSectionId))
+          );
+        }
+        return;
       }
 
-      await db
-        .update(clipSections)
-        .set({ order: newOrder })
-        .where(eq(clipSections.id, event.clipSectionId));
-      return;
-    }
+      case "reorder-clip-section": {
+        const clipSection = yield* Effect.promise(() =>
+          db.query.clipSections.findFirst({
+            where: eq(clipSections.id, event.clipSectionId),
+          })
+        );
 
-    default: {
-      const _exhaustive: never = event;
-      throw new Error(`Unknown event type: ${JSON.stringify(_exhaustive)}`);
+        if (!clipSection) {
+          throw new Error(`Clip section not found: ${event.clipSectionId}`);
+        }
+
+        const allItems = yield* getOrderedItems(db, clipSection.videoId);
+
+        const itemIndex = allItems.findIndex(
+          (item) =>
+            item.type === "clip-section" && item.id === event.clipSectionId
+        );
+        const targetIndex =
+          event.direction === "up" ? itemIndex - 1 : itemIndex + 1;
+
+        if (targetIndex < 0 || targetIndex >= allItems.length) {
+          return;
+        }
+
+        let newOrder: string;
+        if (event.direction === "up") {
+          const prevItem = allItems[targetIndex - 1];
+          const nextItem = allItems[targetIndex];
+          const prevOrder = prevItem?.order ?? null;
+          const nextOrder = nextItem!.order;
+          const [order] = generateNKeysBetween(prevOrder, nextOrder, 1);
+          newOrder = order!;
+        } else {
+          const prevItem = allItems[targetIndex];
+          const nextItem = allItems[targetIndex + 1];
+          const prevOrder = prevItem!.order;
+          const nextOrder = nextItem?.order ?? null;
+          const [order] = generateNKeysBetween(prevOrder, nextOrder, 1);
+          newOrder = order!;
+        }
+
+        yield* Effect.promise(() =>
+          db
+            .update(clipSections)
+            .set({ order: newOrder })
+            .where(eq(clipSections.id, event.clipSectionId))
+        );
+        return;
+      }
+
+      default: {
+        const _exhaustive: never = event;
+        throw new Error(`Unknown event type: ${JSON.stringify(_exhaustive)}`);
+      }
     }
   }
-}
+);
 
 // ============================================================================
 // Direct Transport Factory (for tests)
@@ -559,8 +604,8 @@ export function createDirectClipService(
   db: DrizzleDB,
   ttCli?: TtCliAdapter
 ): ClipService {
-  const send = async (event: ClipServiceEvent): Promise<unknown> => {
-    return handleClipServiceEvent(db, event, ttCli);
+  const send = (event: ClipServiceEvent): Promise<unknown> => {
+    return Effect.runPromise(handleClipServiceEvent(db, event, ttCli));
   };
 
   return createClipService(send);

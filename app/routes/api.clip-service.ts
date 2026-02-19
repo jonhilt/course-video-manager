@@ -54,8 +54,10 @@ export const action = async (args: Route.ActionArgs) => {
 
     // Get database and handle the event
     const db = getDatabase();
-    const result = yield* Effect.promise(() =>
-      handleClipServiceEvent(db as any, event as ClipServiceEvent, ttCli)
+    const result = yield* handleClipServiceEvent(
+      db as any,
+      event as ClipServiceEvent,
+      ttCli
     );
 
     return result ?? null;
