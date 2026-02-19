@@ -12,7 +12,6 @@ import {
   sections,
   videos,
 } from "@/db/schema";
-import type { AppendFromOBSSchema } from "@/routes/videos.$videoId.append-from-obs";
 import {
   AmbiguousRepoUpdateError,
   CannotArchiveLessonVideoError,
@@ -849,7 +848,10 @@ export class DBFunctionsService extends Effect.Service<DBFunctionsService>()(
         getLessonWithHierarchyById,
         appendClips: Effect.fn("addClips")(function* (opts: {
           videoId: string;
-          insertionPoint: AppendFromOBSSchema["insertionPoint"];
+          insertionPoint:
+            | { type: "start" }
+            | { type: "after-clip"; databaseClipId: string }
+            | { type: "after-clip-section"; clipSectionId: string };
           clips: readonly {
             inputVideo: string;
             startTime: number;

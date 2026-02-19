@@ -17,7 +17,7 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(grep:*)",
-      "Bash(find:*)",
+      "Bash(find *)",
       "Bash(pnpm test:*)",
       "Bash(ls:*)",
       "Bash(gh issue list:*)",
@@ -45,7 +45,10 @@
       "Bash(npm install:*)",
       "Bash(npm uninstall:*)",
       "Bash(npm ci:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(npm test:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh issue create:*)"
     ],
     "deny": [],
     "ask": []

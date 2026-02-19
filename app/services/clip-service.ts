@@ -27,10 +27,10 @@ export type Video = InferSelectModel<typeof videos>;
 // ============================================================================
 
 /**
- * Insertion point for clips - where to insert in the timeline.
- * Used by appendClips and createClipSectionAtInsertionPoint.
+ * Internal insertion point type for database operations.
+ * Not exported - consumers use FrontendInsertionPoint instead.
  */
-export type InsertionPoint =
+type InsertionPoint =
   | { type: "start" }
   | { type: "after-clip"; databaseClipId: string }
   | { type: "after-clip-section"; clipSectionId: string };
@@ -61,7 +61,7 @@ export type TimelineItem =
 export type ReorderDirection = "up" | "down";
 
 // ============================================================================
-// Frontend Insertion Point Types (for toDatabaseInsertionPoint)
+// Frontend Insertion Point Types
 // ============================================================================
 
 /**
@@ -97,26 +97,16 @@ export type FrontendTimelineItem =
   | { type: "clip-section-optimistically-added"; frontendId: FrontendId };
 
 /**
- * API insertion point with branded database IDs.
- * This is the return type of toDatabaseInsertionPoint.
- */
-export type ApiInsertionPoint =
-  | { type: "start" }
-  | { type: "after-clip"; databaseClipId: DatabaseId }
-  | { type: "after-clip-section"; clipSectionId: DatabaseId };
-
-/**
  * Converts a frontend insertion point to a database insertion point.
  * This resolves optimistic items to their nearest persisted ancestor.
  *
- * @param insertionPoint - The frontend insertion point (may reference optimistic items)
- * @param items - The current frontend timeline items
- * @returns An ApiInsertionPoint with branded database IDs
+ * Internal to ClipService - consumers pass FrontendInsertionPoint and items
+ * to ClipService methods, and the conversion happens automatically.
  */
-export const toDatabaseInsertionPoint = (
+const resolveInsertionPoint = (
   insertionPoint: FrontendInsertionPoint,
   items: FrontendTimelineItem[]
-): ApiInsertionPoint => {
+): InsertionPoint => {
   if (insertionPoint.type === "start") {
     return { type: "start" };
   }
@@ -221,12 +211,13 @@ export const toDatabaseInsertionPoint = (
 };
 
 // ============================================================================
-// Input Types for Methods
+// Input Types for Methods (Public - accept FrontendInsertionPoint)
 // ============================================================================
 
 export interface AppendClipsInput {
   videoId: string;
-  insertionPoint: InsertionPoint;
+  insertionPoint: FrontendInsertionPoint;
+  items: FrontendTimelineItem[];
   clips: readonly {
     inputVideo: string;
     startTime: number;
@@ -237,7 +228,8 @@ export interface AppendClipsInput {
 export interface AppendFromObsInput {
   videoId: string;
   filePath?: string;
-  insertionPoint: InsertionPoint;
+  insertionPoint: FrontendInsertionPoint;
+  items: FrontendTimelineItem[];
 }
 
 export interface UpdateClipInput {
@@ -250,7 +242,8 @@ export interface UpdateClipInput {
 export interface CreateClipSectionAtInsertionPointInput {
   videoId: string;
   name: string;
-  insertionPoint: InsertionPoint;
+  insertionPoint: FrontendInsertionPoint;
+  items: FrontendTimelineItem[];
 }
 
 export interface CreateClipSectionAtPositionInput {
@@ -259,6 +252,32 @@ export interface CreateClipSectionAtPositionInput {
   position: Position;
   targetItemId: string;
   targetItemType: TargetItemType;
+}
+
+// ============================================================================
+// Internal Input Types (for RPC events - use resolved InsertionPoint)
+// ============================================================================
+
+interface InternalAppendClipsInput {
+  videoId: string;
+  insertionPoint: InsertionPoint;
+  clips: readonly {
+    inputVideo: string;
+    startTime: number;
+    endTime: number;
+  }[];
+}
+
+interface InternalAppendFromObsInput {
+  videoId: string;
+  filePath?: string;
+  insertionPoint: InsertionPoint;
+}
+
+interface InternalCreateClipSectionAtInsertionPointInput {
+  videoId: string;
+  name: string;
+  insertionPoint: InsertionPoint;
 }
 
 // ============================================================================
@@ -310,15 +329,15 @@ export interface ClipService {
 export type ClipServiceEvent =
   | { type: "create-video"; path: string }
   | { type: "get-timeline"; videoId: string }
-  | { type: "append-clips"; input: AppendClipsInput }
-  | { type: "append-from-obs"; input: AppendFromObsInput }
+  | { type: "append-clips"; input: InternalAppendClipsInput }
+  | { type: "append-from-obs"; input: InternalAppendFromObsInput }
   | { type: "archive-clips"; clipIds: readonly string[] }
   | { type: "update-clips"; clips: readonly UpdateClipInput[] }
   | { type: "update-beat"; clipId: string; beatType: string }
   | { type: "reorder-clip"; clipId: string; direction: ReorderDirection }
   | {
       type: "create-clip-section-at-insertion-point";
-      input: CreateClipSectionAtInsertionPointInput;
+      input: InternalCreateClipSectionAtInsertionPointInput;
     }
   | {
       type: "create-clip-section-at-position";
@@ -365,11 +384,27 @@ export function createClipService(send: ClipServiceTransport): ClipService {
     },
 
     async appendClips(input) {
-      return send({ type: "append-clips", input }) as Promise<Clip[]>;
+      const resolved = resolveInsertionPoint(input.insertionPoint, input.items);
+      return send({
+        type: "append-clips",
+        input: {
+          videoId: input.videoId,
+          insertionPoint: resolved,
+          clips: input.clips,
+        },
+      }) as Promise<Clip[]>;
     },
 
     async appendFromObs(input) {
-      return send({ type: "append-from-obs", input }) as Promise<Clip[]>;
+      const resolved = resolveInsertionPoint(input.insertionPoint, input.items);
+      return send({
+        type: "append-from-obs",
+        input: {
+          videoId: input.videoId,
+          filePath: input.filePath,
+          insertionPoint: resolved,
+        },
+      }) as Promise<Clip[]>;
     },
 
     async archiveClips(clipIds) {
@@ -389,9 +424,14 @@ export function createClipService(send: ClipServiceTransport): ClipService {
     },
 
     async createClipSectionAtInsertionPoint(input) {
+      const resolved = resolveInsertionPoint(input.insertionPoint, input.items);
       return send({
         type: "create-clip-section-at-insertion-point",
-        input,
+        input: {
+          videoId: input.videoId,
+          name: input.name,
+          insertionPoint: resolved,
+        },
       }) as Promise<ClipSection>;
     },
 

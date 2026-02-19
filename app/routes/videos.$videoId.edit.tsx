@@ -10,7 +10,6 @@ import {
   clipStateReducer,
   createFrontendId,
 } from "@/features/video-editor/clip-state-reducer";
-import { toDatabaseInsertionPoint } from "@/services/clip-service";
 import type { BeatType } from "@/services/tt-cli-service";
 import { useOBSConnector } from "@/features/video-editor/obs-connector";
 import { VideoEditor } from "@/features/video-editor/video-editor";
@@ -20,7 +19,6 @@ import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 import { useEffectReducer } from "use-effect-reducer";
 import type { Route } from "./+types/videos.$videoId.edit";
-import { useMemo } from "react";
 import { INSERTION_POINT_ID } from "@/features/video-editor/constants";
 import { data } from "react-router";
 import { getStandaloneVideoFilePath } from "@/services/standalone-video-files";
@@ -364,16 +362,12 @@ export const ComponentInner = (props: Route.ComponentProps) => {
           });
       },
       "create-clip-section": (state, effect, dispatch) => {
-        // Convert frontend insertion point to database insertion point for API
-        const apiInsertionPoint = toDatabaseInsertionPoint(
-          effect.insertionPoint,
-          state.items
-        );
         clipService
           .createClipSectionAtInsertionPoint({
             videoId: props.loaderData.video.id,
             name: effect.name,
-            insertionPoint: apiInsertionPoint,
+            insertionPoint: effect.insertionPoint,
+            items: state.items,
           })
           .catch((error) => {
             dispatch({
@@ -423,14 +417,11 @@ export const ComponentInner = (props: Route.ComponentProps) => {
     }
   );
 
-  const databaseInsertionPoint = useMemo(
-    () => toDatabaseInsertionPoint(clipState.insertionPoint, clipState.items),
-    [clipState.insertionPoint, clipState.items]
-  );
-
   const obsConnector = useOBSConnector({
     videoId: props.loaderData.video.id,
-    insertionPoint: databaseInsertionPoint,
+    clipService,
+    insertionPoint: clipState.insertionPoint,
+    items: clipState.items,
     onNewDatabaseClips: (databaseClips) => {
       dispatch({ type: "new-database-clips", clips: databaseClips });
     },

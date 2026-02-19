@@ -8,17 +8,56 @@ import {
   type TtCliAdapter,
 } from "./clip-service-handler";
 import type { ClipService } from "./clip-service";
-import {
-  toDatabaseInsertionPoint,
-  type FrontendId,
-  type DatabaseId,
-  type FrontendTimelineItem,
+import type {
+  FrontendId,
+  DatabaseId,
+  FrontendTimelineItem,
+  FrontendInsertionPoint,
 } from "./clip-service";
 
 let pglite: PGlite;
 let testDb: ReturnType<typeof drizzle<typeof schema>>;
 let clipService: ClipService;
 let mockTtCli: TtCliAdapter;
+
+/**
+ * Builds FrontendTimelineItem[] from the current database timeline.
+ * Uses database IDs as frontend IDs for simplicity in tests
+ * (all items are persisted, no optimistic state).
+ */
+const getItems = async (videoId: string): Promise<FrontendTimelineItem[]> => {
+  const timeline = await clipService.getTimeline(videoId);
+  return timeline.map((item): FrontendTimelineItem => {
+    if (item.type === "clip") {
+      return {
+        type: "on-database",
+        frontendId: item.data.id as FrontendId,
+        databaseId: item.data.id as DatabaseId,
+      };
+    } else {
+      return {
+        type: "clip-section-on-database",
+        frontendId: item.data.id as FrontendId,
+        databaseId: item.data.id as DatabaseId,
+      };
+    }
+  });
+};
+
+/** Shorthand to build a FrontendInsertionPoint from a database clip ID */
+const afterClip = (id: string): FrontendInsertionPoint => ({
+  type: "after-clip",
+  frontendClipId: id as FrontendId,
+});
+
+/** Shorthand to build a FrontendInsertionPoint from a database section ID */
+const afterSection = (id: string): FrontendInsertionPoint => ({
+  type: "after-clip-section",
+  frontendClipSectionId: id as FrontendId,
+});
+
+const start: FrontendInsertionPoint = { type: "start" };
+const end: FrontendInsertionPoint = { type: "end" };
 
 describe("ClipService", () => {
   beforeEach(async () => {
@@ -58,10 +97,10 @@ describe("ClipService", () => {
     it("returns clips sorted by order", async () => {
       const video = await clipService.createVideo("test-video.mp4");
 
-      // Add clips at start
       const clips = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [
           { inputVideo: "test.mp4", startTime: 0, endTime: 10 },
           { inputVideo: "test.mp4", startTime: 10, endTime: 20 },
@@ -80,27 +119,24 @@ describe("ClipService", () => {
     it("returns clips and sections interleaved and sorted", async () => {
       const video = await clipService.createVideo("test-video.mp4");
 
-      // Add a clip at start
       const [clipA] = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
 
-      // Add a section after the clip
       const section = await clipService.createClipSectionAtInsertionPoint({
         videoId: video.id,
         name: "Section 1",
-        insertionPoint: { type: "after-clip", databaseClipId: clipA!.id },
+        insertionPoint: afterClip(clipA!.id),
+        items: await getItems(video.id),
       });
 
-      // Add a clip after the section
       const [clipB] = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: {
-          type: "after-clip-section",
-          clipSectionId: section.id,
-        },
+        insertionPoint: afterSection(section.id),
+        items: await getItems(video.id),
         clips: [{ inputVideo: "test.mp4", startTime: 10, endTime: 20 }],
       });
 
@@ -121,7 +157,8 @@ describe("ClipService", () => {
 
       const clips = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
 
@@ -140,13 +177,15 @@ describe("ClipService", () => {
 
       const [clipA] = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
 
       await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "after-clip", databaseClipId: clipA!.id },
+        insertionPoint: afterClip(clipA!.id),
+        items: await getItems(video.id),
         clips: [{ inputVideo: "test.mp4", startTime: 10, endTime: 20 }],
       });
 
@@ -162,15 +201,14 @@ describe("ClipService", () => {
       const section = await clipService.createClipSectionAtInsertionPoint({
         videoId: video.id,
         name: "Section 1",
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
       });
 
       const clips = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: {
-          type: "after-clip-section",
-          clipSectionId: section.id,
-        },
+        insertionPoint: afterSection(section.id),
+        items: await getItems(video.id),
         clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
 
@@ -181,6 +219,76 @@ describe("ClipService", () => {
       expect(timeline[1]).toMatchObject({ type: "clip" });
       expect(timeline[1]!.data.id).toBe(clips[0]!.id);
     });
+
+    it("inserts clips at end when last item is a clip", async () => {
+      const video = await clipService.createVideo("test-video.mp4");
+
+      const [clipA] = await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: start,
+        items: [],
+        clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
+      });
+
+      await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: end,
+        items: await getItems(video.id),
+        clips: [{ inputVideo: "test.mp4", startTime: 10, endTime: 20 }],
+      });
+
+      const timeline = await clipService.getTimeline(video.id);
+      expect(timeline).toHaveLength(2);
+      expect(timeline[0]!.data.id).toBe(clipA!.id);
+    });
+
+    it("inserts clips at end when last item is a section", async () => {
+      const video = await clipService.createVideo("test-video.mp4");
+
+      const [clipA] = await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: start,
+        items: [],
+        clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
+      });
+
+      const section = await clipService.createClipSectionAtInsertionPoint({
+        videoId: video.id,
+        name: "Section 1",
+        insertionPoint: afterClip(clipA!.id),
+        items: await getItems(video.id),
+      });
+
+      await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: end,
+        items: await getItems(video.id),
+        clips: [{ inputVideo: "test.mp4", startTime: 10, endTime: 20 }],
+      });
+
+      const timeline = await clipService.getTimeline(video.id);
+      expect(timeline).toHaveLength(3);
+      expect(timeline.map((t) => t.data.id)).toEqual([
+        clipA!.id,
+        section.id,
+        expect.any(String),
+      ]);
+    });
+
+    it("inserts at start when end is used with empty timeline", async () => {
+      const video = await clipService.createVideo("test-video.mp4");
+
+      const clips = await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: end,
+        items: [],
+        clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
+      });
+
+      const timeline = await clipService.getTimeline(video.id);
+      expect(timeline).toHaveLength(1);
+      expect(timeline[0]!.data.id).toBe(clips[0]!.id);
+    });
   });
 
   describe("archiveClips", () => {
@@ -189,7 +297,8 @@ describe("ClipService", () => {
 
       const [clip] = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
 
@@ -204,7 +313,8 @@ describe("ClipService", () => {
 
       const clips = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [
           { inputVideo: "test.mp4", startTime: 0, endTime: 10 },
           { inputVideo: "test.mp4", startTime: 10, endTime: 20 },
@@ -224,7 +334,8 @@ describe("ClipService", () => {
 
       const [clip] = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
 
@@ -255,7 +366,8 @@ describe("ClipService", () => {
 
       const [clip] = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
 
@@ -277,7 +389,8 @@ describe("ClipService", () => {
 
       const clips = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [
           { inputVideo: "test.mp4", startTime: 0, endTime: 10 },
           { inputVideo: "test.mp4", startTime: 10, endTime: 20 },
@@ -298,7 +411,8 @@ describe("ClipService", () => {
 
       const clips = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [
           { inputVideo: "test.mp4", startTime: 0, endTime: 10 },
           { inputVideo: "test.mp4", startTime: 10, endTime: 20 },
@@ -322,7 +436,8 @@ describe("ClipService", () => {
       const section = await clipService.createClipSectionAtInsertionPoint({
         videoId: video.id,
         name: "Intro Section",
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
       });
 
       expect(section).toMatchObject({
@@ -341,14 +456,16 @@ describe("ClipService", () => {
 
       const [clip] = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
 
       const section = await clipService.createClipSectionAtInsertionPoint({
         videoId: video.id,
         name: "After Clip Section",
-        insertionPoint: { type: "after-clip", databaseClipId: clip!.id },
+        insertionPoint: afterClip(clip!.id),
+        items: await getItems(video.id),
       });
 
       const timeline = await clipService.getTimeline(video.id);
@@ -365,7 +482,8 @@ describe("ClipService", () => {
 
       const [clip] = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
 
@@ -389,7 +507,8 @@ describe("ClipService", () => {
 
       const [clip] = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
 
@@ -416,7 +535,8 @@ describe("ClipService", () => {
       const section = await clipService.createClipSectionAtInsertionPoint({
         videoId: video.id,
         name: "Original Name",
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
       });
 
       await clipService.updateClipSection(section.id, "Updated Name");
@@ -434,7 +554,8 @@ describe("ClipService", () => {
       const section = await clipService.createClipSectionAtInsertionPoint({
         videoId: video.id,
         name: "To Archive",
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
       });
 
       await clipService.archiveClipSections([section.id]);
@@ -450,14 +571,16 @@ describe("ClipService", () => {
 
       const [clip] = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
 
       const section = await clipService.createClipSectionAtInsertionPoint({
         videoId: video.id,
         name: "Section",
-        insertionPoint: { type: "after-clip", databaseClipId: clip!.id },
+        insertionPoint: afterClip(clip!.id),
+        items: await getItems(video.id),
       });
 
       // Move section up (before the clip)
@@ -481,7 +604,8 @@ describe("ClipService", () => {
 
       const result = await clipService.appendFromObs({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
       });
 
       expect(result).toEqual([]);
@@ -503,7 +627,8 @@ describe("ClipService", () => {
 
       const result = await clipService.appendFromObs({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
       });
 
       expect(result).toHaveLength(2);
@@ -527,7 +652,8 @@ describe("ClipService", () => {
       await clipService.appendFromObs({
         videoId: video.id,
         filePath: "C:\\Users\\Matt\\Videos\\obs\\recording.mkv",
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
       });
 
       expect(mockTtCli.getLatestOBSVideoClips).toHaveBeenCalledWith({
@@ -542,7 +668,8 @@ describe("ClipService", () => {
       // First, add a clip directly
       await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [
           { inputVideo: "/mnt/c/obs/video.mkv", startTime: 0, endTime: 10 },
         ],
@@ -558,7 +685,8 @@ describe("ClipService", () => {
 
       const result = await clipService.appendFromObs({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: await getItems(video.id),
       });
 
       // Should only add the new clip
@@ -578,7 +706,8 @@ describe("ClipService", () => {
       // Add existing clip
       await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [
           { inputVideo: "/mnt/c/obs/video.mkv", startTime: 0, endTime: 100 },
         ],
@@ -593,7 +722,8 @@ describe("ClipService", () => {
       await clipService.appendFromObs({
         videoId: video.id,
         filePath: "C:\\obs\\video.mkv",
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: await getItems(video.id),
       });
 
       // Should pass startTime = endTime of last clip - 1 = 99
@@ -609,7 +739,8 @@ describe("ClipService", () => {
       // Add existing clip
       const [existingClip] = await clipService.appendClips({
         videoId: video.id,
-        insertionPoint: { type: "start" },
+        insertionPoint: start,
+        items: [],
         clips: [{ inputVideo: "other.mkv", startTime: 0, endTime: 10 }],
       });
 
@@ -621,10 +752,8 @@ describe("ClipService", () => {
 
       const result = await clipService.appendFromObs({
         videoId: video.id,
-        insertionPoint: {
-          type: "after-clip",
-          databaseClipId: existingClip!.id,
-        },
+        insertionPoint: afterClip(existingClip!.id),
+        items: await getItems(video.id),
       });
 
       const timeline = await clipService.getTimeline(video.id);
@@ -634,225 +763,224 @@ describe("ClipService", () => {
       ]);
     });
   });
-});
 
-// ============================================================================
-// toDatabaseInsertionPoint Tests
-// ============================================================================
+  // ==========================================================================
+  // Optimistic Insertion Point Resolution (integration tests)
+  //
+  // These test that ClipService correctly resolves FrontendInsertionPoints
+  // that reference optimistic (not-yet-persisted) items to their nearest
+  // persisted ancestor.
+  // ==========================================================================
 
-// Helper factories for frontend timeline items
-const makeClipOnDatabase = (overrides: {
-  frontendId: FrontendId;
-  databaseId: DatabaseId;
-}): FrontendTimelineItem => ({
-  type: "on-database",
-  frontendId: overrides.frontendId,
-  databaseId: overrides.databaseId,
-});
+  describe("optimistic insertion point resolution", () => {
+    it("resolves after-clip on optimistic item to nearest persisted section", async () => {
+      const video = await clipService.createVideo("test-video.mp4");
 
-const makeSectionOnDatabase = (overrides: {
-  frontendId: FrontendId;
-  databaseId: DatabaseId;
-}): FrontendTimelineItem => ({
-  type: "clip-section-on-database",
-  frontendId: overrides.frontendId,
-  databaseId: overrides.databaseId,
-});
-
-const makeOptimisticClip = (overrides: {
-  frontendId: FrontendId;
-}): FrontendTimelineItem => ({
-  type: "optimistically-added",
-  frontendId: overrides.frontendId,
-});
-
-const makeOptimisticSection = (overrides: {
-  frontendId: FrontendId;
-}): FrontendTimelineItem => ({
-  type: "clip-section-optimistically-added",
-  frontendId: overrides.frontendId,
-});
-
-describe("toDatabaseInsertionPoint", () => {
-  describe("after-clip pointing at optimistic clip after a persisted section", () => {
-    it("should resolve to after-clip-section when the nearest persisted item before the optimistic clip is a section", () => {
-      const items: FrontendTimelineItem[] = [
-        makeClipOnDatabase({
-          frontendId: "clip-1" as FrontendId,
-          databaseId: "db-1" as DatabaseId,
-        }),
-        makeSectionOnDatabase({
-          frontendId: "section-1" as FrontendId,
-          databaseId: "db-section-1" as DatabaseId,
-        }),
-        makeOptimisticClip({
-          frontendId: "opt-1" as FrontendId,
-        }),
-      ];
-
-      const result = toDatabaseInsertionPoint(
-        { type: "after-clip", frontendClipId: "opt-1" as FrontendId },
-        items
-      );
-
-      expect(result).toEqual({
-        type: "after-clip-section",
-        clipSectionId: "db-section-1",
+      // Seed: [ClipA, Section1] in DB
+      const [clipA] = await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: start,
+        items: [],
+        clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
       });
-    });
-
-    it("should resolve to after-clip-section when section is the only item before optimistic clip", () => {
-      const items: FrontendTimelineItem[] = [
-        makeSectionOnDatabase({
-          frontendId: "section-1" as FrontendId,
-          databaseId: "db-section-1" as DatabaseId,
-        }),
-        makeOptimisticClip({
-          frontendId: "opt-1" as FrontendId,
-        }),
-      ];
-
-      const result = toDatabaseInsertionPoint(
-        { type: "after-clip", frontendClipId: "opt-1" as FrontendId },
-        items
-      );
-
-      expect(result).toEqual({
-        type: "after-clip-section",
-        clipSectionId: "db-section-1",
+      const section = await clipService.createClipSectionAtInsertionPoint({
+        videoId: video.id,
+        name: "Section 1",
+        insertionPoint: afterClip(clipA!.id),
+        items: await getItems(video.id),
       });
-    });
 
-    it("should resolve to after-clip when the nearest persisted item is a clip (not a section)", () => {
+      // Frontend items: [ClipA (db), Section1 (db), OptClip1 (optimistic)]
       const items: FrontendTimelineItem[] = [
-        makeSectionOnDatabase({
-          frontendId: "section-1" as FrontendId,
-          databaseId: "db-section-1" as DatabaseId,
-        }),
-        makeClipOnDatabase({
-          frontendId: "clip-1" as FrontendId,
-          databaseId: "db-1" as DatabaseId,
-        }),
-        makeOptimisticClip({
-          frontendId: "opt-1" as FrontendId,
-        }),
-      ];
-
-      const result = toDatabaseInsertionPoint(
-        { type: "after-clip", frontendClipId: "opt-1" as FrontendId },
-        items
-      );
-
-      expect(result).toEqual({
-        type: "after-clip",
-        databaseClipId: "db-1",
-      });
-    });
-  });
-
-  describe("after-clip-section pointing at an optimistic section after a persisted section", () => {
-    it("should resolve to after-clip-section of the nearest persisted section before the optimistic one", () => {
-      const items: FrontendTimelineItem[] = [
-        makeSectionOnDatabase({
-          frontendId: "section-1" as FrontendId,
-          databaseId: "db-section-1" as DatabaseId,
-        }),
-        makeClipOnDatabase({
-          frontendId: "clip-1" as FrontendId,
-          databaseId: "db-1" as DatabaseId,
-        }),
-        makeOptimisticSection({
-          frontendId: "opt-section-1" as FrontendId,
-        }),
-      ];
-
-      const result = toDatabaseInsertionPoint(
         {
-          type: "after-clip-section",
-          frontendClipSectionId: "opt-section-1" as FrontendId,
+          type: "on-database",
+          frontendId: clipA!.id as FrontendId,
+          databaseId: clipA!.id as DatabaseId,
         },
-        items
-      );
-
-      expect(result).toEqual({
-        type: "after-clip",
-        databaseClipId: "db-1",
-      });
-    });
-
-    it("should resolve to after-clip-section when the nearest persisted item before optimistic section is a persisted section", () => {
-      const items: FrontendTimelineItem[] = [
-        makeSectionOnDatabase({
-          frontendId: "section-1" as FrontendId,
-          databaseId: "db-section-1" as DatabaseId,
-        }),
-        makeOptimisticSection({
-          frontendId: "opt-section-1" as FrontendId,
-        }),
+        {
+          type: "clip-section-on-database",
+          frontendId: section.id as FrontendId,
+          databaseId: section.id as DatabaseId,
+        },
+        {
+          type: "optimistically-added",
+          frontendId: "opt-1" as FrontendId,
+        },
       ];
 
-      const result = toDatabaseInsertionPoint(
-        {
-          type: "after-clip-section",
-          frontendClipSectionId: "opt-section-1" as FrontendId,
+      // Insert after the optimistic clip - should resolve to after Section1
+      await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: {
+          type: "after-clip",
+          frontendClipId: "opt-1" as FrontendId,
         },
-        items
-      );
-
-      expect(result).toEqual({
-        type: "after-clip-section",
-        clipSectionId: "db-section-1",
+        items,
+        clips: [{ inputVideo: "test.mp4", startTime: 10, endTime: 20 }],
       });
-    });
-  });
 
-  describe("start", () => {
-    it("should return start", () => {
-      const result = toDatabaseInsertionPoint({ type: "start" }, []);
-      expect(result).toEqual({ type: "start" });
-    });
-  });
-
-  describe("end", () => {
-    it("should return start when there are no persisted items", () => {
-      const result = toDatabaseInsertionPoint({ type: "end" }, [
-        makeOptimisticClip({ frontendId: "opt-1" as FrontendId }),
+      const timeline = await clipService.getTimeline(video.id);
+      expect(timeline.map((t) => ({ type: t.type, id: t.data.id }))).toEqual([
+        { type: "clip", id: clipA!.id },
+        { type: "clip-section", id: section.id },
+        { type: "clip", id: expect.any(String) }, // New clip after section
       ]);
-      expect(result).toEqual({ type: "start" });
     });
 
-    it("should return after-clip when last persisted item is a clip", () => {
+    it("resolves after-clip on optimistic item to nearest persisted clip", async () => {
+      const video = await clipService.createVideo("test-video.mp4");
+
+      // Seed: [Section1, ClipA] in DB
+      const section = await clipService.createClipSectionAtInsertionPoint({
+        videoId: video.id,
+        name: "Section 1",
+        insertionPoint: start,
+        items: [],
+      });
+      const [clipA] = await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: afterSection(section.id),
+        items: await getItems(video.id),
+        clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
+      });
+
+      // Frontend items: [Section1 (db), ClipA (db), OptClip1 (optimistic)]
       const items: FrontendTimelineItem[] = [
-        makeClipOnDatabase({
-          frontendId: "clip-1" as FrontendId,
-          databaseId: "db-1" as DatabaseId,
-        }),
+        {
+          type: "clip-section-on-database",
+          frontendId: section.id as FrontendId,
+          databaseId: section.id as DatabaseId,
+        },
+        {
+          type: "on-database",
+          frontendId: clipA!.id as FrontendId,
+          databaseId: clipA!.id as DatabaseId,
+        },
+        {
+          type: "optimistically-added",
+          frontendId: "opt-1" as FrontendId,
+        },
       ];
 
-      const result = toDatabaseInsertionPoint({ type: "end" }, items);
-      expect(result).toEqual({
-        type: "after-clip",
-        databaseClipId: "db-1",
+      // Insert after optimistic clip - should resolve to after ClipA
+      await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: {
+          type: "after-clip",
+          frontendClipId: "opt-1" as FrontendId,
+        },
+        items,
+        clips: [{ inputVideo: "test.mp4", startTime: 10, endTime: 20 }],
       });
+
+      const timeline = await clipService.getTimeline(video.id);
+      expect(timeline.map((t) => ({ type: t.type, id: t.data.id }))).toEqual([
+        { type: "clip-section", id: section.id },
+        { type: "clip", id: clipA!.id },
+        { type: "clip", id: expect.any(String) }, // New clip after clipA
+      ]);
     });
 
-    it("should return after-clip-section when last persisted item is a section", () => {
+    it("resolves after-clip-section on optimistic section to nearest persisted item", async () => {
+      const video = await clipService.createVideo("test-video.mp4");
+
+      // Seed: [Section1, ClipA] in DB
+      const section = await clipService.createClipSectionAtInsertionPoint({
+        videoId: video.id,
+        name: "Section 1",
+        insertionPoint: start,
+        items: [],
+      });
+      const [clipA] = await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: afterSection(section.id),
+        items: await getItems(video.id),
+        clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
+      });
+
+      // Frontend items: [Section1 (db), ClipA (db), OptSection (optimistic)]
       const items: FrontendTimelineItem[] = [
-        makeClipOnDatabase({
-          frontendId: "clip-1" as FrontendId,
-          databaseId: "db-1" as DatabaseId,
-        }),
-        makeSectionOnDatabase({
-          frontendId: "section-1" as FrontendId,
-          databaseId: "db-section-1" as DatabaseId,
-        }),
+        {
+          type: "clip-section-on-database",
+          frontendId: section.id as FrontendId,
+          databaseId: section.id as DatabaseId,
+        },
+        {
+          type: "on-database",
+          frontendId: clipA!.id as FrontendId,
+          databaseId: clipA!.id as DatabaseId,
+        },
+        {
+          type: "clip-section-optimistically-added",
+          frontendId: "opt-section-1" as FrontendId,
+        },
       ];
 
-      const result = toDatabaseInsertionPoint({ type: "end" }, items);
-      expect(result).toEqual({
-        type: "after-clip-section",
-        clipSectionId: "db-section-1",
+      // Insert after optimistic section - should resolve to after ClipA
+      await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: {
+          type: "after-clip-section",
+          frontendClipSectionId: "opt-section-1" as FrontendId,
+        },
+        items,
+        clips: [{ inputVideo: "test.mp4", startTime: 10, endTime: 20 }],
       });
+
+      const timeline = await clipService.getTimeline(video.id);
+      expect(timeline.map((t) => ({ type: t.type, id: t.data.id }))).toEqual([
+        { type: "clip-section", id: section.id },
+        { type: "clip", id: clipA!.id },
+        { type: "clip", id: expect.any(String) }, // New clip after clipA
+      ]);
+    });
+
+    it("resolves to start when no persisted items exist before optimistic item", async () => {
+      const video = await clipService.createVideo("test-video.mp4");
+
+      // Frontend items: [OptClip (optimistic)] — no persisted items
+      const items: FrontendTimelineItem[] = [
+        {
+          type: "optimistically-added",
+          frontendId: "opt-1" as FrontendId,
+        },
+      ];
+
+      // Insert after optimistic clip with no persisted items before it
+      await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: {
+          type: "after-clip",
+          frontendClipId: "opt-1" as FrontendId,
+        },
+        items,
+        clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
+      });
+
+      const timeline = await clipService.getTimeline(video.id);
+      expect(timeline).toHaveLength(1);
+    });
+
+    it("resolves end with only optimistic items to start", async () => {
+      const video = await clipService.createVideo("test-video.mp4");
+
+      // Frontend items: [OptClip (optimistic)] — no persisted items
+      const items: FrontendTimelineItem[] = [
+        {
+          type: "optimistically-added",
+          frontendId: "opt-1" as FrontendId,
+        },
+      ];
+
+      await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: end,
+        items,
+        clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
+      });
+
+      const timeline = await clipService.getTimeline(video.id);
+      expect(timeline).toHaveLength(1);
     });
   });
 });

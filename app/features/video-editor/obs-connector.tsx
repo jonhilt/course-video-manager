@@ -2,12 +2,15 @@ import type { DB } from "@/db/schema";
 import { OBSWebSocket } from "obs-websocket-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectReducer, type EffectReducer } from "use-effect-reducer";
-import type { ApiInsertionPoint } from "@/services/clip-service";
+import type {
+  ClipService,
+  FrontendInsertionPoint,
+  FrontendTimelineItem,
+} from "@/services/clip-service";
 import {
   useSpeechDetector,
   useWatchForSpeechDetected,
 } from "./use-speech-detector";
-import type { AppendFromOBSSchema } from "@/routes/videos.$videoId.append-from-obs";
 
 export type OBSNotRunningState = {
   type: "obs-not-running";
@@ -181,7 +184,9 @@ export const useConnectToOBSVirtualCamera = (props: {
 
 export const useRunOBSImportRepeatedly = (props: {
   videoId: string;
-  insertionPoint: ApiInsertionPoint;
+  clipService: ClipService;
+  insertionPoint: FrontendInsertionPoint;
+  items: FrontendTimelineItem[];
   state:
     | {
         type: "should-run";
@@ -199,21 +204,19 @@ export const useRunOBSImportRepeatedly = (props: {
 
       (async () => {
         while (!unmounted) {
-          await fetch(`/videos/${props.videoId}/append-from-obs`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+          try {
+            const clips = await props.clipService.appendFromObs({
+              videoId: props.videoId,
               filePath,
               insertionPoint: props.insertionPoint,
-            } satisfies AppendFromOBSSchema),
-          }).then(async (res) => {
-            if (res.ok) {
-              const clips: DB.Clip[] = await res.json();
-              if (clips.length > 0) {
-                props.onNewDatabaseClips(clips);
-              }
+              items: props.items,
+            });
+            if (clips.length > 0) {
+              props.onNewDatabaseClips(clips as DB.Clip[]);
             }
-          });
+          } catch {
+            // Ignore errors - will retry on next loop iteration
+          }
         }
       })();
 
@@ -221,7 +224,7 @@ export const useRunOBSImportRepeatedly = (props: {
         unmounted = true;
       };
     }
-  }, [JSON.stringify(props.state), props.insertionPoint]);
+  }, [JSON.stringify(props.state), props.insertionPoint, props.items]);
 };
 
 export namespace useOBSConnector {
@@ -407,7 +410,9 @@ const innerToOuterState = (
 
 export const useOBSConnector = (props: {
   videoId: string;
-  insertionPoint: ApiInsertionPoint;
+  clipService: ClipService;
+  insertionPoint: FrontendInsertionPoint;
+  items: FrontendTimelineItem[];
   onNewDatabaseClips: (clips: DB.Clip[]) => void;
   onNewClipOptimisticallyAdded: (opts: {
     scene: string;
@@ -524,7 +529,9 @@ export const useOBSConnector = (props: {
 
   useRunOBSImportRepeatedly({
     videoId: props.videoId,
+    clipService: props.clipService,
     insertionPoint: props.insertionPoint,
+    items: props.items,
     state:
       state.type === "obs-recording" && state.hasSpeechBeenDetected
         ? {

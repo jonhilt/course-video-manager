@@ -21,35 +21,6 @@ export type FrontendInsertionPoint =
       type: "end";
     };
 
-export type DatabaseInsertionPoint =
-  | {
-      type: "after-clip";
-      databaseClipId: DatabaseId;
-    }
-  | {
-      type: "after-clip-section";
-      databaseClipSectionId: DatabaseId;
-    }
-  | {
-      type: "start";
-    };
-
-/**
- * A narrower type for insertion points that can be sent to the backend API.
- */
-export type ApiInsertionPoint =
-  | {
-      type: "start";
-    }
-  | {
-      type: "after-clip";
-      databaseClipId: DatabaseId;
-    }
-  | {
-      type: "after-clip-section";
-      clipSectionId: DatabaseId;
-    };
-
 export type ClipOnDatabase = {
   type: "on-database";
   frontendId: FrontendId;
