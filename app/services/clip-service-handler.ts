@@ -104,11 +104,7 @@ const getOrderedItems = Effect.fn("getOrderedItems")(function* (
 const appendClipsAtInsertionPoint = Effect.fn("appendClipsAtInsertionPoint")(
   function* (
     db: DrizzleDB,
-    input: ClipServiceEvent & { type: "append-clips" } extends {
-      input: infer I;
-    }
-      ? I
-      : never
+    input: Extract<ClipServiceEvent, { type: "append-clips" }>["input"]
   ) {
     const { videoId, insertionPoint, clips: inputClips } = input;
     const allItems = yield* getOrderedItems(db, videoId);
