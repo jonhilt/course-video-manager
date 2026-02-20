@@ -255,6 +255,20 @@ export interface CreateClipSectionAtPositionInput {
 }
 
 // ============================================================================
+// Create Video From Selection Types
+// ============================================================================
+
+export type CreateVideoFromSelectionMode = "copy" | "move";
+
+export interface CreateVideoFromSelectionInput {
+  sourceVideoId: string;
+  clipIds: string[];
+  clipSectionIds: string[];
+  title: string;
+  mode: CreateVideoFromSelectionMode;
+}
+
+// ============================================================================
 // Internal Input Types (for RPC events - use resolved InsertionPoint)
 // ============================================================================
 
@@ -316,6 +330,11 @@ export interface ClipService {
     clipSectionId: string,
     direction: ReorderDirection
   ): Promise<void>;
+
+  // Video creation from selection
+  createVideoFromSelection(
+    input: CreateVideoFromSelectionInput
+  ): Promise<Video>;
 }
 
 // ============================================================================
@@ -349,6 +368,10 @@ export type ClipServiceEvent =
       type: "reorder-clip-section";
       clipSectionId: string;
       direction: ReorderDirection;
+    }
+  | {
+      type: "create-video-from-selection";
+      input: CreateVideoFromSelectionInput;
     };
 
 // ============================================================================
@@ -453,6 +476,13 @@ export function createClipService(send: ClipServiceTransport): ClipService {
     async reorderClipSection(clipSectionId, direction) {
       await send({ type: "reorder-clip-section", clipSectionId, direction });
     },
+
+    async createVideoFromSelection(input) {
+      return send({
+        type: "create-video-from-selection",
+        input,
+      }) as Promise<Video>;
+    },
   };
 }
 
@@ -528,6 +558,19 @@ const CreateClipSectionAtPositionInputSchema = Schema.Struct({
   targetItemType: TargetItemTypeSchema,
 });
 
+const CreateVideoFromSelectionModeSchema = Schema.Union(
+  Schema.Literal("copy"),
+  Schema.Literal("move")
+);
+
+const CreateVideoFromSelectionInputSchema = Schema.Struct({
+  sourceVideoId: Schema.String,
+  clipIds: Schema.Array(Schema.String),
+  clipSectionIds: Schema.Array(Schema.String),
+  title: Schema.String,
+  mode: CreateVideoFromSelectionModeSchema,
+});
+
 /**
  * Schema for validating ClipServiceEvent in the route handler.
  * This is a discriminated union matching all possible event types.
@@ -588,6 +631,10 @@ export const ClipServiceEventSchema = Schema.Union(
     type: Schema.Literal("reorder-clip-section"),
     clipSectionId: Schema.String,
     direction: ReorderDirectionSchema,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("create-video-from-selection"),
+    input: CreateVideoFromSelectionInputSchema,
   })
 );
 

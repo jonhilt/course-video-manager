@@ -574,6 +574,92 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
         return;
       }
 
+      case "create-video-from-selection": {
+        const { sourceVideoId, clipIds, clipSectionIds, title } = event.input;
+        // Note: mode is used in issue #198 (move mode) - for now we only implement copy mode
+
+        // Get the source video to inherit lessonId
+        const sourceVideo = yield* Effect.promise(() =>
+          db.query.videos.findFirst({
+            where: eq(videos.id, sourceVideoId),
+          })
+        );
+
+        if (!sourceVideo) {
+          throw new Error(`Source video not found: ${sourceVideoId}`);
+        }
+
+        // Create the new video
+        const [newVideo] = yield* Effect.promise(() =>
+          db
+            .insert(videos)
+            .values({
+              path: title,
+              originalFootagePath: title,
+              lessonId: sourceVideo.lessonId,
+            })
+            .returning()
+        );
+
+        if (!newVideo) {
+          throw new Error("Failed to create new video");
+        }
+
+        // Get all items from source video to determine their relative order
+        const allItems = yield* getOrderedItems(db, sourceVideoId);
+
+        // Build sets for quick lookup
+        const selectedClipIds = new Set(clipIds);
+        const selectedSectionIds = new Set(clipSectionIds);
+
+        // Filter to only selected items, preserving original timeline order
+        const selectedItems = allItems.filter((item) => {
+          if (item.type === "clip") {
+            return selectedClipIds.has(item.id);
+          } else {
+            return selectedSectionIds.has(item.id);
+          }
+        });
+
+        // Generate fresh order keys for the new video
+        const orders = generateNKeysBetween(null, null, selectedItems.length);
+
+        // Copy each selected item to the new video
+        for (let i = 0; i < selectedItems.length; i++) {
+          const item = selectedItems[i]!;
+          const order = orders[i]!;
+
+          if (item.type === "clip") {
+            yield* Effect.promise(() =>
+              db.insert(clips).values({
+                videoId: newVideo.id,
+                videoFilename: item.videoFilename,
+                sourceStartTime: item.sourceStartTime,
+                sourceEndTime: item.sourceEndTime,
+                order,
+                archived: false,
+                text: item.text,
+                transcribedAt: item.transcribedAt,
+                scene: item.scene,
+                profile: item.profile,
+                beatType: item.beatType,
+              })
+            );
+          } else {
+            yield* Effect.promise(() =>
+              db.insert(clipSections).values({
+                videoId: newVideo.id,
+                name: item.name,
+                order,
+                archived: false,
+              })
+            );
+          }
+        }
+
+        return newVideo;
+      }
+
       default: {
         const _exhaustive: never = event;
         throw new Error(`Unknown event type: ${JSON.stringify(_exhaustive)}`);
