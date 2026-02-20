@@ -8,6 +8,7 @@ import type {
   FrontendInsertionPoint,
   TimelineItem,
 } from "./clip-state-reducer";
+import type { OBSConnectionOuterState } from "./obs-connector";
 import {
   DANGEROUS_TEXT_SIMILARITY_THRESHOLD,
   getClips,
@@ -32,6 +33,11 @@ import {
   getLastTranscribedClipId,
   getClipSections,
   getHasSections,
+  getIsOBSActive,
+  getIsLiveStreamPortrait,
+  getShouldShowLastFrameOverlay,
+  getBackButtonUrl,
+  getShowCenterLine,
 } from "./video-editor-selectors";
 
 // ---------------------------------------------------------------------------
@@ -603,5 +609,151 @@ describe("getHasSections", () => {
 
   it("returns false for empty array", () => {
     expect(getHasSections([])).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// OBS and live stream selectors
+// ---------------------------------------------------------------------------
+
+const obsNotRunning: OBSConnectionOuterState = { type: "obs-not-running" };
+const obsConnected: OBSConnectionOuterState = {
+  type: "obs-connected",
+  profile: "Default",
+  scene: "Camera",
+  latestOutputPath: null,
+};
+const obsRecording: OBSConnectionOuterState = {
+  type: "obs-recording",
+  profile: "Default",
+  scene: "Camera",
+  latestOutputPath: "/output/path",
+  hasSpeechBeenDetected: false,
+};
+
+describe("getIsOBSActive", () => {
+  it("returns true when OBS is connected", () => {
+    expect(getIsOBSActive(obsConnected)).toBe(true);
+  });
+
+  it("returns true when OBS is recording", () => {
+    expect(getIsOBSActive(obsRecording)).toBe(true);
+  });
+
+  it("returns false when OBS is not running", () => {
+    expect(getIsOBSActive(obsNotRunning)).toBe(false);
+  });
+});
+
+describe("getIsLiveStreamPortrait", () => {
+  it("returns true when OBS is active with TikTok profile", () => {
+    expect(
+      getIsLiveStreamPortrait({ ...obsConnected, profile: "TikTok" })
+    ).toBe(true);
+  });
+
+  it("returns true when OBS is recording with TikTok profile", () => {
+    expect(
+      getIsLiveStreamPortrait({ ...obsRecording, profile: "TikTok" })
+    ).toBe(true);
+  });
+
+  it("returns false when OBS is active with non-TikTok profile", () => {
+    expect(getIsLiveStreamPortrait(obsConnected)).toBe(false);
+  });
+
+  it("returns false when OBS is not running", () => {
+    expect(getIsLiveStreamPortrait(obsNotRunning)).toBe(false);
+  });
+});
+
+describe("getShouldShowLastFrameOverlay", () => {
+  const clip = makeClipOnDatabase({
+    frontendId: id("a"),
+    scene: "Camera",
+  });
+
+  it("returns false when no clip provided", () => {
+    expect(getShouldShowLastFrameOverlay(undefined, true, obsRecording)).toBe(
+      false
+    );
+  });
+
+  it("returns false when showLastFrame is false", () => {
+    expect(getShouldShowLastFrameOverlay(clip, false, obsRecording)).toBe(
+      false
+    );
+  });
+
+  it("returns true when OBS is not running (defaults to showing)", () => {
+    expect(getShouldShowLastFrameOverlay(clip, true, obsNotRunning)).toBe(true);
+  });
+
+  it("returns true when clip scene matches OBS scene", () => {
+    const state: OBSConnectionOuterState = {
+      ...obsRecording,
+      scene: "Camera",
+    };
+    expect(getShouldShowLastFrameOverlay(clip, true, state)).toBe(true);
+  });
+
+  it("returns false when clip scene does not match OBS scene", () => {
+    const state: OBSConnectionOuterState = {
+      ...obsRecording,
+      scene: "Screen",
+    };
+    expect(getShouldShowLastFrameOverlay(clip, true, state)).toBe(false);
+  });
+
+  it("returns true when clip has no scene (null)", () => {
+    const clipNoScene = makeClipOnDatabase({
+      frontendId: id("b"),
+      scene: null,
+    });
+    expect(getShouldShowLastFrameOverlay(clipNoScene, true, obsRecording)).toBe(
+      true
+    );
+  });
+
+  it("returns true when OBS is connected (not recording) and scenes match", () => {
+    expect(getShouldShowLastFrameOverlay(clip, true, obsConnected)).toBe(true);
+  });
+});
+
+describe("getBackButtonUrl", () => {
+  it("returns lesson-specific URL when repoId and lessonId exist", () => {
+    expect(getBackButtonUrl("repo-1", "lesson-1")).toBe(
+      "/?repoId=repo-1#lesson-1"
+    );
+  });
+
+  it("returns /videos when repoId is missing", () => {
+    expect(getBackButtonUrl(undefined, "lesson-1")).toBe("/videos");
+  });
+
+  it("returns /videos when lessonId is missing", () => {
+    expect(getBackButtonUrl("repo-1", undefined)).toBe("/videos");
+  });
+
+  it("returns /videos when both are missing", () => {
+    expect(getBackButtonUrl(undefined, undefined)).toBe("/videos");
+  });
+});
+
+describe("getShowCenterLine", () => {
+  it("returns true when OBS is active and scene is Camera", () => {
+    expect(getShowCenterLine({ ...obsConnected, scene: "Camera" })).toBe(true);
+  });
+
+  it("returns false when OBS is active but scene is not Camera", () => {
+    expect(getShowCenterLine({ ...obsConnected, scene: "Screen" })).toBe(false);
+  });
+
+  it("returns false when OBS is not running", () => {
+    expect(getShowCenterLine(obsNotRunning)).toBe(false);
+  });
+
+  it("returns true when OBS is recording with Camera scene", () => {
+    expect(getShowCenterLine({ ...obsRecording, scene: "Camera" })).toBe(true);
   });
 });

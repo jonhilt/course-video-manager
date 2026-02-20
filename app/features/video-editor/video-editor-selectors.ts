@@ -7,6 +7,7 @@ import type {
   FrontendInsertionPoint,
   TimelineItem,
 } from "./clip-state-reducer";
+import type { OBSConnectionOuterState } from "./obs-connector";
 import { calculateTextSimilarity, isClip, isClipSection } from "./clip-utils";
 import type { ClipComputedProps } from "./types";
 
@@ -212,4 +213,66 @@ export const getClipSections = (items: TimelineItem[]): ClipSection[] => {
 
 export const getHasSections = (items: TimelineItem[]): boolean => {
   return getClipSections(items).length > 0;
+};
+
+// ---------------------------------------------------------------------------
+// OBS and live stream selectors (from video-player-panel.tsx)
+// ---------------------------------------------------------------------------
+
+export const getIsOBSActive = (
+  obsConnectorState: OBSConnectionOuterState
+): boolean => {
+  return (
+    obsConnectorState.type === "obs-connected" ||
+    obsConnectorState.type === "obs-recording"
+  );
+};
+
+export const getIsLiveStreamPortrait = (
+  obsConnectorState: OBSConnectionOuterState
+): boolean => {
+  return (
+    getIsOBSActive(obsConnectorState) &&
+    obsConnectorState.type !== "obs-not-running" &&
+    obsConnectorState.profile === "TikTok"
+  );
+};
+
+export const getShouldShowLastFrameOverlay = (
+  databaseClipToShowLastFrameOf: ClipOnDatabase | undefined,
+  showLastFrame: boolean,
+  obsConnectorState: OBSConnectionOuterState
+): boolean => {
+  if (!databaseClipToShowLastFrameOf || !showLastFrame) {
+    return false;
+  }
+
+  // Show overlay if OBS is not active (default to showing)
+  if (!getIsOBSActive(obsConnectorState)) {
+    return true;
+  }
+
+  // Show if clip has no scene, or if scenes match
+  return (
+    databaseClipToShowLastFrameOf.scene === null ||
+    (obsConnectorState.type !== "obs-not-running" &&
+      databaseClipToShowLastFrameOf.scene === obsConnectorState.scene)
+  );
+};
+
+export const getBackButtonUrl = (
+  repoId: string | undefined,
+  lessonId: string | undefined
+): string => {
+  return repoId && lessonId ? `/?repoId=${repoId}#${lessonId}` : "/videos";
+};
+
+export const getShowCenterLine = (
+  obsConnectorState: OBSConnectionOuterState
+): boolean => {
+  return (
+    getIsOBSActive(obsConnectorState) &&
+    obsConnectorState.type !== "obs-not-running" &&
+    obsConnectorState.scene === "Camera"
+  );
 };

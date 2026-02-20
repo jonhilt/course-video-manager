@@ -18,6 +18,11 @@ import {
   getLastTranscribedClipId as getLastTranscribedClipIdSelector,
   getClipSections as getClipSectionsSelector,
   getHasSections as getHasSectionsSelector,
+  getIsOBSActive as getIsOBSActiveSelector,
+  getIsLiveStreamPortrait as getIsLiveStreamPortraitSelector,
+  getShouldShowLastFrameOverlay as getShouldShowLastFrameOverlaySelector,
+  getBackButtonUrl as getBackButtonUrlSelector,
+  getShowCenterLine as getShowCenterLineSelector,
 } from "../video-editor-selectors";
 import { AlertTriangleIcon, ChevronLeftIcon } from "lucide-react";
 import { Link, useFetcher } from "react-router";
@@ -230,6 +235,17 @@ export const VideoPlayerPanel = () => {
   const clipSections = useMemo(() => getClipSectionsSelector(items), [items]);
   const hasSections = getHasSectionsSelector(items);
 
+  const isOBSActive = getIsOBSActiveSelector(obsConnectorState);
+  const isLiveStreamPortrait =
+    getIsLiveStreamPortraitSelector(obsConnectorState);
+  const shouldShowLastFrameOverlay = getShouldShowLastFrameOverlaySelector(
+    databaseClipToShowLastFrameOf,
+    showLastFrame,
+    obsConnectorState
+  );
+  const backButtonUrl = getBackButtonUrlSelector(repoId, lessonId);
+  const showCenterLine = getShowCenterLineSelector(obsConnectorState);
+
   return (
     <>
       <div className="lg:flex-1 relative order-1 lg:order-2">
@@ -259,10 +275,7 @@ export const VideoPlayerPanel = () => {
               <div
                 className={cn(
                   "w-full h-full relative aspect-[16/9]",
-                  (obsConnectorState.type === "obs-connected" ||
-                    obsConnectorState.type === "obs-recording") &&
-                    obsConnectorState.profile === "TikTok" &&
-                    "w-92 aspect-[9/16]",
+                  isLiveStreamPortrait && "w-92 aspect-[9/16]",
                   "hidden",
                   (showLiveStream || showLastFrame) && "block"
                 )}
@@ -271,24 +284,16 @@ export const VideoPlayerPanel = () => {
                   <RecordingSignalIndicator />
                 )}
 
-                {(obsConnectorState.type === "obs-recording" ||
-                  obsConnectorState.type === "obs-connected") && (
+                {isOBSActive && (
                   <LiveMediaStream
                     mediaStream={liveMediaStream}
                     obsConnectorState={obsConnectorState}
                     speechDetectorState={speechDetectorState}
-                    showCenterLine={obsConnectorState.scene === "Camera"}
+                    showCenterLine={showCenterLine}
                   />
                 )}
-                {databaseClipToShowLastFrameOf &&
-                  showLastFrame &&
-                  // Only show overlay if scenes match, or if no scene is detected
-                  (obsConnectorState.type !== "obs-recording" &&
-                  obsConnectorState.type !== "obs-connected"
-                    ? true // Default to showing if OBS not connected
-                    : databaseClipToShowLastFrameOf.scene === null ||
-                      databaseClipToShowLastFrameOf.scene ===
-                        obsConnectorState.scene) && (
+                {shouldShowLastFrameOverlay &&
+                  databaseClipToShowLastFrameOf && (
                     <div
                       className={cn(
                         "absolute top-0 left-0 rounded-lg",
@@ -336,13 +341,7 @@ export const VideoPlayerPanel = () => {
                       disabled={!allClipsHaveSilenceDetected}
                     >
                       {allClipsHaveSilenceDetected ? (
-                        <Link
-                          to={
-                            repoId && lessonId
-                              ? `/?repoId=${repoId}#${lessonId}`
-                              : "/videos"
-                          }
-                        >
+                        <Link to={backButtonUrl}>
                           <ChevronLeftIcon className="w-4 h-4" />
                         </Link>
                       ) : (
