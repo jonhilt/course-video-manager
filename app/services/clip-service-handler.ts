@@ -575,8 +575,8 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
       }
 
       case "create-video-from-selection": {
-        const { sourceVideoId, clipIds, clipSectionIds, title } = event.input;
-        // Note: mode is used in issue #198 (move mode) - for now we only implement copy mode
+        const { sourceVideoId, clipIds, clipSectionIds, title, mode } =
+          event.input;
 
         // Get the source video to inherit lessonId
         const sourceVideo = yield* Effect.promise(() =>
@@ -653,6 +653,27 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
                 order,
                 archived: false,
               })
+            );
+          }
+        }
+
+        // In move mode, archive the originals from the source video
+        if (mode === "move") {
+          for (const clipId of clipIds) {
+            yield* Effect.promise(() =>
+              db
+                .update(clips)
+                .set({ archived: true })
+                .where(eq(clips.id, clipId))
+            );
+          }
+
+          for (const clipSectionId of clipSectionIds) {
+            yield* Effect.promise(() =>
+              db
+                .update(clipSections)
+                .set({ archived: true })
+                .where(eq(clipSections.id, clipSectionId))
             );
           }
         }
