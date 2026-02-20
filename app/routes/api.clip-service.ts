@@ -5,7 +5,6 @@
  * Replaces multiple individual route files (clips.archive.ts, clips.reorder.ts, etc.)
  */
 
-import * as schema from "@/db/schema";
 import {
   handleClipServiceEvent,
   type TtCliAdapter,
@@ -15,22 +14,13 @@ import {
   type ClipServiceEvent,
 } from "@/services/clip-service";
 import { DBFunctionsService } from "@/services/db-service";
+import { DrizzleService } from "@/services/drizzle-service";
 import { withDatabaseDump } from "@/services/dump-service";
 import { runtimeLive } from "@/services/layer";
 import { TotalTypeScriptCLIService } from "@/services/tt-cli-service";
 import { Console, Effect, Schema } from "effect";
-import { drizzle } from "drizzle-orm/postgres-js";
 import { data } from "react-router";
 import type { Route } from "./+types/api.clip-service";
-
-// Create database connection for ClipService handler
-// This uses the same DATABASE_URL as DrizzleService
-function getDatabase() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is not set");
-  }
-  return drizzle(process.env.DATABASE_URL, { schema });
-}
 
 export const action = async (args: Route.ActionArgs) => {
   const json = await args.request.json();
@@ -52,8 +42,8 @@ export const action = async (args: Route.ActionArgs) => {
         ttCliService.getLatestOBSVideoClips(opts).pipe(runtimeLive.runPromise),
     };
 
-    // Get database and handle the event
-    const db = getDatabase();
+    // Use the managed DrizzleService instead of creating a new connection per request
+    const db = yield* DrizzleService;
     const result = yield* handleClipServiceEvent(
       db as any,
       event as ClipServiceEvent,

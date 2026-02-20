@@ -12,6 +12,6 @@ export const layerLive = Layer.mergeAll(
   TotalTypeScriptCLIService.Default,
   DBFunctionsService.Default,
   NodeContext.layer
-).pipe(Layer.provide(DrizzleService.Default));
+).pipe(Layer.provideMerge(DrizzleService.Default));
 
 export const runtimeLive = ManagedRuntime.make(layerLive);

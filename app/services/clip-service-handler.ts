@@ -9,10 +9,8 @@
  */
 
 import { clips, clipSections, videos } from "@/db/schema";
-import type * as schema from "@/db/schema";
 import { compareOrderStrings } from "@/lib/sort-by-order";
 import { and, asc, eq } from "drizzle-orm";
-import type { PgliteDatabase } from "drizzle-orm/pglite";
 import { Effect } from "effect";
 import { generateNKeysBetween } from "fractional-indexing";
 import {
@@ -21,12 +19,11 @@ import {
   type ClipServiceEvent,
   type TimelineItem,
 } from "./clip-service";
+import type { DrizzleService } from "./drizzle-service";
 
 // ============================================================================
 // Types
 // ============================================================================
-
-type DrizzleDB = PgliteDatabase<typeof schema>;
 
 /**
  * Adapter for TotalTypeScriptCLIService functionality.
@@ -66,7 +63,7 @@ function windowsToWSL(windowsPath: string): string {
 // ============================================================================
 
 const getOrderedItems = Effect.fn("getOrderedItems")(function* (
-  db: DrizzleDB,
+  db: DrizzleService,
   videoId: string
 ) {
   const allClips = yield* Effect.promise(() =>
@@ -103,7 +100,7 @@ const getOrderedItems = Effect.fn("getOrderedItems")(function* (
 
 const appendClipsAtInsertionPoint = Effect.fn("appendClipsAtInsertionPoint")(
   function* (
-    db: DrizzleDB,
+    db: DrizzleService,
     input: Extract<ClipServiceEvent, { type: "append-clips" }>["input"]
   ) {
     const { videoId, insertionPoint, clips: inputClips } = input;
@@ -192,7 +189,7 @@ const appendClipsAtInsertionPoint = Effect.fn("appendClipsAtInsertionPoint")(
  * @param ttCli - Optional TotalTypeScriptCLI adapter (required for append-from-obs)
  */
 export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
-  function* (db: DrizzleDB, event: ClipServiceEvent, ttCli?: TtCliAdapter) {
+  function* (db: DrizzleService, event: ClipServiceEvent, ttCli: TtCliAdapter) {
     switch (event.type) {
       case "create-video": {
         const [video] = yield* Effect.promise(() =>
@@ -597,8 +594,8 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
  * @param ttCli - Optional TotalTypeScriptCLI adapter for OBS functionality
  */
 export function createDirectClipService(
-  db: DrizzleDB,
-  ttCli?: TtCliAdapter
+  db: DrizzleService,
+  ttCli: TtCliAdapter
 ): ClipService {
   const send = (event: ClipServiceEvent): Promise<unknown> => {
     return Effect.runPromise(handleClipServiceEvent(db, event, ttCli));

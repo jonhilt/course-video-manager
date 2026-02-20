@@ -202,6 +202,8 @@ export const useRunOBSImportRepeatedly = (props: {
       let unmounted = false;
       const filePath = props.state.filePath;
 
+      let error: Error | null = null;
+
       (async () => {
         while (!unmounted) {
           try {
@@ -214,11 +216,15 @@ export const useRunOBSImportRepeatedly = (props: {
             if (clips.length > 0) {
               props.onNewDatabaseClips(clips as DB.Clip[]);
             }
-          } catch {
-            // Ignore errors - will retry on next loop iteration
+          } catch (e) {
+            error = e as Error;
           }
         }
       })();
+
+      if (error) {
+        throw error;
+      }
 
       return () => {
         unmounted = true;

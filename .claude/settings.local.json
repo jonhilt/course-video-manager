@@ -48,7 +48,8 @@
       "Bash(npx vitest:*)",
       "Bash(npm test:*)",
       "Bash(gh repo view:*)",
-      "Bash(gh issue create:*)"
+      "Bash(gh issue create:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []
