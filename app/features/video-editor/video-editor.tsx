@@ -79,6 +79,10 @@ const useVideoEditor = (props: {
       "move-clip": (_state, effect, _dispatch) => {
         props.onMoveClip(effect.clipId, effect.direction);
       },
+      "create-video-from-selection": (_state, _effect, _dispatch) => {
+        // Effect handler will be wired up in Issue #200 (UI integration)
+        // The effect payload contains: clipIds, clipSectionIds, title, mode
+      },
     }
   );
 

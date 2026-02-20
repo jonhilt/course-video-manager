@@ -34,6 +34,13 @@ export namespace videoStateReducer {
         type: "move-clip";
         clipId: FrontendId;
         direction: "up" | "down";
+      }
+    | {
+        type: "create-video-from-selection";
+        clipIds: FrontendId[];
+        clipSectionIds: FrontendId[];
+        title: string;
+        mode: "copy" | "move";
       };
 
   export type Action =
@@ -112,6 +119,11 @@ export namespace videoStateReducer {
     | {
         type: "play-from-clip-section";
         clipSectionId: FrontendId;
+      }
+    | {
+        type: "create-video-from-selection-confirmed";
+        title: string;
+        mode: "copy" | "move";
       };
 }
 
@@ -597,6 +609,39 @@ export const makeVideoEditorReducer =
             direction: "down",
           });
         }
+        return state;
+      }
+      case "create-video-from-selection-confirmed": {
+        // Separate clips from clip sections based on what's in clipIds array
+        const clipIdsSet = new Set(clipIds);
+        const selectedClipIds: FrontendId[] = [];
+        const selectedClipSectionIds: FrontendId[] = [];
+
+        for (const id of state.selectedClipsSet) {
+          if (clipIdsSet.has(id)) {
+            selectedClipIds.push(id);
+          } else {
+            selectedClipSectionIds.push(id);
+          }
+        }
+
+        exec({
+          type: "create-video-from-selection",
+          clipIds: selectedClipIds,
+          clipSectionIds: selectedClipSectionIds,
+          title: action.title,
+          mode: action.mode,
+        });
+
+        // In move mode, clear selection (items are being moved away)
+        // In copy mode, keep selection unchanged (items remain in place)
+        if (action.mode === "move") {
+          return {
+            ...state,
+            selectedClipsSet: new Set<FrontendId>(),
+          };
+        }
+
         return state;
       }
     }
