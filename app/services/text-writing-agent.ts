@@ -27,7 +27,7 @@ import { Array, Effect } from "effect";
 import { DBFunctionsService } from "./db-service";
 import path from "node:path";
 import { FileSystem } from "@effect/platform";
-import { formatSecondsToTimeCode } from "./utils";
+import { calculateYouTubeChapters, type YouTubeChaptersItem } from "./utils";
 import { getStandaloneVideoFilePath } from "./standalone-video-files";
 import type { TextWritingAgentMode } from "@/routes/videos.$videoId.completions";
 
@@ -479,11 +479,8 @@ export const acquireTextWritingContext = Effect.fn("acquireVideoContext")(
     }
 
     // Calculate YouTube chapters from clip sections
-    const youtubeChapters: { timestamp: string; name: string }[] = [];
-    let cumulativeDuration = 0;
-
     // Combine clips and clip sections, sort by order (ASCII ordering to match PostgreSQL COLLATE "C")
-    const allItems = [
+    const chaptersAllItems = [
       ...video.clips.map((clip) => ({
         type: "clip" as const,
         order: clip.order,
@@ -496,21 +493,23 @@ export const acquireTextWritingContext = Effect.fn("acquireVideoContext")(
       })),
     ];
 
-    const sortedAllItems = sortByOrder(allItems);
+    const sortedChaptersItems = sortByOrder(chaptersAllItems);
 
-    for (const item of sortedAllItems) {
-      if (item.type === "clip-section") {
-        // Record the timestamp at the start of this clip section
-        youtubeChapters.push({
-          timestamp: formatSecondsToTimeCode(cumulativeDuration),
-          name: item.section.name,
-        });
-      } else if (item.type === "clip") {
-        // Add the clip's duration to cumulative total
-        cumulativeDuration +=
-          item.clip.sourceEndTime - item.clip.sourceStartTime;
+    const chaptersInput: YouTubeChaptersItem[] = sortedChaptersItems.map(
+      (item): YouTubeChaptersItem => {
+        if (item.type === "clip-section") {
+          return { type: "section", name: item.section.name };
+        } else {
+          return {
+            type: "clip",
+            durationSeconds:
+              item.clip.sourceEndTime - item.clip.sourceStartTime,
+          };
+        }
       }
-    }
+    );
+
+    const youtubeChapters = calculateYouTubeChapters(chaptersInput);
 
     // Collect enabled section names for the prompt
     const enabledSectionIds = new Set(props.enabledSections ?? []);

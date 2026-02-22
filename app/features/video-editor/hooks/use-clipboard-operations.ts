@@ -1,5 +1,8 @@
 import { useState, useMemo } from "react";
-import { formatSecondsToTimeCode } from "@/services/utils";
+import {
+  calculateYouTubeChapters,
+  type YouTubeChaptersItem,
+} from "@/services/utils";
 import { isClip, isClipSection } from "../clip-utils";
 import type { TimelineItem } from "../clip-state-reducer";
 
@@ -55,23 +58,21 @@ export const useClipboardOperations = (items: TimelineItem[]) => {
   // Generate YouTube chapters from clip sections
   // Format: "0:00 Section Name" for each clip section
   const youtubeChapters = useMemo(() => {
-    const chapters: { timestamp: string; name: string }[] = [];
-    let cumulativeDuration = 0;
+    const chaptersItems: YouTubeChaptersItem[] = items
+      .map((item): YouTubeChaptersItem | null => {
+        if (isClipSection(item)) {
+          return { type: "section", name: item.name };
+        } else if (isClip(item) && item.type === "on-database") {
+          return {
+            type: "clip",
+            durationSeconds: item.sourceEndTime - item.sourceStartTime,
+          };
+        }
+        return null;
+      })
+      .filter((item): item is YouTubeChaptersItem => item !== null);
 
-    for (const item of items) {
-      if (isClipSection(item)) {
-        // Record the timestamp at the start of this clip section
-        chapters.push({
-          timestamp: formatSecondsToTimeCode(cumulativeDuration),
-          name: item.name,
-        });
-      } else if (isClip(item) && item.type === "on-database") {
-        // Add the clip's duration to cumulative total
-        cumulativeDuration += item.sourceEndTime - item.sourceStartTime;
-      }
-    }
-
-    return chapters;
+    return calculateYouTubeChapters(chaptersItems);
   }, [items]);
 
   const copyYoutubeChaptersToClipboard = async () => {

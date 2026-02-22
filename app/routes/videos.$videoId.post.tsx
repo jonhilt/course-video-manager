@@ -23,12 +23,22 @@ import { getStandaloneVideoFilePath } from "@/services/standalone-video-files";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FilePreviewModal } from "@/components/file-preview-modal";
 import { AddLinkModal } from "@/components/add-link-modal";
 import { StandaloneFileManagementModal } from "@/components/standalone-file-management-modal";
 import { StandaloneFilePasteModal } from "@/components/standalone-file-paste-modal";
 import { DeleteStandaloneFileModal } from "@/components/delete-standalone-file-modal";
 import { LessonFilePasteModal } from "@/components/lesson-file-paste-modal";
+import { Loader2Icon, SparklesIcon } from "lucide-react";
 
 const POST_TITLE_STORAGE_KEY = (videoId: string) => `post-title-${videoId}`;
 const POST_DESCRIPTION_STORAGE_KEY = (videoId: string) =>
@@ -331,6 +341,96 @@ export default function PostPage(props: Route.ComponentProps) {
   // Lesson file paste modal state
   const [isLessonPasteModalOpen, setIsLessonPasteModalOpen] = useState(false);
 
+  // AI generation state
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+
+  // Confirmation dialog state
+  const [confirmOverwriteField, setConfirmOverwriteField] = useState<
+    "title" | "description" | null
+  >(null);
+  const [pendingGeneratedText, setPendingGeneratedText] = useState<string>("");
+
+  const generateContent = async (
+    mode: "youtube-title" | "youtube-description"
+  ) => {
+    const transcriptEnabled =
+      clipSections.length > 0 ? enabledSections.size > 0 : includeTranscript;
+
+    const response = await fetch(`/api/videos/${videoId}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode,
+        enabledFiles: Array.from(enabledFiles),
+        includeTranscript: transcriptEnabled,
+        enabledSections: Array.from(enabledSections),
+        courseStructure:
+          includeCourseStructure && courseStructure
+            ? courseStructure
+            : undefined,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to generate content");
+    }
+
+    const result = await response.json();
+    return result.text as string;
+  };
+
+  const handleGenerateTitle = async () => {
+    setIsGeneratingTitle(true);
+    try {
+      const generatedText = await generateContent("youtube-title");
+      if (title.trim()) {
+        // Show confirmation dialog
+        setPendingGeneratedText(generatedText);
+        setConfirmOverwriteField("title");
+      } else {
+        setTitle(generatedText);
+      }
+    } catch (error) {
+      console.error("Failed to generate title:", error);
+    } finally {
+      setIsGeneratingTitle(false);
+    }
+  };
+
+  const handleGenerateDescription = async () => {
+    setIsGeneratingDescription(true);
+    try {
+      const generatedText = await generateContent("youtube-description");
+      if (description.trim()) {
+        // Show confirmation dialog
+        setPendingGeneratedText(generatedText);
+        setConfirmOverwriteField("description");
+      } else {
+        setDescription(generatedText);
+      }
+    } catch (error) {
+      console.error("Failed to generate description:", error);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
+  const handleConfirmOverwrite = () => {
+    if (confirmOverwriteField === "title") {
+      setTitle(pendingGeneratedText);
+    } else if (confirmOverwriteField === "description") {
+      setDescription(pendingGeneratedText);
+    }
+    setConfirmOverwriteField(null);
+    setPendingGeneratedText("");
+  };
+
+  const handleCancelOverwrite = () => {
+    setConfirmOverwriteField(null);
+    setPendingGeneratedText("");
+  };
+
   const handleFileClick = (filePath: string) => {
     setPreviewFilePath(filePath);
     setIsPreviewModalOpen(true);
@@ -398,7 +498,27 @@ export default function PostPage(props: Route.ComponentProps) {
         <div className="w-3/4 flex flex-col p-6 overflow-y-auto scrollbar scrollbar-track-transparent scrollbar-thumb-gray-700 hover:scrollbar-thumb-gray-600">
           <div className="max-w-2xl mx-auto w-full space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="title">Title</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateTitle}
+                  disabled={isGeneratingTitle || isGeneratingDescription}
+                >
+                  {isGeneratingTitle ? (
+                    <>
+                      <Loader2Icon className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <SparklesIcon className="h-4 w-4" />
+                      Generate
+                    </>
+                  )}
+                </Button>
+              </div>
               <Input
                 id="title"
                 value={title}
@@ -409,7 +529,27 @@ export default function PostPage(props: Route.ComponentProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="description">Description</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateDescription}
+                  disabled={isGeneratingTitle || isGeneratingDescription}
+                >
+                  {isGeneratingDescription ? (
+                    <>
+                      <Loader2Icon className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <SparklesIcon className="h-4 w-4" />
+                      Generate
+                    </>
+                  )}
+                </Button>
+              </div>
               <Textarea
                 id="description"
                 value={description}
@@ -477,6 +617,30 @@ export default function PostPage(props: Route.ComponentProps) {
           }}
         />
       )}
+
+      {/* Overwrite confirmation dialog */}
+      <Dialog
+        open={confirmOverwriteField !== null}
+        onOpenChange={(open) => {
+          if (!open) handleCancelOverwrite();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Replace existing content?</DialogTitle>
+            <DialogDescription>
+              The {confirmOverwriteField} field already has content. Do you want
+              to replace it with the generated text?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelOverwrite}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmOverwrite}>Replace</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
