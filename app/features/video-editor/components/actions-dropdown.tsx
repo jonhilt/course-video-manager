@@ -21,6 +21,7 @@ import {
   Loader2,
   PencilLineIcon,
   Plus,
+  ScrollTextIcon,
 } from "lucide-react";
 import { type FetcherWithComponents } from "react-router";
 
@@ -63,6 +64,10 @@ export const ActionsDropdown = (props: {
   onRenameVideoClick: () => void;
   /** Callback to reveal video in file system */
   onRevealInFileSystem: () => void;
+  /** Whether log path has been copied (shows checkmark) */
+  isLogPathCopied: boolean;
+  /** Callback to copy log path to clipboard */
+  copyLogPathToClipboard: () => void;
 }) => {
   return (
     <DropdownMenu>
@@ -107,6 +112,20 @@ export const ActionsDropdown = (props: {
             <span className="font-medium">Reveal in File System</span>
             <span className="text-xs text-muted-foreground">
               Open in Windows Explorer
+            </span>
+          </div>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem onSelect={props.copyLogPathToClipboard}>
+          {props.isLogPathCopied ? (
+            <CheckIcon className="w-4 h-4 mr-2" />
+          ) : (
+            <ScrollTextIcon className="w-4 h-4 mr-2" />
+          )}
+          <div className="flex flex-col">
+            <span className="font-medium">Copy Log Path</span>
+            <span className="text-xs text-muted-foreground">
+              Copy operation log file path
             </span>
           </div>
         </DropdownMenuItem>

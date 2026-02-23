@@ -8,6 +8,7 @@
 import {
   handleClipServiceEvent,
   type TtCliAdapter,
+  type LoggerAdapter,
 } from "@/services/clip-service-handler";
 import {
   ClipServiceEventSchema,
@@ -18,6 +19,7 @@ import { DrizzleService } from "@/services/drizzle-service";
 import { withDatabaseDump } from "@/services/dump-service";
 import { runtimeLive } from "@/services/layer";
 import { TotalTypeScriptCLIService } from "@/services/tt-cli-service";
+import { VideoEditorLoggerService } from "@/services/video-editor-logger-service";
 import { Console, Effect, Schema } from "effect";
 import { data } from "react-router";
 import type { Route } from "./+types/api.clip-service";
@@ -42,12 +44,21 @@ export const action = async (args: Route.ActionArgs) => {
         ttCliService.getLatestOBSVideoClips(opts).pipe(runtimeLive.runPromise),
     };
 
+    // Create logger adapter
+    const loggerService = yield* VideoEditorLoggerService;
+    const logger: LoggerAdapter = {
+      log: (videoId, event) => {
+        loggerService.log(videoId, event).pipe(runtimeLive.runPromise);
+      },
+    };
+
     // Use the managed DrizzleService instead of creating a new connection per request
     const db = yield* DrizzleService;
     const result = yield* handleClipServiceEvent(
       db as any,
       event as ClipServiceEvent,
-      ttCli
+      ttCli,
+      logger
     );
 
     return result ?? null;

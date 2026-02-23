@@ -193,6 +193,19 @@ export const VideoPlayerPanel = () => {
   );
   const revealVideoFetcher = useFetcher();
 
+  const [isLogPathCopied, setIsLogPathCopied] = useState(false);
+  const copyLogPathToClipboard = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/videos/${videoId}/log-path`);
+      const logPath = await res.text();
+      await navigator.clipboard.writeText(logPath);
+      setIsLogPathCopied(true);
+      setTimeout(() => setIsLogPathCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy log path:", error);
+    }
+  }, [videoId]);
+
   const [activeTab, setActiveTab] = useState<"suggestions" | "toc">(
     "suggestions"
   );
@@ -332,6 +345,8 @@ export const VideoPlayerPanel = () => {
                     }
                   );
                 }}
+                isLogPathCopied={isLogPathCopied}
+                copyLogPathToClipboard={copyLogPathToClipboard}
               />
             </div>
 

@@ -20,6 +20,7 @@ import {
   type TimelineItem,
 } from "./clip-service";
 import type { DrizzleService } from "./drizzle-service";
+import type { LogEvent } from "./video-editor-logger-service";
 
 // ============================================================================
 // Types
@@ -42,6 +43,17 @@ export interface TtCliAdapter {
     }>;
   }>;
 }
+
+/**
+ * Adapter for VideoEditorLoggerService.
+ * In production, wraps the Effect-based logger service.
+ * In tests, can be a no-op.
+ */
+export interface LoggerAdapter {
+  log: (videoId: string, event: LogEvent) => void;
+}
+
+const noopLogger: LoggerAdapter = { log: () => {} };
 
 // ============================================================================
 // Helper: Windows to WSL path conversion
@@ -189,7 +201,12 @@ const appendClipsAtInsertionPoint = Effect.fn("appendClipsAtInsertionPoint")(
  * @param ttCli - Optional TotalTypeScriptCLI adapter (required for append-from-obs)
  */
 export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
-  function* (db: DrizzleService, event: ClipServiceEvent, ttCli: TtCliAdapter) {
+  function* (
+    db: DrizzleService,
+    event: ClipServiceEvent,
+    ttCli: TtCliAdapter,
+    logger: LoggerAdapter = noopLogger
+  ) {
     switch (event.type) {
       case "create-video": {
         const [video] = yield* Effect.promise(() =>
@@ -227,7 +244,21 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
       }
 
       case "append-clips": {
-        return yield* appendClipsAtInsertionPoint(db, event.input);
+        const result = yield* appendClipsAtInsertionPoint(db, event.input);
+
+        logger.log(event.input.videoId, {
+          type: "clips-appended",
+          videoId: event.input.videoId,
+          insertionPoint: event.input.insertionPoint,
+          clips: event.input.clips.map((c) => ({
+            inputVideo: c.inputVideo,
+            startTime: c.startTime,
+            endTime: c.endTime,
+          })),
+          generatedOrders: result.map((c) => c.order),
+        });
+
+        return result;
       }
 
       case "append-from-obs": {
@@ -269,6 +300,14 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
         );
 
         if (latestOBSVideoClips.clips.length === 0) {
+          logger.log(videoId, {
+            type: "clips-appended-from-obs",
+            videoId,
+            detected: 0,
+            duplicatesSkipped: 0,
+            inserted: 0,
+            clips: [],
+          });
           return [];
         }
 
@@ -290,15 +329,41 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
             )
         );
 
+        const duplicatesSkipped =
+          latestOBSVideoClips.clips.length - clipsToAdd.length;
+
         if (clipsToAdd.length === 0) {
+          logger.log(videoId, {
+            type: "clips-appended-from-obs",
+            videoId,
+            detected: latestOBSVideoClips.clips.length,
+            duplicatesSkipped,
+            inserted: 0,
+            clips: [],
+          });
           return [];
         }
 
-        return yield* appendClipsAtInsertionPoint(db, {
+        const result = yield* appendClipsAtInsertionPoint(db, {
           videoId,
           insertionPoint,
           clips: clipsToAdd,
         });
+
+        logger.log(videoId, {
+          type: "clips-appended-from-obs",
+          videoId,
+          detected: latestOBSVideoClips.clips.length,
+          duplicatesSkipped,
+          inserted: clipsToAdd.length,
+          clips: clipsToAdd.map((c) => ({
+            inputVideo: c.inputVideo,
+            startTime: c.startTime,
+            endTime: c.endTime,
+          })),
+        });
+
+        return result;
       }
 
       case "archive-clips": {
@@ -306,6 +371,21 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
           yield* Effect.promise(() =>
             db.update(clips).set({ archived: true }).where(eq(clips.id, clipId))
           );
+        }
+
+        // We need the videoId for logging — look up from first clip
+        if (event.clipIds.length > 0) {
+          const firstClip = yield* Effect.promise(() =>
+            db.query.clips.findFirst({
+              where: eq(clips.id, event.clipIds[0]!),
+            })
+          );
+          if (firstClip) {
+            logger.log(firstClip.videoId, {
+              type: "clips-archived",
+              clipIds: [...event.clipIds],
+            });
+          }
         }
         return;
       }
@@ -323,6 +403,25 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
               .where(eq(clips.id, clip.id))
           );
         }
+
+        if (event.clips.length > 0) {
+          const firstClip = yield* Effect.promise(() =>
+            db.query.clips.findFirst({
+              where: eq(clips.id, event.clips[0]!.id),
+            })
+          );
+          if (firstClip) {
+            logger.log(firstClip.videoId, {
+              type: "clips-updated",
+              clips: event.clips.map((c) => ({
+                id: c.id,
+                scene: c.scene,
+                profile: c.profile,
+                beatType: c.beatType,
+              })),
+            });
+          }
+        }
         return;
       }
 
@@ -333,6 +432,19 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
             .set({ beatType: event.beatType })
             .where(eq(clips.id, event.clipId))
         );
+
+        const clip = yield* Effect.promise(() =>
+          db.query.clips.findFirst({
+            where: eq(clips.id, event.clipId),
+          })
+        );
+        if (clip) {
+          logger.log(clip.videoId, {
+            type: "beat-updated",
+            clipId: event.clipId,
+            beatType: event.beatType,
+          });
+        }
         return;
       }
 
@@ -382,6 +494,12 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
             .set({ order: newOrder })
             .where(eq(clips.id, event.clipId))
         );
+
+        logger.log(clip.videoId, {
+          type: "clip-reordered",
+          clipId: event.clipId,
+          direction: event.direction,
+        });
         return;
       }
 
@@ -450,6 +568,13 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
           throw new Error("Failed to create clip section");
         }
 
+        logger.log(videoId, {
+          type: "clip-section-created",
+          sectionId: clipSection.id,
+          name,
+          order: order!,
+        });
+
         return clipSection;
       }
 
@@ -499,6 +624,13 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
           throw new Error("Failed to create clip section");
         }
 
+        logger.log(videoId, {
+          type: "clip-section-created",
+          sectionId: clipSection.id,
+          name,
+          order: order!,
+        });
+
         return clipSection;
       }
 
@@ -509,6 +641,19 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
             .set({ name: event.name })
             .where(eq(clipSections.id, event.clipSectionId))
         );
+
+        const section = yield* Effect.promise(() =>
+          db.query.clipSections.findFirst({
+            where: eq(clipSections.id, event.clipSectionId),
+          })
+        );
+        if (section) {
+          logger.log(section.videoId, {
+            type: "clip-section-updated",
+            clipSectionId: event.clipSectionId,
+            name: event.name,
+          });
+        }
         return;
       }
 
@@ -520,6 +665,20 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
               .set({ archived: true })
               .where(eq(clipSections.id, clipSectionId))
           );
+        }
+
+        if (event.clipSectionIds.length > 0) {
+          const firstSection = yield* Effect.promise(() =>
+            db.query.clipSections.findFirst({
+              where: eq(clipSections.id, event.clipSectionIds[0]!),
+            })
+          );
+          if (firstSection) {
+            logger.log(firstSection.videoId, {
+              type: "clip-sections-archived",
+              clipSectionIds: [...event.clipSectionIds],
+            });
+          }
         }
         return;
       }
@@ -571,6 +730,12 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
             .set({ order: newOrder })
             .where(eq(clipSections.id, event.clipSectionId))
         );
+
+        logger.log(clipSection.videoId, {
+          type: "clip-section-reordered",
+          clipSectionId: event.clipSectionId,
+          direction: event.direction,
+        });
         return;
       }
 
@@ -678,6 +843,13 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
           }
         }
 
+        logger.log(sourceVideoId, {
+          type: "video-created-from-selection",
+          sourceVideoId,
+          clipIds: [...clipIds],
+          newVideoId: newVideo.id,
+        });
+
         return newVideo;
       }
 
@@ -702,10 +874,13 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
  */
 export function createDirectClipService(
   db: DrizzleService,
-  ttCli: TtCliAdapter
+  ttCli: TtCliAdapter,
+  logger?: LoggerAdapter
 ): ClipService {
   const send = (event: ClipServiceEvent): Promise<unknown> => {
-    return Effect.runPromise(handleClipServiceEvent(db, event, ttCli));
+    return Effect.runPromise(
+      handleClipServiceEvent(db, event, ttCli, logger ?? noopLogger)
+    );
   };
 
   return createClipService(send);
