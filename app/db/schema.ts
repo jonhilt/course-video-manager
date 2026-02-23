@@ -5,6 +5,7 @@ import {
   customType,
   doublePrecision,
   integer,
+  jsonb,
   pgTableCreator,
   text,
   timestamp,
@@ -197,6 +198,7 @@ export const videosRelations = relations(videos, ({ one, many }) => ({
   lesson: one(lessons, { fields: [videos.lessonId], references: [lessons.id] }),
   clips: many(clips),
   clipSections: many(clipSections),
+  thumbnails: many(thumbnails),
 }));
 
 export const lessonsRelations = relations(lessons, ({ one, many }) => ({
@@ -362,6 +364,33 @@ export const links = createTable("link", {
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Thumbnails table for layered thumbnail compositing
+export const thumbnails = createTable("thumbnail", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  videoId: varchar("video_id", { length: 255 })
+    .references(() => videos.id, { onDelete: "cascade" })
+    .notNull(),
+  layers: jsonb("layers").notNull(),
+  filePath: text("file_path"),
+  selectedForUpload: boolean("selected_for_upload").notNull().default(false),
+  createdAt: timestamp("created_at", {
+    mode: "date",
+    withTimezone: true,
+  })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const thumbnailsRelations = relations(thumbnails, ({ one }) => ({
+  video: one(videos, {
+    fields: [thumbnails.videoId],
+    references: [videos.id],
+  }),
+}));
 
 // export const chats = createTable("chat", {
 //   id: varchar("id", { length: 255 })

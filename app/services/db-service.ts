@@ -10,6 +10,7 @@ import {
   repos,
   repoVersions,
   sections,
+  thumbnails,
   videos,
   youtubeAuth,
 } from "@/db/schema";
@@ -2334,6 +2335,16 @@ export class DBFunctionsService extends Effect.Service<DBFunctionsService>()(
         deleteYoutubeAuth: Effect.fn("deleteYoutubeAuth")(function* () {
           yield* makeDbCall(() => db.delete(youtubeAuth));
           return { success: true };
+        }),
+        getThumbnailsByVideoId: Effect.fn("getThumbnailsByVideoId")(function* (
+          videoId: string
+        ) {
+          return yield* makeDbCall(() =>
+            db.query.thumbnails.findMany({
+              where: eq(thumbnails.videoId, videoId),
+              orderBy: desc(thumbnails.createdAt),
+            })
+          );
         }),
       };
     }),
