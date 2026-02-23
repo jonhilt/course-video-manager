@@ -52,32 +52,37 @@ export function getLeftAlignedPosition(
 
 /**
  * Composites all thumbnail layers onto the canvas and returns a data URL.
- * Returns null if the canvas context is unavailable.
+ * Returns null if the canvas context is unavailable or if the render was
+ * cancelled (via signal.cancelled) before completion.
  */
 export async function composeThumbnailLayers(
   canvas: HTMLCanvasElement,
-  layers: ThumbnailLayers
+  layers: ThumbnailLayers,
+  signal?: { cancelled: boolean }
 ): Promise<string | null> {
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
+  // Layer 1: Background photo (positioned to match cutout for hand-through-frame illusion)
+  const bgImg = await loadImage(layers.capturedPhoto);
+  if (signal?.cancelled) return null;
+
   // Clear canvas to black (covers gaps when image is offset)
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-  // Layer 1: Background photo (positioned to match cutout for hand-through-frame illusion)
-  const bgImg = await loadImage(layers.capturedPhoto);
   drawScaledLayer(ctx, bgImg, layers.cutoutPosition);
 
   // Layer 2: Diagram (scaled to full height, positioned horizontally)
   if (layers.diagramImage) {
     const diagImg = await loadImage(layers.diagramImage);
+    if (signal?.cancelled) return null;
     drawScaledLayer(ctx, diagImg, layers.diagramPosition);
   }
 
   // Layer 3: Cutout (scaled to full height, positioned horizontally)
   if (layers.cutoutImage) {
     const cutoutImg = await loadImage(layers.cutoutImage);
+    if (signal?.cancelled) return null;
     drawScaledLayer(ctx, cutoutImg, layers.cutoutPosition);
   }
 

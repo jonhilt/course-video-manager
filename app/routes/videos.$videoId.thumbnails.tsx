@@ -87,15 +87,27 @@ export default function ThumbnailsPage({ loaderData }: Route.ComponentProps) {
       return;
     }
 
-    composeThumbnailLayers(canvas, {
-      capturedPhoto: state.capturedPhoto,
-      diagramImage: state.diagramImage,
-      diagramPosition: state.diagramPosition,
-      cutoutImage: state.cutoutImage,
-      cutoutPosition: state.cutoutPosition,
-    }).then((dataUrl) => {
-      dispatch({ type: "preview-updated", dataUrl });
+    const signal = { cancelled: false };
+
+    composeThumbnailLayers(
+      canvas,
+      {
+        capturedPhoto: state.capturedPhoto,
+        diagramImage: state.diagramImage,
+        diagramPosition: state.diagramPosition,
+        cutoutImage: state.cutoutImage,
+        cutoutPosition: state.cutoutPosition,
+      },
+      signal
+    ).then((dataUrl) => {
+      if (!signal.cancelled) {
+        dispatch({ type: "preview-updated", dataUrl });
+      }
     });
+
+    return () => {
+      signal.cancelled = true;
+    };
   }, [
     state.capturedPhoto,
     state.diagramImage,
