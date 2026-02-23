@@ -424,14 +424,24 @@ export default function PostPage(props: Route.ComponentProps) {
   const [confirmOverwriteCaption, setConfirmOverwriteCaption] = useState(false);
   const [pendingGeneratedCaption, setPendingGeneratedCaption] = useState("");
 
-  // Buffer posted status from localStorage
-  const bufferPostedData =
-    typeof localStorage !== "undefined"
-      ? localStorage.getItem(BUFFER_POSTED_STORAGE_KEY(videoId))
-      : null;
-  const bufferPostedInfo = bufferPostedData
-    ? (JSON.parse(bufferPostedData) as { timestamp: string; caption: string })
-    : null;
+  // Buffer posted status from localStorage (hydration-safe: read in useEffect)
+  const [bufferPostedInfo, setBufferPostedInfo] = useState<{
+    timestamp: string;
+    caption: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem(BUFFER_POSTED_STORAGE_KEY(videoId));
+      if (stored) {
+        try {
+          setBufferPostedInfo(JSON.parse(stored));
+        } catch {
+          // Ignore malformed data
+        }
+      }
+    }
+  }, [videoId]);
 
   // Upload state from global context
   const {
@@ -445,11 +455,20 @@ export default function PostPage(props: Route.ComponentProps) {
     (u) => u.videoId === videoId
   );
 
-  // Historical youtubeVideoId from localStorage (persists across page refreshes)
-  const storedYoutubeVideoId =
-    typeof localStorage !== "undefined"
-      ? (localStorage.getItem(YOUTUBE_VIDEO_ID_STORAGE_KEY(videoId)) ?? "")
-      : "";
+  // Historical youtubeVideoId from localStorage (hydration-safe: read in useEffect)
+  const [storedYoutubeVideoId, setStoredYoutubeVideoId] = useState("");
+
+  // Load storedYoutubeVideoId from localStorage on mount
+  useEffect(() => {
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem(
+        YOUTUBE_VIDEO_ID_STORAGE_KEY(videoId)
+      );
+      if (stored) {
+        setStoredYoutubeVideoId(stored);
+      }
+    }
+  }, [videoId]);
 
   // Save youtubeVideoId to localStorage when upload succeeds in global context
   useEffect(() => {
@@ -458,6 +477,7 @@ export default function PostPage(props: Route.ComponentProps) {
         YOUTUBE_VIDEO_ID_STORAGE_KEY(videoId),
         activeUpload.youtubeVideoId
       );
+      setStoredYoutubeVideoId(activeUpload.youtubeVideoId);
     }
   }, [activeUpload?.status, activeUpload?.youtubeVideoId, videoId]);
 
@@ -597,13 +617,15 @@ export default function PostPage(props: Route.ComponentProps) {
   // Save buffer posted status to localStorage on success
   useEffect(() => {
     if (activeSocialUpload?.status === "success") {
+      const info = {
+        timestamp: new Date().toISOString(),
+        caption: socialCaption,
+      };
       localStorage.setItem(
         BUFFER_POSTED_STORAGE_KEY(videoId),
-        JSON.stringify({
-          timestamp: new Date().toISOString(),
-          caption: socialCaption,
-        })
+        JSON.stringify(info)
       );
+      setBufferPostedInfo(info);
     }
   }, [activeSocialUpload?.status, videoId, socialCaption]);
 
