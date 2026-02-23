@@ -27,6 +27,7 @@ export const action = async (args: Route.ActionArgs) => {
     const {
       videoId,
       imageDataUrl,
+      backgroundPhotoDataUrl,
       diagramDataUrl,
       diagramPosition,
       cutoutDataUrl,
@@ -62,10 +63,15 @@ export const action = async (args: Route.ActionArgs) => {
     // Write composite PNG to disk
     yield* fs.writeFile(filePath, compositeBytes);
 
-    // Also save the background photo source image
+    // Save the background photo source image (original captured photo, not the composite)
     const bgFilename = `thumbnail-${thumbnailId}-bg.png`;
     const bgFilePath = getStandaloneVideoFilePath(videoId, bgFilename);
-    yield* fs.writeFile(bgFilePath, compositeBytes);
+    const bgBytes =
+      typeof backgroundPhotoDataUrl === "string" &&
+      backgroundPhotoDataUrl.startsWith("data:")
+        ? decodeDataUrl(backgroundPhotoDataUrl)
+        : compositeBytes;
+    yield* fs.writeFile(bgFilePath, bgBytes);
 
     // Save diagram image if provided
     let diagramLayer = null;

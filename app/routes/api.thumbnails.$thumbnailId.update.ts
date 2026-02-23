@@ -27,6 +27,7 @@ export const action = async (args: Route.ActionArgs) => {
   return Effect.gen(function* () {
     const {
       imageDataUrl,
+      backgroundPhotoDataUrl,
       diagramDataUrl,
       diagramPosition,
       cutoutDataUrl,
@@ -56,12 +57,14 @@ export const action = async (args: Route.ActionArgs) => {
       yield* fs.writeFile(existing.filePath, compositeBytes);
     }
 
-    // Overwrite background photo
+    // Overwrite background photo (use original captured photo, not the composite)
     if (existingLayers.backgroundPhoto?.filePath) {
-      yield* fs.writeFile(
-        existingLayers.backgroundPhoto.filePath,
-        compositeBytes
-      );
+      const bgBytes =
+        typeof backgroundPhotoDataUrl === "string" &&
+        backgroundPhotoDataUrl.startsWith("data:")
+          ? decodeDataUrl(backgroundPhotoDataUrl)
+          : compositeBytes;
+      yield* fs.writeFile(existingLayers.backgroundPhoto.filePath, bgBytes);
     }
 
     // Handle diagram layer

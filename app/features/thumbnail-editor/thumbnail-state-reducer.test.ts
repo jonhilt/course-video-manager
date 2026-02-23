@@ -301,6 +301,7 @@ describe("thumbnailStateReducer", () => {
         type: "save-thumbnail",
         videoId: "v1",
         compositeDataUrl: "composite",
+        capturedPhoto: "photo",
         diagramImage: "diagram",
         diagramPosition: 60,
         cutoutImage: "cutout",

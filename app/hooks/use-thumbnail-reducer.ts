@@ -55,6 +55,7 @@ export function useThumbnailReducer(thumbnails: Thumbnail[]) {
       const payload = {
         videoId: effect.videoId,
         imageDataUrl: effect.compositeDataUrl,
+        backgroundPhotoDataUrl: effect.capturedPhoto,
         diagramDataUrl: effect.diagramImage,
         diagramPosition: effect.diagramImage
           ? effect.diagramPosition

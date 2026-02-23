@@ -64,6 +64,7 @@ export namespace thumbnailStateReducer {
         type: "save-thumbnail";
         videoId: string;
         compositeDataUrl: string;
+        capturedPhoto: string;
         diagramImage: string | null;
         diagramPosition: number;
         cutoutImage: string | null;
@@ -164,6 +165,7 @@ export const thumbnailStateReducer: EffectReducer<
         type: "save-thumbnail",
         videoId: action.videoId,
         compositeDataUrl: action.compositeDataUrl,
+        capturedPhoto: state.capturedPhoto,
         diagramImage: state.diagramImage,
         diagramPosition: state.diagramPosition,
         cutoutImage: state.cutoutImage,
