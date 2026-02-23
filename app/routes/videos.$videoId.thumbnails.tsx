@@ -21,9 +21,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CaptureCameraModal } from "@/components/capture-camera-modal";
 import { useThumbnailReducer } from "@/hooks/use-thumbnail-reducer";
-
-const CANVAS_WIDTH = 1280;
-const CANVAS_HEIGHT = 720;
+import {
+  composeThumbnailLayers,
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+} from "@/features/thumbnail-editor/canvas-compositor";
 
 export const loader = async (args: Route.LoaderArgs) => {
   const { videoId } = args.params;
@@ -40,37 +42,6 @@ export const loader = async (args: Route.LoaderArgs) => {
     runtimeLive.runPromise
   );
 };
-
-/**
- * Draws an image onto a canvas using crop-to-cover (fills entire canvas, cropping excess).
- */
-function drawCropToCover(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  canvasWidth: number,
-  canvasHeight: number
-) {
-  const imgAspect = img.naturalWidth / img.naturalHeight;
-  const canvasAspect = canvasWidth / canvasHeight;
-
-  let sx: number, sy: number, sw: number, sh: number;
-
-  if (imgAspect > canvasAspect) {
-    // Image is wider — crop sides
-    sh = img.naturalHeight;
-    sw = sh * canvasAspect;
-    sx = (img.naturalWidth - sw) / 2;
-    sy = 0;
-  } else {
-    // Image is taller — crop top/bottom
-    sw = img.naturalWidth;
-    sh = sw / canvasAspect;
-    sx = 0;
-    sy = (img.naturalHeight - sh) / 2;
-  }
-
-  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvasWidth, canvasHeight);
-}
 
 function YouTubePreview({
   src,
@@ -108,66 +79,22 @@ export default function ThumbnailsPage({ loaderData }: Route.ComponentProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Draw all layers onto the canvas compositor
-  const renderCanvas = useCallback(() => {
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !state.capturedPhoto) {
       dispatch({ type: "preview-updated", dataUrl: null });
       return;
     }
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const updatePreview = () => {
-      dispatch({
-        type: "preview-updated",
-        dataUrl: canvas.toDataURL("image/png"),
-      });
-    };
-
-    // Helper to draw Layer 3 (cutout) after earlier layers finish
-    const drawCutout = () => {
-      if (!state.cutoutImage) {
-        updatePreview();
-        return;
-      }
-      const cutImg = new Image();
-      cutImg.onload = () => {
-        const scale = CANVAS_HEIGHT / cutImg.naturalHeight;
-        const scaledWidth = cutImg.naturalWidth * scale;
-        const maxOffset = CANVAS_WIDTH - scaledWidth;
-        const x = maxOffset * (state.cutoutPosition / 100);
-        ctx.drawImage(cutImg, x, 0, scaledWidth, CANVAS_HEIGHT);
-        updatePreview();
-      };
-      cutImg.src = state.cutoutImage;
-    };
-
-    // Layer 1: Background photo (crop-to-cover)
-    const bgImg = new Image();
-    bgImg.onload = () => {
-      drawCropToCover(ctx, bgImg, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-      // Layer 2: Diagram (scaled to full height, positioned horizontally)
-      if (state.diagramImage) {
-        const diagImg = new Image();
-        diagImg.onload = () => {
-          const scale = CANVAS_HEIGHT / diagImg.naturalHeight;
-          const scaledWidth = diagImg.naturalWidth * scale;
-          const maxOffset = CANVAS_WIDTH - scaledWidth;
-          const x = maxOffset * (state.diagramPosition / 100);
-          ctx.drawImage(diagImg, x, 0, scaledWidth, CANVAS_HEIGHT);
-
-          // Layer 3: Cutout (on top of diagram)
-          drawCutout();
-        };
-        diagImg.src = state.diagramImage;
-      } else {
-        // No diagram, draw cutout directly on top of background
-        drawCutout();
-      }
-    };
-    bgImg.src = state.capturedPhoto;
+    composeThumbnailLayers(canvas, {
+      capturedPhoto: state.capturedPhoto,
+      diagramImage: state.diagramImage,
+      diagramPosition: state.diagramPosition,
+      cutoutImage: state.cutoutImage,
+      cutoutPosition: state.cutoutPosition,
+    }).then((dataUrl) => {
+      dispatch({ type: "preview-updated", dataUrl });
+    });
   }, [
     state.capturedPhoto,
     state.diagramImage,
@@ -176,10 +103,6 @@ export default function ThumbnailsPage({ loaderData }: Route.ComponentProps) {
     state.cutoutPosition,
     dispatch,
   ]);
-
-  useEffect(() => {
-    renderCanvas();
-  }, [renderCanvas]);
 
   // Handle clipboard paste for diagram images
   const handlePaste = useCallback(
