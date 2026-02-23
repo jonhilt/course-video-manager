@@ -27,6 +27,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useState } from "react";
+import { UploadProvider } from "@/features/upload-manager/upload-context";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -66,7 +67,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  return (
+    <UploadProvider>
+      <Outlet />
+    </UploadProvider>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
