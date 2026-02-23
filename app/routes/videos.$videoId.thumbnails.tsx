@@ -14,9 +14,18 @@ import {
   ScissorsIcon,
   AlertCircleIcon,
   ArrowLeftIcon,
+  DownloadIcon,
+  PencilIcon,
 } from "lucide-react";
 import { useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Label } from "@/components/ui/label";
 import { CaptureCameraModal } from "@/components/capture-camera-modal";
 import { useThumbnailReducer } from "@/hooks/use-thumbnail-reducer";
@@ -201,51 +210,81 @@ export default function ThumbnailsPage({ loaderData }: Route.ComponentProps) {
           </h3>
           <div className="space-y-2">
             {thumbnails.map((thumbnail) => (
-              <div
-                key={thumbnail.id}
-                className={`group relative rounded-lg overflow-hidden cursor-pointer transition-all ${
-                  state.editingThumbnailId === thumbnail.id
-                    ? "ring-2 ring-blue-500 border border-blue-500"
-                    : "border hover:border-gray-400"
-                }`}
-                onClick={() =>
-                  dispatch({
-                    type: "edit-requested",
-                    thumbnailId: thumbnail.id,
-                  })
-                }
-              >
-                {thumbnail.filePath ? (
-                  <img
-                    src={`/api/thumbnails/${thumbnail.id}/image`}
-                    alt="Thumbnail"
-                    className="w-full aspect-video object-cover"
-                  />
-                ) : (
-                  <div className="w-full aspect-video bg-gray-800 flex items-center justify-center text-gray-500 text-xs">
-                    Not rendered
+              <ContextMenu key={thumbnail.id}>
+                <ContextMenuTrigger asChild>
+                  <div
+                    className={`group relative rounded-lg overflow-hidden cursor-pointer transition-all ${
+                      state.editingThumbnailId === thumbnail.id
+                        ? "ring-2 ring-blue-500 border border-blue-500"
+                        : "border hover:border-gray-400"
+                    }`}
+                    onClick={() =>
+                      dispatch({
+                        type: "edit-requested",
+                        thumbnailId: thumbnail.id,
+                      })
+                    }
+                  >
+                    {thumbnail.filePath ? (
+                      <img
+                        src={`/api/thumbnails/${thumbnail.id}/image`}
+                        alt="Thumbnail"
+                        className="w-full aspect-video object-cover"
+                      />
+                    ) : (
+                      <div className="w-full aspect-video bg-gray-800 flex items-center justify-center text-gray-500 text-xs">
+                        Not rendered
+                      </div>
+                    )}
+                    {state.loadingEdit === thumbnail.id && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                        <Loader2Icon className="size-4 animate-spin text-white" />
+                      </div>
+                    )}
+                    {state.deleting === thumbnail.id && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                        <Loader2Icon className="size-4 animate-spin text-white" />
+                      </div>
+                    )}
                   </div>
-                )}
-                {state.loadingEdit === thumbnail.id && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                    <Loader2Icon className="size-4 animate-spin text-white" />
-                  </div>
-                )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(thumbnail.id);
-                  }}
-                  disabled={state.deleting === thumbnail.id}
-                  className="absolute top-1 right-1 rounded bg-black/60 p-1 text-gray-300 opacity-0 transition-opacity hover:bg-red-600 hover:text-white group-hover:opacity-100 disabled:opacity-50"
-                >
-                  {state.deleting === thumbnail.id ? (
-                    <Loader2Icon className="size-3 animate-spin" />
-                  ) : (
-                    <Trash2Icon className="size-3" />
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  {thumbnail.filePath && (
+                    <>
+                      <ContextMenuItem
+                        onClick={() => {
+                          const a = document.createElement("a");
+                          a.href = `/api/thumbnails/${thumbnail.id}/image`;
+                          a.download = `thumbnail-${thumbnail.id}.png`;
+                          a.click();
+                        }}
+                      >
+                        <DownloadIcon className="size-4" />
+                        Download
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                    </>
                   )}
-                </button>
-              </div>
+                  <ContextMenuItem
+                    onClick={() =>
+                      dispatch({
+                        type: "edit-requested",
+                        thumbnailId: thumbnail.id,
+                      })
+                    }
+                  >
+                    <PencilIcon className="size-4" />
+                    Edit
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    variant="destructive"
+                    onClick={() => handleDelete(thumbnail.id)}
+                  >
+                    <Trash2Icon className="size-4" />
+                    Delete
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))}
           </div>
         </div>
