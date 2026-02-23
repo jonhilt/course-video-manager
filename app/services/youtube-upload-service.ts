@@ -191,3 +191,58 @@ export const uploadVideoToYouTube = (opts: {
 
     return { videoId: result.id };
   });
+
+/**
+ * Set a custom thumbnail on a YouTube video using the thumbnails.set endpoint.
+ * Reads the PNG file from disk and uploads it as the video's thumbnail.
+ */
+export const setYouTubeThumbnail = (opts: {
+  accessToken: string;
+  youtubeVideoId: string;
+  thumbnailFilePath: string;
+}) =>
+  Effect.gen(function* () {
+    const fileBuffer = yield* Effect.tryPromise({
+      try: () => fs.promises.readFile(opts.thumbnailFilePath),
+      catch: () =>
+        new YouTubeUploadError({
+          message: `Thumbnail file not found: ${opts.thumbnailFilePath}`,
+          code: "thumbnail_file_not_found",
+        }),
+    });
+
+    yield* Effect.tryPromise({
+      try: async () => {
+        const res = await fetch(
+          `https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${encodeURIComponent(opts.youtubeVideoId)}`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${opts.accessToken}`,
+              "Content-Type": "image/png",
+              "Content-Length": fileBuffer.length.toString(),
+            },
+            body: fileBuffer,
+          }
+        );
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(
+            `Failed to set thumbnail (${res.status}): ${errorText}`
+          );
+        }
+
+        return await res.json();
+      },
+      catch: (e) =>
+        new YouTubeUploadError({
+          message: e instanceof Error ? e.message : "Failed to set thumbnail",
+          code: "set_thumbnail_failed",
+        }),
+    });
+
+    yield* Effect.logInfo(
+      `YouTube thumbnail set for video ${opts.youtubeVideoId}`
+    );
+  });

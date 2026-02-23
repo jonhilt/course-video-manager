@@ -1,6 +1,10 @@
 import { getVideoPath } from "@/lib/get-video";
+import { DBFunctionsService } from "@/services/db-service";
 import { getValidAccessToken } from "@/services/youtube-auth-service";
-import { uploadVideoToYouTube } from "@/services/youtube-upload-service";
+import {
+  setYouTubeThumbnail,
+  uploadVideoToYouTube,
+} from "@/services/youtube-upload-service";
 import { runtimeLive } from "@/services/layer";
 import { Effect } from "effect";
 import type { Route } from "./+types/api.videos.$videoId.upload";
@@ -33,6 +37,7 @@ export const action = async (args: Route.ActionArgs) => {
       };
 
       const program = Effect.gen(function* () {
+        const db = yield* DBFunctionsService;
         const accessToken = yield* getValidAccessToken;
 
         const result = yield* uploadVideoToYouTube({
@@ -45,6 +50,18 @@ export const action = async (args: Route.ActionArgs) => {
             sendEvent("progress", { percentage });
           },
         });
+
+        // Set selected thumbnail on YouTube if one exists
+        const thumbnails = yield* db.getThumbnailsByVideoId(videoId);
+        const selected = thumbnails.find((t) => t.selectedForUpload);
+
+        if (selected?.filePath) {
+          yield* setYouTubeThumbnail({
+            accessToken,
+            youtubeVideoId: result.videoId,
+            thumbnailFilePath: selected.filePath,
+          });
+        }
 
         sendEvent("complete", { videoId: result.videoId });
       });
