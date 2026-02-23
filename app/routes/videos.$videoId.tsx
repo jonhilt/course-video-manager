@@ -3,7 +3,13 @@ import { cn } from "@/lib/utils";
 import { DBFunctionsService } from "@/services/db-service";
 import { runtimeLive } from "@/services/layer";
 import { Console, Effect } from "effect";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  VideoIcon,
+  PenIcon,
+  SendIcon,
+} from "lucide-react";
 import { data, Link, Outlet, useLocation } from "react-router";
 import type { Route } from "./+types/videos.$videoId";
 
@@ -59,10 +65,15 @@ export const loader = async (args: Route.LoaderArgs) => {
 
 type Tab = "edit" | "write" | "post";
 
-const tabs: { id: Tab; label: string; path: string }[] = [
-  { id: "edit", label: "Edit Video", path: "edit" },
-  { id: "write", label: "Write Article", path: "write" },
-  { id: "post", label: "Post to YouTube", path: "post" },
+const tabs: {
+  id: Tab;
+  label: string;
+  path: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { id: "edit", label: "Video", path: "edit", icon: VideoIcon },
+  { id: "write", label: "Write", path: "write", icon: PenIcon },
+  { id: "post", label: "Post", path: "post", icon: SendIcon },
 ];
 
 export default function VideoLayout({ loaderData }: Route.ComponentProps) {
@@ -120,12 +131,13 @@ export default function VideoLayout({ loaderData }: Route.ComponentProps) {
                 key={tab.id}
                 to={`/videos/${videoId}/${tab.path}`}
                 className={cn(
-                  "px-3 py-1.5 text-sm font-medium rounded transition-colors",
+                  "px-3 py-1.5 text-sm font-medium rounded transition-colors flex items-center gap-1.5",
                   activeTab === tab.id
                     ? "bg-gray-700 text-white"
                     : "text-gray-400 hover:text-gray-200"
                 )}
               >
+                <tab.icon className="size-4" />
                 {tab.label}
               </Link>
             ))}
