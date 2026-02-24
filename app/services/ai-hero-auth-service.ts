@@ -35,6 +35,7 @@ export const requestDeviceCode = Effect.gen(function* () {
         device_code: string;
         user_code: string;
         verification_uri: string;
+        verification_uri_complete: string;
         expires_in: number;
         interval: number;
       }>;
@@ -65,13 +66,18 @@ export const pollForToken = (deviceCode: string) =>
 
       const result = yield* Effect.tryPromise({
         try: async () => {
+          const body = new URLSearchParams();
+          body.set("device_code", deviceCode);
+          body.set(
+            "grant_type",
+            "urn:ietf:params:oauth:grant-type:device_code"
+          );
           const res = await fetch(`${baseUrl}/oauth/token`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-              device_code: deviceCode,
-            }),
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: body.toString(),
           });
 
           const data = await res.json();

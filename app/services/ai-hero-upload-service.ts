@@ -19,7 +19,7 @@ const getSignedUploadUrl = (opts: {
   Effect.tryPromise({
     try: async () => {
       const res = await fetch(
-        `${opts.baseUrl}/api/(content)/uploads/signed-url?objectName=${encodeURIComponent(opts.objectName)}`,
+        `${opts.baseUrl}/api/uploads/signed-url?objectName=${encodeURIComponent(opts.objectName)}`,
         {
           headers: {
             Authorization: `Bearer ${opts.accessToken}`,
@@ -53,45 +53,30 @@ const uploadFileToS3 = (opts: {
   signedUrl: string;
   filePath: string;
   fileSize: number;
-  onProgress: (percentage: number) => void;
 }) =>
-  Effect.gen(function* () {
-    opts.onProgress(0);
+  Effect.tryPromise({
+    try: async () => {
+      const fileBuffer = await fs.promises.readFile(opts.filePath);
 
-    // Read entire file and upload via PUT to signed URL
-    const fileBuffer = yield* Effect.tryPromise({
-      try: () => fs.promises.readFile(opts.filePath),
-      catch: () =>
-        new AiHeroUploadError({
-          message: `Failed to read video file: ${opts.filePath}`,
-          code: "file_read_error",
-        }),
-    });
+      const res = await fetch(opts.signedUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "video/mp4",
+          "Content-Length": opts.fileSize.toString(),
+        },
+        body: fileBuffer,
+      });
 
-    yield* Effect.tryPromise({
-      try: async () => {
-        const res = await fetch(opts.signedUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "video/mp4",
-            "Content-Length": opts.fileSize.toString(),
-          },
-          body: fileBuffer,
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`S3 upload failed (${res.status}): ${errorText}`);
-        }
-      },
-      catch: (e) =>
-        new AiHeroUploadError({
-          message: e instanceof Error ? e.message : "S3 upload failed",
-          code: "s3_upload_failed",
-        }),
-    });
-
-    opts.onProgress(100);
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`S3 upload failed (${res.status}): ${errorText}`);
+      }
+    },
+    catch: (e) =>
+      new AiHeroUploadError({
+        message: e instanceof Error ? e.message : "S3 upload failed",
+        code: "s3_upload_failed",
+      }),
   });
 
 /**
@@ -105,7 +90,7 @@ const createPost = (opts: {
 }) =>
   Effect.tryPromise({
     try: async () => {
-      const res = await fetch(`${opts.baseUrl}/api/(content)/posts`, {
+      const res = await fetch(`${opts.baseUrl}/api/posts`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${opts.accessToken}`,
@@ -143,15 +128,20 @@ const triggerVideoProcessing = (opts: {
 }) =>
   Effect.tryPromise({
     try: async () => {
-      const res = await fetch(`${opts.baseUrl}/api/(content)/uploads/new`, {
+      const res = await fetch(`${opts.baseUrl}/api/uploads/new`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${opts.accessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          url: opts.s3Url,
-          parentResourceId: opts.postId,
+          file: {
+            url: opts.s3Url,
+            name: opts.s3Url.split("/").pop() ?? "video.mp4",
+          },
+          metadata: {
+            parentResourceId: opts.postId,
+          },
         }),
       });
 
@@ -177,13 +167,15 @@ const updatePost = (opts: {
   baseUrl: string;
   accessToken: string;
   postId: string;
+  title: string;
+  slug: string;
   body: string;
   description: string;
 }) =>
   Effect.tryPromise({
     try: async () => {
       const res = await fetch(
-        `${opts.baseUrl}/api/(content)/posts?id=${encodeURIComponent(opts.postId)}&action=save`,
+        `${opts.baseUrl}/api/posts?id=${encodeURIComponent(opts.postId)}&action=save`,
         {
           method: "PUT",
           headers: {
@@ -191,8 +183,14 @@ const updatePost = (opts: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            body: opts.body,
-            description: opts.description,
+            id: opts.postId,
+            fields: {
+              title: opts.title,
+              slug: opts.slug,
+              body: opts.body,
+              description: opts.description,
+            },
+            tags: [],
           }),
         }
       );
@@ -220,12 +218,14 @@ const publishPost = (opts: {
   Effect.tryPromise({
     try: async () => {
       const res = await fetch(
-        `${opts.baseUrl}/api/(content)/posts?id=${encodeURIComponent(opts.postId)}&action=publish`,
+        `${opts.baseUrl}/api/posts?id=${encodeURIComponent(opts.postId)}&action=publish`,
         {
           method: "PUT",
           headers: {
             Authorization: `Bearer ${opts.accessToken}`,
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify({}),
         }
       );
 
@@ -256,7 +256,6 @@ export const postToAiHero = (opts: {
   title: string;
   body: string;
   description: string;
-  onProgress: (percentage: number) => void;
 }) =>
   Effect.gen(function* () {
     const baseUrl = yield* Config.string("AI_HERO_BASE_URL");
@@ -282,16 +281,12 @@ export const postToAiHero = (opts: {
       objectName,
     });
 
-    // Derive the S3 URL (the signed URL without query params)
-    const s3Url = signedUrl.split("?")[0]!;
-
     // Step 2: Upload video to S3
     yield* Effect.logInfo("Uploading video to S3");
     yield* uploadFileToS3({
       signedUrl,
       filePath: opts.filePath,
       fileSize,
-      onProgress: opts.onProgress,
     });
 
     // Step 3: Create post
@@ -303,11 +298,12 @@ export const postToAiHero = (opts: {
     });
 
     // Step 4: Trigger video processing
+    // Send the full signed URL (not stripped) so Mux can download from private S3
     yield* Effect.logInfo("Triggering video processing");
     yield* triggerVideoProcessing({
       baseUrl,
       accessToken,
-      s3Url,
+      s3Url: signedUrl,
       postId: post.id,
     });
 
@@ -317,6 +313,8 @@ export const postToAiHero = (opts: {
       baseUrl,
       accessToken,
       postId: post.id,
+      title: opts.title,
+      slug: post.slug,
       body: opts.body,
       description: opts.description,
     });

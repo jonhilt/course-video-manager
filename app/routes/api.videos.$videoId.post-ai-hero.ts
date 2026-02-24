@@ -33,9 +33,6 @@ export const action = async (args: Route.ActionArgs) => {
           title,
           body: postBody ?? "",
           description: description ?? "",
-          onProgress: (percentage) => {
-            sendEvent("progress", { percentage });
-          },
         });
 
         sendEvent("complete", { slug: result.slug });

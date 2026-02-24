@@ -12,7 +12,7 @@ export const action = async () => {
     return Response.json({
       deviceCode: result.device_code,
       userCode: result.user_code,
-      verificationUri: result.verification_uri,
+      verificationUri: result.verification_uri_complete,
       expiresIn: result.expires_in,
       interval: result.interval,
     });
