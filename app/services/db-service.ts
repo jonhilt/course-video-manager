@@ -12,6 +12,7 @@ import {
   sections,
   thumbnails,
   videos,
+  aiHeroAuth,
   youtubeAuth,
 } from "@/db/schema";
 import {
@@ -2334,6 +2335,50 @@ export class DBFunctionsService extends Effect.Service<DBFunctionsService>()(
          */
         deleteYoutubeAuth: Effect.fn("deleteYoutubeAuth")(function* () {
           yield* makeDbCall(() => db.delete(youtubeAuth));
+          return { success: true };
+        }),
+        // AI Hero OAuth token methods
+        /**
+         * Get the current AI Hero auth token (single-user design).
+         * Returns null if not authenticated.
+         */
+        getAiHeroAuth: Effect.fn("getAiHeroAuth")(function* () {
+          const auth = yield* makeDbCall(() => db.query.aiHeroAuth.findFirst());
+          return auth ?? null;
+        }),
+        /**
+         * Upsert AI Hero auth token. Deletes any existing token and inserts a new one.
+         * Single-user design: only one token is stored at a time.
+         */
+        upsertAiHeroAuth: Effect.fn("upsertAiHeroAuth")(function* (params: {
+          accessToken: string;
+          userId: string;
+        }) {
+          yield* makeDbCall(() => db.delete(aiHeroAuth));
+
+          const [newAuth] = yield* makeDbCall(() =>
+            db
+              .insert(aiHeroAuth)
+              .values({
+                accessToken: params.accessToken,
+                userId: params.userId,
+              })
+              .returning()
+          );
+
+          if (!newAuth) {
+            return yield* new UnknownDBServiceError({
+              cause: "No AI Hero auth was returned from the database",
+            });
+          }
+
+          return newAuth;
+        }),
+        /**
+         * Delete AI Hero auth token (disconnect account).
+         */
+        deleteAiHeroAuth: Effect.fn("deleteAiHeroAuth")(function* () {
+          yield* makeDbCall(() => db.delete(aiHeroAuth));
           return { success: true };
         }),
         getThumbnailsByVideoId: Effect.fn("getThumbnailsByVideoId")(function* (

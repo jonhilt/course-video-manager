@@ -342,6 +342,22 @@ export const youtubeAuth = createTable("youtube_auth", {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+// AI Hero OAuth tokens table (single-user, stores one token set)
+export const aiHeroAuth = createTable("ai_hero_auth", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  accessToken: text("access_token").notNull(),
+  userId: text("user_id").notNull(),
+  createdAt: timestamp("created_at", {
+    mode: "date",
+    withTimezone: true,
+  })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
 // Global links table for article writing
 export const links = createTable("link", {
   id: varchar("id", { length: 255 })

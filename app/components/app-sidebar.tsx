@@ -26,6 +26,7 @@ import {
   LayoutTemplate,
   PencilIcon,
   Plus,
+  SettingsIcon,
   Trash2,
   VideoIcon,
 } from "lucide-react";
@@ -361,6 +362,15 @@ export function AppSidebar({
           >
             <LayoutTemplate className="w-5 h-5" />
             Diagram Playground
+          </Link>
+
+          {/* Settings */}
+          <Link
+            to="/settings"
+            className="flex items-center gap-2 text-lg font-semibold hover:text-foreground/80 transition-colors pl-6"
+          >
+            <SettingsIcon className="w-5 h-5" />
+            Settings
           </Link>
         </div>
         {setIsAddRepoModalOpen && (
