@@ -60,6 +60,18 @@ const AI_HERO_BODY_STORAGE_KEY = (videoId: string) => `ai-hero-body-${videoId}`;
 const AI_HERO_SEO_DESCRIPTION_STORAGE_KEY = (videoId: string) =>
   `ai-hero-seo-description-${videoId}`;
 const AI_HERO_SLUG_STORAGE_KEY = (videoId: string) => `ai-hero-slug-${videoId}`;
+const AI_HERO_FORM_SLUG_STORAGE_KEY = (videoId: string) =>
+  `ai-hero-form-slug-${videoId}`;
+
+const slugify = (text: string): string => {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+};
 
 export const loader = async (args: Route.LoaderArgs) => {
   const { videoId } = args.params;
@@ -333,6 +345,28 @@ export default function AiHeroPostPage(props: Route.ComponentProps) {
     return "";
   });
 
+  // Editable slug with localStorage persistence
+  const slugInputTouched = useRef(false);
+  const [slug, setSlug] = useState(() => {
+    if (typeof localStorage !== "undefined") {
+      const stored = localStorage.getItem(
+        AI_HERO_FORM_SLUG_STORAGE_KEY(videoId)
+      );
+      if (stored) {
+        slugInputTouched.current = true;
+        return stored;
+      }
+    }
+    return slugify(title);
+  });
+
+  // Auto-derive slug from title when user hasn't manually edited it
+  useEffect(() => {
+    if (!slugInputTouched.current) {
+      setSlug(slugify(title));
+    }
+  }, [title]);
+
   // Auto-save to localStorage
   useEffect(() => {
     if (typeof localStorage !== "undefined") {
@@ -354,6 +388,12 @@ export default function AiHeroPostPage(props: Route.ComponentProps) {
       );
     }
   }, [seoDescription, videoId]);
+
+  useEffect(() => {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(AI_HERO_FORM_SLUG_STORAGE_KEY(videoId), slug);
+    }
+  }, [slug, videoId]);
 
   // Upload context
   const { uploads, startAiHeroUpload } = useContext(UploadContext);
@@ -399,7 +439,7 @@ export default function AiHeroPostPage(props: Route.ComponentProps) {
 
   const handlePostToAiHero = () => {
     if (!title.trim() || isSeoDescriptionTooLong) return;
-    startAiHeroUpload(videoId, title, body, seoDescription);
+    startAiHeroUpload(videoId, title, body, seoDescription, slug);
   };
 
   // Context panel state
@@ -605,6 +645,21 @@ export default function AiHeroPostPage(props: Route.ComponentProps) {
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Enter post title..."
                   className="text-lg"
+                />
+              </div>
+
+              {/* Slug */}
+              <div className="space-y-2">
+                <Label htmlFor="ai-hero-slug">Slug</Label>
+                <Input
+                  id="ai-hero-slug"
+                  value={slug}
+                  onChange={(e) => {
+                    slugInputTouched.current = true;
+                    setSlug(e.target.value);
+                  }}
+                  placeholder="post-slug"
+                  className="font-mono text-sm"
                 />
               </div>
 

@@ -10,6 +10,7 @@ export const action = async (args: Route.ActionArgs) => {
   const title: string = body.title;
   const postBody: string = body.body;
   const description: string = body.description;
+  const slug: string = body.slug ?? "";
 
   if (!title) {
     return Response.json({ error: "Title is required" }, { status: 400 });
@@ -33,6 +34,7 @@ export const action = async (args: Route.ActionArgs) => {
           title,
           body: postBody ?? "",
           description: description ?? "",
+          slug: slug ?? "",
         });
 
         sendEvent("complete", { slug: result.slug });

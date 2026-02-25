@@ -264,6 +264,7 @@ export const postToAiHero = (opts: {
   title: string;
   body: string;
   description: string;
+  slug: string;
 }) =>
   Effect.gen(function* () {
     const baseUrl = yield* Config.string("AI_HERO_BASE_URL");
@@ -316,14 +317,15 @@ export const postToAiHero = (opts: {
       postId: post.id,
     });
 
-    // Step 5: Update post with body and description
-    yield* Effect.logInfo("Updating post with body and description");
+    // Step 5: Update post with body, description, and slug
+    const finalSlug = opts.slug || post.slug;
+    yield* Effect.logInfo("Updating post with body, description, and slug");
     yield* updatePost({
       baseUrl,
       accessToken,
       postId: post.id,
       title: opts.title,
-      slug: post.slug,
+      slug: finalSlug,
       body: opts.body,
       description: opts.description,
     });
@@ -336,7 +338,7 @@ export const postToAiHero = (opts: {
       postId: post.id,
     });
 
-    yield* Effect.logInfo(`AI Hero post published. Slug: ${post.slug}`);
+    yield* Effect.logInfo(`AI Hero post published. Slug: ${finalSlug}`);
 
-    return { slug: post.slug };
+    return { slug: finalSlug };
   }).pipe(Effect.withConfigProvider(ConfigProvider.fromEnv()));

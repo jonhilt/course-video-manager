@@ -3,6 +3,7 @@ export interface SSEAiHeroParams {
   title: string;
   body: string;
   description: string;
+  slug: string;
 }
 
 export interface SSEAiHeroCallbacks {
@@ -47,6 +48,7 @@ const performSSEAiHeroPost = async (
       title: params.title,
       body: params.body,
       description: params.description,
+      slug: params.slug,
     }),
     signal,
   });

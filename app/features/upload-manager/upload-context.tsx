@@ -28,7 +28,8 @@ export interface UploadContextType {
     videoId: string,
     title: string,
     body: string,
-    description: string
+    description: string,
+    slug: string
   ) => string;
   dismissUpload: (uploadId: string) => void;
 }
@@ -56,9 +57,9 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   // Stores caption for Buffer retries
   const socialParamsRef = useRef<Map<string, { caption: string }>>(new Map());
 
-  // Stores body + description for AI Hero retries
+  // Stores body + description + slug for AI Hero retries
   const aiHeroParamsRef = useRef<
-    Map<string, { body: string; description: string }>
+    Map<string, { body: string; description: string; slug: string }>
   >(new Map());
 
   const initiateSSEConnection = useCallback(
@@ -161,7 +162,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       videoId: string,
       title: string,
       body: string,
-      description: string
+      description: string,
+      slug: string
     ) => {
       const existing = abortControllersRef.current.get(uploadId);
       if (existing) {
@@ -169,7 +171,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
       }
 
       const abortController = startSSEAiHeroPost(
-        { videoId, title, body, description },
+        { videoId, title, body, description, slug },
         {
           onProgress: (percentage) => {
             dispatch({
@@ -255,10 +257,16 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   );
 
   const startAiHeroUpload = useCallback(
-    (videoId: string, title: string, body: string, description: string) => {
+    (
+      videoId: string,
+      title: string,
+      body: string,
+      description: string,
+      slug: string
+    ) => {
       const uploadId = generateUploadId();
 
-      aiHeroParamsRef.current.set(uploadId, { body, description });
+      aiHeroParamsRef.current.set(uploadId, { body, description, slug });
 
       dispatch({
         type: "START_UPLOAD",
@@ -268,7 +276,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
         uploadType: "ai-hero",
       });
 
-      initiateSSEAiHeroConnection(uploadId, videoId, title, body, description);
+      initiateSSEAiHeroConnection(
+        uploadId,
+        videoId,
+        title,
+        body,
+        description,
+        slug
+      );
 
       return uploadId;
     },
@@ -387,7 +402,8 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
               upload.videoId,
               upload.title,
               params.body,
-              params.description
+              params.description,
+              params.slug
             );
           }
         }
