@@ -267,6 +267,18 @@ function UploadStatusDetail({ upload }: { upload: uploadReducer.UploadEntry }) {
             >
               Posted to AI Hero
             </Badge>
+            {upload.aiHeroSlug && (
+              <a
+                href={`https://aihero.dev/${upload.aiHeroSlug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                View Post
+                <ExternalLink className="size-3" />
+              </a>
+            )}
           </div>
         );
       }

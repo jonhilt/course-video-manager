@@ -37,6 +37,7 @@ import { DeleteStandaloneFileModal } from "@/components/delete-standalone-file-m
 import { LessonFilePasteModal } from "@/components/lesson-file-paste-modal";
 import {
   CheckCircle2Icon,
+  ExternalLinkIcon,
   Loader2Icon,
   SendIcon,
   SparklesIcon,
@@ -665,9 +666,15 @@ export default function AiHeroPostPage(props: Route.ComponentProps) {
                     <p className="text-sm font-medium text-green-500">
                       Posted to AI Hero
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {storedSlug}
-                    </p>
+                    <a
+                      href={`https://aihero.dev/${storedSlug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 truncate"
+                    >
+                      View on AI Hero
+                      <ExternalLinkIcon className="h-3 w-3 shrink-0" />
+                    </a>
                   </div>
                   <Button
                     variant="outline"
