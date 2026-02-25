@@ -11,6 +11,13 @@ export class AiHeroUploadError extends Data.TaggedError("AiHeroUploadError")<{
 /**
  * Step 1: Get a signed S3 URL from AI Hero for uploading the video.
  */
+type SignedUploadUrlResponse = {
+  signedUrl: string;
+  publicUrl: string;
+  filename: string;
+  objectName: string;
+};
+
 const getSignedUploadUrl = (opts: {
   baseUrl: string;
   accessToken: string;
@@ -34,8 +41,8 @@ const getSignedUploadUrl = (opts: {
         );
       }
 
-      const data = (await res.json()) as { signedUrl: string };
-      return data.signedUrl;
+      const data = (await res.json()) as SignedUploadUrlResponse;
+      return data;
     },
     catch: (e) =>
       new AiHeroUploadError({
@@ -123,7 +130,8 @@ const createPost = (opts: {
 const triggerVideoProcessing = (opts: {
   baseUrl: string;
   accessToken: string;
-  s3Url: string;
+  mediaUrl: string;
+  fileName: string;
   postId: string;
 }) =>
   Effect.tryPromise({
@@ -136,8 +144,8 @@ const triggerVideoProcessing = (opts: {
         },
         body: JSON.stringify({
           file: {
-            url: opts.s3Url,
-            name: opts.s3Url.split("/").pop() ?? "video.mp4",
+            url: opts.mediaUrl,
+            name: opts.fileName,
           },
           metadata: {
             parentResourceId: opts.postId,
@@ -275,7 +283,7 @@ export const postToAiHero = (opts: {
 
     // Step 1: Get signed S3 URL
     yield* Effect.logInfo("Getting signed S3 URL from AI Hero");
-    const signedUrl = yield* getSignedUploadUrl({
+    const signedUpload = yield* getSignedUploadUrl({
       baseUrl,
       accessToken,
       objectName,
@@ -284,7 +292,7 @@ export const postToAiHero = (opts: {
     // Step 2: Upload video to S3
     yield* Effect.logInfo("Uploading video to S3");
     yield* uploadFileToS3({
-      signedUrl,
+      signedUrl: signedUpload.signedUrl,
       filePath: opts.filePath,
       fileSize,
     });
@@ -298,12 +306,13 @@ export const postToAiHero = (opts: {
     });
 
     // Step 4: Trigger video processing
-    // Send the full signed URL (not stripped) so Mux can download from private S3
+    // Use the stable uploaded object URL, not the PUT presigned URL.
     yield* Effect.logInfo("Triggering video processing");
     yield* triggerVideoProcessing({
       baseUrl,
       accessToken,
-      s3Url: signedUrl,
+      mediaUrl: signedUpload.publicUrl,
+      fileName: signedUpload.filename,
       postId: post.id,
     });
 
