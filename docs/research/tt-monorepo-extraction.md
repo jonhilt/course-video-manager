@@ -395,3 +395,132 @@ Simpler transcription - just returns text, no timing.
 ### Total extraction size
 
 ~400-500 lines of core logic (excluding the queue system, article generation, DaVinci Resolve integration, OBS integration, and Remotion rendering which are not needed).
+
+---
+
+## Capability 3: Clip Detection Pipeline (`tt clips detect`)
+
+### CLI entry point
+
+Location: `apps/internal-cli/src/commands/clips/detect.ts`
+
+```typescript
+parent
+  .command("detect [filePath]")
+  .description("Detect clip boundaries in a video")
+  .option("-s, --startTime <startTime>", "Start time of the video")
+  .action(async (filePath, { startTime }) => { ... })
+```
+
+Arguments:
+- `filePath` (optional): Path to video file. Falls back to latest OBS recording if omitted.
+- `-s, --startTime <startTime>` (optional): Time offset in seconds for where detection should begin.
+
+Output format:
+```json
+{
+  "clips": [
+    { "startTime": 1.23, "endTime": 4.56, "inputVideo": "/path/to/video.mp4" }
+  ]
+}
+```
+
+The CLI converts `{ startTime, duration }` (from `findClips`) to `{ startTime, endTime }` before returning.
+
+### Orchestrator: `WorkflowsService.findClips()`
+
+Location: `packages/ffmpeg/src/workflows.ts:333`
+
+```typescript
+const findClips = Effect.fn("findClips")(function* (opts: {
+  inputVideo: AbsolutePath;
+  mode: "entire-video" | "part-of-video";
+  startTime?: number;
+}) { ... })
+```
+
+| Option | Purpose |
+|--------|---------|
+| `inputVideo` | Path to video file |
+| `mode` | `"entire-video"` adds `AUTO_EDITED_VIDEO_FINAL_END_PADDING` to last clip; `"part-of-video"` does not |
+| `startTime` | Time offset into video where detection should start |
+
+Flow:
+1. Calls `ffmpeg.getFPS(inputVideo)` to get frame rate
+2. Calls `findSilenceInVideo()` with all constants + `startTime`
+3. Converts frame-based durations to seconds (rounded to 2dp)
+4. For `"entire-video"` mode on the last clip: adds `AUTO_EDITED_VIDEO_FINAL_END_PADDING`
+5. Returns `Array<{ startTime: number; duration: number }>`
+
+### Critical: startTime offset adjustment in `findSilenceInVideo()`
+
+Location: `packages/ffmpeg/src/silence-detection.ts:104`
+
+The TT monorepo version adds the `startTime` offset back to the timestamps returned by ffmpeg:
+
+```typescript
+let startTimeAdjustment = opts.startTime ?? 0;
+
+const speakingClipsWithStartTimeAdjusted = speakingClips.map((clip) => ({
+  ...clip,
+  startTime: clip.startTime + startTimeAdjustment,
+  endTime: clip.endTime + startTimeAdjustment,
+}));
+```
+
+**This is because ffmpeg's `-ss` before `-i` causes timestamps to be relative to the seek point.** The offset addition converts them back to absolute file timestamps.
+
+**The course-video-manager's extracted version (`app/services/silence-detection.ts`) is missing this offset adjustment.** This is a known divergence that may cause incorrect clip timestamps when a `startTime` is provided.
+
+### Minimum clip length filtering
+
+The TT monorepo filters out clips shorter than `MINIMUM_CLIP_LENGTH_IN_SECONDS` (1 second) inside `findSilenceInVideo()`:
+
+```typescript
+const filteredClips = speakingClipsWithStartTimeAdjusted.filter(
+  (clip) => clip.durationInFrames > MINIMUM_CLIP_LENGTH_IN_SECONDS * opts.fps
+);
+```
+
+The course-video-manager's version applies this filter inside `getClipsOfSpeakingFromFFmpeg()` instead.
+
+### No deduplication in TT monorepo
+
+The TT monorepo has **no built-in deduplication logic** for clip detection. It does not:
+- Skip clips that were previously detected
+- Filter out overlapping clips
+- Deduplicate clips with similar start/end times
+
+Deduplication is entirely the responsibility of the caller (course-video-manager's `appendFromObsImpl` in `clip-service-handler.ts`).
+
+### Full data flow
+
+```
+CLI: tt clips detect [filePath] [-s startTime]
+  └─ WorkflowsService.findClips(inputVideo, mode, startTime)
+       ├─ FFmpegCommandsService.getFPS(inputVideo)
+       │   └─ ffprobe → returns fps (e.g. 60.0)
+       └─ findSilenceInVideo(inputVideo, opts)
+            ├─ FFmpegCommandsService.detectSilence(inputVideo, threshold, silenceDuration, startTime)
+            │   └─ ffmpeg -hide_banner -vn [-ss <startTime>] -i <video> -af silencedetect=... -f null -
+            ├─ getClipsOfSpeakingFromFFmpeg(rawOutput, { startPadding, endPadding, fps })
+            │   └─ Pure function: parses silence periods → derives speaking gaps → applies padding
+            ├─ Adds startTime offset back to all timestamps  ← MISSING IN COURSE-VIDEO-MANAGER
+            └─ Filters clips < MINIMUM_CLIP_LENGTH_IN_SECONDS
+       └─ Converts frames→seconds, applies mode-specific padding
+       └─ Returns [{ startTime, duration }]
+  └─ CLI transforms to [{ startTime, endTime, inputVideo }]
+```
+
+### Other clip commands
+
+Location: `apps/internal-cli/src/commands/clips/`
+
+| Command | File | Purpose |
+|---------|------|---------|
+| `clips detect` | `detect.ts` | Detect speaking clip boundaries in a video |
+| `clips transcribe` | `transcribe.ts` | Transcribe clips via OpenAI Whisper with word-level timing |
+
+### Test fixtures
+
+The TT monorepo includes test fixtures for silence detection at `packages/ffmpeg/src/__fixtures__/ffmpeg-output-1.txt` — sample ffmpeg silencedetect output used by `get-speaking-clips.test.ts` to validate the parsing logic.
