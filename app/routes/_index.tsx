@@ -59,7 +59,7 @@ import {
   VideoIcon,
   VideoOffIcon,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import {
   data,
   Link,
@@ -69,6 +69,7 @@ import {
 } from "react-router";
 import type { Route } from "./+types/_index";
 import { toast } from "sonner";
+import { UploadContext } from "@/features/upload-manager/upload-context";
 
 export const meta: Route.MetaFunction = ({ data }) => {
   const selectedRepo = data?.selectedRepo;
@@ -253,14 +254,13 @@ export default function Component(props: Route.ComponentProps) {
     useState(false);
 
   const publishRepoFetcher = useFetcher();
-  const exportUnexportedFetcher = useFetcher();
+  const { startExportUpload } = useContext(UploadContext);
 
   useFocusRevalidate({ enabled: !!selectedRepoId, intervalMs: 5000 });
 
   const deleteVideoFetcher = useFetcher();
   const deleteVideoFileFetcher = useFetcher();
   const deleteLessonFetcher = useFetcher();
-  const exportVideoFetcher = useFetcher();
   const revealVideoFetcher = useFetcher();
   const archiveRepoFetcher = useFetcher();
 
@@ -297,6 +297,40 @@ export default function Component(props: Route.ComponentProps) {
     totalLessons > 0
       ? Math.round((totalLessonsWithVideos / totalLessons) * 100)
       : 0;
+
+  const [isBatchExporting, setIsBatchExporting] = useState(false);
+
+  const handleBatchExport = async () => {
+    if (!data.selectedVersion) return;
+    setIsBatchExporting(true);
+    try {
+      const response = await fetch(
+        `/api/repoVersions/${data.selectedVersion.id}/unexported-videos`,
+        { method: "POST" }
+      );
+      if (!response.ok) {
+        toast.error("Failed to fetch unexported videos");
+        return;
+      }
+      const result = (await response.json()) as {
+        videos: Array<{ id: string; title: string }>;
+      };
+      if (result.videos.length === 0) {
+        toast.info("All videos are already exported");
+        return;
+      }
+      for (const video of result.videos) {
+        startExportUpload(video.id, video.title);
+      }
+      toast.success(
+        `Started export for ${result.videos.length} video${result.videos.length === 1 ? "" : "s"}`
+      );
+    } catch {
+      toast.error("Failed to start batch export");
+    } finally {
+      setIsBatchExporting(false);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -345,11 +379,11 @@ export default function Component(props: Route.ComponentProps) {
                       <Button
                         variant="ghost"
                         disabled={
-                          exportUnexportedFetcher.state === "submitting" ||
+                          isBatchExporting ||
                           publishRepoFetcher.state === "submitting"
                         }
                       >
-                        {exportUnexportedFetcher.state === "submitting" ||
+                        {isBatchExporting ||
                         publishRepoFetcher.state === "submitting" ? (
                           <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                         ) : null}
@@ -359,16 +393,9 @@ export default function Component(props: Route.ComponentProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64">
                       <DropdownMenuItem
-                        disabled={!data.selectedVersion}
+                        disabled={!data.selectedVersion || isBatchExporting}
                         onSelect={() => {
-                          if (!data.selectedVersion) return;
-                          exportUnexportedFetcher.submit(
-                            {},
-                            {
-                              method: "post",
-                              action: `/api/repoVersions/${data.selectedVersion.id}/export-unexported`,
-                            }
-                          );
+                          handleBatchExport();
                         }}
                       >
                         <Download className="w-4 h-4 mr-2" />
@@ -771,10 +798,10 @@ export default function Component(props: Route.ComponentProps) {
                                       </ContextMenuItem>
                                       <ContextMenuItem
                                         onSelect={() => {
-                                          exportVideoFetcher.submit(null, {
-                                            method: "POST",
-                                            action: `/api/videos/${video.id}/export`,
-                                          });
+                                          startExportUpload(
+                                            video.id,
+                                            `${section.path}/${lesson.path}/${video.path}`
+                                          );
                                         }}
                                       >
                                         <Download className="w-4 h-4" />
