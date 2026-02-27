@@ -20,4 +20,7 @@ export default defineConfig({
           reactRouter(),
           tsconfigPaths(),
         ],
+  test: {
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.react-router/**"],
+  },
 });
