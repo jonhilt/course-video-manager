@@ -380,6 +380,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
               videoId: video.id,
               title: video.title,
               uploadType: "export",
+              isBatchEntry: true,
             });
           }
         },

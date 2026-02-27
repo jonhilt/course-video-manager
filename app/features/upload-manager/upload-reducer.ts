@@ -41,6 +41,7 @@ export namespace uploadReducer {
   export interface ExportUploadEntry extends BaseUploadEntry {
     uploadType: "export";
     exportStage: ExportStage | null;
+    isBatchEntry: boolean;
   }
 
   export type UploadEntry =
@@ -61,6 +62,7 @@ export namespace uploadReducer {
         title: string;
         uploadType?: UploadType;
         dependsOn?: string;
+        isBatchEntry?: boolean;
       }
     | { type: "UPDATE_PROGRESS"; uploadId: string; progress: number }
     | {
@@ -121,6 +123,7 @@ export const uploadReducer = (
             ...base,
             uploadType: "export",
             exportStage: "concatenating-clips",
+            isBatchEntry: action.isBatchEntry ?? false,
           };
           break;
         default:
@@ -216,7 +219,12 @@ export const uploadReducer = (
           };
           break;
         case "export":
-          entry = { ...base, uploadType: "export", exportStage: null };
+          entry = {
+            ...base,
+            uploadType: "export",
+            exportStage: null,
+            isBatchEntry: upload.isBatchEntry,
+          };
           break;
       }
 
@@ -309,6 +317,7 @@ export const uploadReducer = (
             ...base,
             uploadType: "export",
             exportStage: "concatenating-clips",
+            isBatchEntry: upload.isBatchEntry,
           };
           break;
         default:

@@ -151,14 +151,16 @@ function UploadRow({
         <p className="text-sm truncate">{upload.title}</p>
         <UploadStatusDetail upload={upload} />
       </div>
-      <button
-        onClick={(e) => onDismiss(e, upload.uploadId)}
-        className="shrink-0 text-muted-foreground hover:text-foreground"
-        type="button"
-        aria-label="Dismiss upload"
-      >
-        <X className="size-3.5" />
-      </button>
+      {!(upload.uploadType === "export" && upload.isBatchEntry) && (
+        <button
+          onClick={(e) => onDismiss(e, upload.uploadId)}
+          className="shrink-0 text-muted-foreground hover:text-foreground"
+          type="button"
+          aria-label="Dismiss upload"
+        >
+          <X className="size-3.5" />
+        </button>
+      )}
     </div>
   );
 }
