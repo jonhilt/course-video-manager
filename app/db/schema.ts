@@ -9,7 +9,6 @@ import {
   pgTableCreator,
   text,
   timestamp,
-  unique,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -125,43 +124,32 @@ export const videos = createTable("video", {
   }),
 });
 
-export const clips = createTable(
-  "clip",
-  {
-    id: varchar("id", { length: 255 })
-      .notNull()
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    videoId: varchar("video_id", { length: 255 })
-      .references(() => videos.id, { onDelete: "cascade" })
-      .notNull(),
-    videoFilename: text("video_filename").notNull(),
-    sourceStartTime: doublePrecision("source_start_time").notNull(),
-    sourceEndTime: doublePrecision("source_end_time").notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "date",
-      withTimezone: true,
-    }),
-    order: varcharCollateC("order").notNull(),
-    archived: boolean("archived").notNull().default(false),
-    text: text("text").notNull(),
-    transcribedAt: timestamp("transcribed_at", {
-      mode: "date",
-      withTimezone: true,
-    }),
-    scene: varchar("scene", { length: 255 }),
-    profile: varchar("profile", { length: 255 }),
-    beatType: varchar("beat_type", { length: 255 }).notNull().default("none"),
-  },
-  (table) => [
-    unique("clip_video_source_unique").on(
-      table.videoId,
-      table.videoFilename,
-      table.sourceStartTime,
-      table.sourceEndTime
-    ),
-  ]
-);
+export const clips = createTable("clip", {
+  id: varchar("id", { length: 255 })
+    .notNull()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  videoId: varchar("video_id", { length: 255 })
+    .references(() => videos.id, { onDelete: "cascade" })
+    .notNull(),
+  videoFilename: text("video_filename").notNull(),
+  sourceStartTime: doublePrecision("source_start_time").notNull(),
+  sourceEndTime: doublePrecision("source_end_time").notNull(),
+  createdAt: timestamp("created_at", {
+    mode: "date",
+    withTimezone: true,
+  }),
+  order: varcharCollateC("order").notNull(),
+  archived: boolean("archived").notNull().default(false),
+  text: text("text").notNull(),
+  transcribedAt: timestamp("transcribed_at", {
+    mode: "date",
+    withTimezone: true,
+  }),
+  scene: varchar("scene", { length: 255 }),
+  profile: varchar("profile", { length: 255 }),
+  beatType: varchar("beat_type", { length: 255 }).notNull().default("none"),
+});
 
 export const clipSections = createTable("clip_section", {
   id: varchar("id", { length: 255 })

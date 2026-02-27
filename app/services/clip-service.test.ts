@@ -1040,33 +1040,6 @@ describe("ClipService", () => {
       expect(timeline).toHaveLength(2);
     });
 
-    it("enforces unique constraint on exact duplicate clip inserts", async () => {
-      const video = await clipService.createVideo("test-video.mp4");
-
-      await testDb.insert(schema.clips).values({
-        videoId: video.id,
-        videoFilename: "/mnt/c/obs/video.mkv",
-        sourceStartTime: 0,
-        sourceEndTime: 10,
-        order: "a0",
-        archived: false,
-        text: "",
-      });
-
-      // Exact duplicate should be rejected by unique constraint
-      await expect(
-        testDb.insert(schema.clips).values({
-          videoId: video.id,
-          videoFilename: "/mnt/c/obs/video.mkv",
-          sourceStartTime: 0,
-          sourceEndTime: 10,
-          order: "a1",
-          archived: false,
-          text: "",
-        })
-      ).rejects.toThrow();
-    });
-
     it("mutex releases on error allowing subsequent calls", async () => {
       const video = await clipService.createVideo("test-video.mp4");
 

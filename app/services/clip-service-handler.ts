@@ -113,8 +113,7 @@ const getOrderedItems = Effect.fn("getOrderedItems")(function* (
 const appendClipsAtInsertionPoint = Effect.fn("appendClipsAtInsertionPoint")(
   function* (
     db: DrizzleService,
-    input: Extract<ClipServiceEvent, { type: "append-clips" }>["input"],
-    options: { skipConflicts?: boolean } = {}
+    input: Extract<ClipServiceEvent, { type: "append-clips" }>["input"]
   ) {
     const { videoId, insertionPoint, clips: inputClips } = input;
     const allItems = yield* getOrderedItems(db, videoId);
@@ -178,21 +177,9 @@ const appendClipsAtInsertionPoint = Effect.fn("appendClipsAtInsertionPoint")(
       text: "",
     }));
 
-    const clipsResult = yield* Effect.promise(() => {
-      const query = db.insert(clips).values(insertValues);
-      return options.skipConflicts
-        ? query
-            .onConflictDoNothing({
-              target: [
-                clips.videoId,
-                clips.videoFilename,
-                clips.sourceStartTime,
-                clips.sourceEndTime,
-              ],
-            })
-            .returning()
-        : query.returning();
-    });
+    const clipsResult = yield* Effect.promise(() =>
+      db.insert(clips).values(insertValues).returning()
+    );
 
     return clipsResult;
   }
@@ -317,16 +304,11 @@ const appendFromObsImpl = (
       return [];
     }
 
-    // Insert with skipConflicts as a safety net for when mutex is bypassed (e.g. HMR)
-    const result = yield* appendClipsAtInsertionPoint(
-      db,
-      {
-        videoId,
-        insertionPoint,
-        clips: clipsToAdd,
-      },
-      { skipConflicts: true }
-    );
+    const result = yield* appendClipsAtInsertionPoint(db, {
+      videoId,
+      insertionPoint,
+      clips: clipsToAdd,
+    });
 
     const totalDuplicatesSkipped =
       latestOBSVideoClips.clips.length - result.length;
