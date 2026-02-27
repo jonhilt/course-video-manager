@@ -9,7 +9,7 @@ import { data } from "react-router";
 export const action = async (args: Route.ActionArgs) => {
   return Effect.gen(function* () {
     const db = yield* DBFunctionsService;
-    const ttCli = yield* VideoProcessingService;
+    const videoProcessing = yield* VideoProcessingService;
     const { videoId } = args.params;
 
     const video = yield* db.getVideoWithClipsById(videoId, {
@@ -22,7 +22,7 @@ export const action = async (args: Route.ActionArgs) => {
 
     const clips = video.clips;
 
-    const output = yield* ttCli.sendClipsToDavinciResolve({
+    const output = yield* videoProcessing.sendClipsToDavinciResolve({
       clips: clips.map((clip) => ({
         inputVideo: clip.videoFilename,
         startTime: clip.sourceStartTime,

@@ -7,7 +7,7 @@
 
 import {
   handleClipServiceEvent,
-  type TtCliAdapter,
+  type VideoProcessingAdapter,
   type LoggerAdapter,
 } from "@/services/clip-service-handler";
 import {
@@ -36,12 +36,14 @@ export const action = async (args: Route.ActionArgs) => {
     const event = yield* Schema.decodeUnknown(ClipServiceEventSchema)(json);
 
     // Get VideoProcessingService for OBS operations
-    const ttCliService = yield* VideoProcessingService;
+    const videoProcessingService = yield* VideoProcessingService;
 
-    // Create adapter that wraps Effect-based CLI service
-    const ttCli: TtCliAdapter = {
+    // Create adapter that wraps Effect-based service
+    const videoProcessingAdapter: VideoProcessingAdapter = {
       getLatestOBSVideoClips: (opts) =>
-        ttCliService.getLatestOBSVideoClips(opts).pipe(runtimeLive.runPromise),
+        videoProcessingService
+          .getLatestOBSVideoClips(opts)
+          .pipe(runtimeLive.runPromise),
     };
 
     // Create logger adapter
@@ -57,7 +59,7 @@ export const action = async (args: Route.ActionArgs) => {
     const result = yield* handleClipServiceEvent(
       db as any,
       event as ClipServiceEvent,
-      ttCli,
+      videoProcessingAdapter,
       logger
     );
 

@@ -15,7 +15,7 @@ export const action = async (args: Route.ActionArgs) => {
 
   return Effect.gen(function* () {
     const db = yield* DBFunctionsService;
-    const ttCliService = yield* VideoProcessingService;
+    const videoProcessing = yield* VideoProcessingService;
 
     const { clipIds } = yield* Schema.decodeUnknown(transcribeClipsSchema)(
       json
@@ -23,7 +23,7 @@ export const action = async (args: Route.ActionArgs) => {
 
     const clips = yield* db.getClipsByIds(clipIds);
 
-    const transcribedClips = yield* ttCliService.transcribeClips(
+    const transcribedClips = yield* videoProcessing.transcribeClips(
       clips.map((clip) => ({
         id: clip.id,
         inputVideo: clip.videoFilename,

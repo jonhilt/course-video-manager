@@ -31,7 +31,7 @@ import type { LogEvent } from "./video-editor-logger-service";
  * In production, this wraps the Effect-based service.
  * In tests, this is mocked.
  */
-export interface TtCliAdapter {
+export interface VideoProcessingAdapter {
   getLatestOBSVideoClips: (opts: {
     filePath: string | undefined;
     startTime: number | undefined;
@@ -234,7 +234,7 @@ async function withVideoMutex<T>(
 const appendFromObsImpl = (
   db: DrizzleService,
   event: Extract<ClipServiceEvent, { type: "append-from-obs" }>,
-  ttCli: TtCliAdapter,
+  videoProcessing: VideoProcessingAdapter,
   logger: LoggerAdapter
 ) =>
   Effect.gen(function* () {
@@ -265,7 +265,7 @@ const appendFromObsImpl = (
 
     // Call CLI to detect clips
     const latestOBSVideoClips = yield* Effect.promise(() =>
-      ttCli.getLatestOBSVideoClips({
+      videoProcessing.getLatestOBSVideoClips({
         filePath: resolvedFilePath,
         startTime: resolvedStartTime,
       })
@@ -357,13 +357,13 @@ const appendFromObsImpl = (
  *
  * @param db - Drizzle database instance
  * @param event - The event to handle
- * @param ttCli - Optional TotalTypeScriptCLI adapter (required for append-from-obs)
+ * @param videoProcessing - VideoProcessingService adapter (required for append-from-obs)
  */
 export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
   function* (
     db: DrizzleService,
     event: ClipServiceEvent,
-    ttCli: TtCliAdapter,
+    videoProcessing: VideoProcessingAdapter,
     logger: LoggerAdapter = noopLogger
   ) {
     switch (event.type) {
@@ -421,15 +421,19 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
       }
 
       case "append-from-obs": {
-        if (!ttCli) {
-          throw new Error("TtCliAdapter is required for append-from-obs");
+        if (!videoProcessing) {
+          throw new Error(
+            "VideoProcessingAdapter is required for append-from-obs"
+          );
         }
 
         // Serialize concurrent append-from-obs calls for the same video
         // via an in-memory mutex to prevent duplicate clip inserts
         return yield* Effect.promise(() =>
           withVideoMutex(event.input.videoId, () =>
-            Effect.runPromise(appendFromObsImpl(db, event, ttCli, logger))
+            Effect.runPromise(
+              appendFromObsImpl(db, event, videoProcessing, logger)
+            )
           )
         );
       }
@@ -938,16 +942,16 @@ export const handleClipServiceEvent = Effect.fn("handleClipServiceEvent")(
  * database instance. Used for testing with PGlite.
  *
  * @param db - Drizzle database instance
- * @param ttCli - Optional TotalTypeScriptCLI adapter for OBS functionality
+ * @param videoProcessing - VideoProcessingService adapter for OBS functionality
  */
 export function createDirectClipService(
   db: DrizzleService,
-  ttCli: TtCliAdapter,
+  videoProcessing: VideoProcessingAdapter,
   logger?: LoggerAdapter
 ): ClipService {
   const send = (event: ClipServiceEvent): Promise<unknown> => {
     return Effect.runPromise(
-      handleClipServiceEvent(db, event, ttCli, logger ?? noopLogger)
+      handleClipServiceEvent(db, event, videoProcessing, logger ?? noopLogger)
     );
   };
 

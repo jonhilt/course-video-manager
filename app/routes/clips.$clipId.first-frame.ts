@@ -16,9 +16,9 @@ export const loader = async (args: Route.LoaderArgs) => {
 
     const seekTo = clip.sourceStartTime;
 
-    const ttCliService = yield* VideoProcessingService;
+    const videoProcessing = yield* VideoProcessingService;
 
-    const firstFramePath = yield* ttCliService.getFirstFrame(
+    const firstFramePath = yield* videoProcessing.getFirstFrame(
       inputVideo,
       seekTo
     );

@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { pushSchema } from "drizzle-kit/api";
 import {
   createDirectClipService,
-  type TtCliAdapter,
+  type VideoProcessingAdapter,
 } from "./clip-service-handler";
 import type { ClipService } from "./clip-service";
 import type {
@@ -18,7 +18,7 @@ import type {
 let pglite: PGlite;
 let testDb: ReturnType<typeof drizzle<typeof schema>>;
 let clipService: ClipService;
-let mockTtCli: TtCliAdapter;
+let mockVideoProcessing: VideoProcessingAdapter;
 
 /**
  * Builds FrontendTimelineItem[] from the current database timeline.
@@ -67,11 +67,11 @@ describe("ClipService", () => {
     await apply();
 
     // Default mock that returns no clips
-    mockTtCli = {
+    mockVideoProcessing = {
       getLatestOBSVideoClips: vi.fn().mockResolvedValue({ clips: [] }),
     };
 
-    clipService = createDirectClipService(testDb as any, mockTtCli);
+    clipService = createDirectClipService(testDb as any, mockVideoProcessing);
   });
 
   describe("createVideo", () => {
@@ -802,7 +802,7 @@ describe("ClipService", () => {
     it("returns empty array when CLI detects no clips", async () => {
       const video = await clipService.createVideo("test-video.mp4");
 
-      mockTtCli.getLatestOBSVideoClips = vi
+      mockVideoProcessing.getLatestOBSVideoClips = vi
         .fn()
         .mockResolvedValue({ clips: [] });
 
@@ -813,7 +813,7 @@ describe("ClipService", () => {
       });
 
       expect(result).toEqual([]);
-      expect(mockTtCli.getLatestOBSVideoClips).toHaveBeenCalledWith({
+      expect(mockVideoProcessing.getLatestOBSVideoClips).toHaveBeenCalledWith({
         filePath: undefined,
         startTime: undefined,
       });
@@ -822,7 +822,7 @@ describe("ClipService", () => {
     it("inserts clips detected by CLI", async () => {
       const video = await clipService.createVideo("test-video.mp4");
 
-      mockTtCli.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
+      mockVideoProcessing.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
         clips: [
           { inputVideo: "/mnt/c/obs/video.mkv", startTime: 0, endTime: 10 },
           { inputVideo: "/mnt/c/obs/video.mkv", startTime: 15, endTime: 25 },
@@ -849,7 +849,7 @@ describe("ClipService", () => {
     it("converts Windows path to WSL path", async () => {
       const video = await clipService.createVideo("test-video.mp4");
 
-      mockTtCli.getLatestOBSVideoClips = vi
+      mockVideoProcessing.getLatestOBSVideoClips = vi
         .fn()
         .mockResolvedValue({ clips: [] });
 
@@ -860,7 +860,7 @@ describe("ClipService", () => {
         items: [],
       });
 
-      expect(mockTtCli.getLatestOBSVideoClips).toHaveBeenCalledWith({
+      expect(mockVideoProcessing.getLatestOBSVideoClips).toHaveBeenCalledWith({
         filePath: "/mnt/c/Users/Matt/Videos/obs/recording.mkv",
         startTime: undefined,
       });
@@ -880,7 +880,7 @@ describe("ClipService", () => {
       });
 
       // CLI returns the same clip plus a new one
-      mockTtCli.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
+      mockVideoProcessing.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
         clips: [
           { inputVideo: "/mnt/c/obs/video.mkv", startTime: 0, endTime: 10 }, // duplicate
           { inputVideo: "/mnt/c/obs/video.mkv", startTime: 15, endTime: 25 }, // new
@@ -922,7 +922,7 @@ describe("ClipService", () => {
       });
 
       // CLI returns the "same" clip but with slightly different times (float rounding)
-      mockTtCli.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
+      mockVideoProcessing.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
         clips: [
           {
             inputVideo: "/mnt/c/obs/video.mkv",
@@ -958,7 +958,7 @@ describe("ClipService", () => {
         ],
       });
 
-      mockTtCli.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
+      mockVideoProcessing.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
         clips: [
           { inputVideo: "/mnt/c/obs/video.mkv", startTime: 150, endTime: 200 },
         ],
@@ -972,7 +972,7 @@ describe("ClipService", () => {
       });
 
       // Should pass startTime = endTime of last clip - 1 = 99
-      expect(mockTtCli.getLatestOBSVideoClips).toHaveBeenCalledWith({
+      expect(mockVideoProcessing.getLatestOBSVideoClips).toHaveBeenCalledWith({
         filePath: "/mnt/c/obs/video.mkv",
         startTime: 99,
       });
@@ -989,7 +989,7 @@ describe("ClipService", () => {
         clips: [{ inputVideo: "other.mkv", startTime: 0, endTime: 10 }],
       });
 
-      mockTtCli.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
+      mockVideoProcessing.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
         clips: [
           { inputVideo: "/mnt/c/obs/new.mkv", startTime: 0, endTime: 10 },
         ],
@@ -1011,7 +1011,7 @@ describe("ClipService", () => {
     it("serializes concurrent append-from-obs calls via mutex", async () => {
       const video = await clipService.createVideo("test-video.mp4");
 
-      mockTtCli.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
+      mockVideoProcessing.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
         clips: [
           { inputVideo: "/mnt/c/obs/video.mkv", startTime: 0, endTime: 10 },
           { inputVideo: "/mnt/c/obs/video.mkv", startTime: 15, endTime: 25 },
@@ -1071,7 +1071,7 @@ describe("ClipService", () => {
       const video = await clipService.createVideo("test-video.mp4");
 
       // First call: mock throws
-      mockTtCli.getLatestOBSVideoClips = vi
+      mockVideoProcessing.getLatestOBSVideoClips = vi
         .fn()
         .mockRejectedValueOnce(new Error("CLI failed"))
         .mockResolvedValueOnce({
