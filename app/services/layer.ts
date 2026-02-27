@@ -9,6 +9,12 @@ import { BackgroundRemovalService } from "./background-removal-service";
 import { VideoEditorLoggerService } from "./video-editor-logger-service";
 import { FeatureFlagService } from "./feature-flag-service";
 import { OpenFolderService } from "./open-folder-service";
+import { CloudinaryService } from "./cloudinary-service";
+import { CloudinaryMarkdownService } from "./cloudinary-markdown-service";
+
+const CloudinaryMarkdownLayer = CloudinaryMarkdownService.Default.pipe(
+  Layer.provide(CloudinaryService.Default)
+);
 
 export const layerLive = Layer.mergeAll(
   RepoParserService.Default,
@@ -19,6 +25,8 @@ export const layerLive = Layer.mergeAll(
   VideoEditorLoggerService.Default,
   FeatureFlagService.Default,
   OpenFolderService.Default,
+  CloudinaryService.Default,
+  CloudinaryMarkdownLayer,
   NodeContext.layer
 ).pipe(Layer.provideMerge(DrizzleService.Default));
 
