@@ -62,7 +62,8 @@
       "Read(/home/mattpocock/repos/ai/course-builder/**)",
       "WebFetch(domain:developers.kit.com)",
       "Bash(git remote:*)",
-      "Bash(npx react-router:*)"
+      "Bash(npx react-router:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
