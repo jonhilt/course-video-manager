@@ -27,6 +27,7 @@ export const DANGEROUS_TEXT_SIMILARITY_THRESHOLD = 40;
 export const getTimelineItems = (items: TimelineItem[]): TimelineItem[] => {
   return items.filter((item) => {
     if (item.type === "optimistically-added") return false;
+    if (item.type === "on-database" && item.shouldArchive) return false;
     if (
       item.type === "clip-section-optimistically-added" &&
       item.shouldArchive

@@ -877,6 +877,17 @@ describe("getTimelineItems", () => {
     expect(result.map((i) => i.frontendId)).toEqual([id("c1"), id("s2")]);
   });
 
+  it("excludes on-database clips with shouldArchive", () => {
+    const items: TimelineItem[] = [
+      makeClipOnDatabase({ frontendId: id("c1") }),
+      makeClipOnDatabase({ frontendId: id("c2"), shouldArchive: true }),
+      makeClipOnDatabase({ frontendId: id("c3") }),
+    ];
+    const result = getTimelineItems(items);
+    expect(result).toHaveLength(2);
+    expect(result.map((i) => i.frontendId)).toEqual([id("c1"), id("c3")]);
+  });
+
   it("returns empty array for empty input", () => {
     expect(getTimelineItems([])).toEqual([]);
   });

@@ -34,6 +34,12 @@ export type ClipOnDatabase = {
   profile: string | null;
   insertionOrder: number | null;
   beatType: BeatType;
+  /**
+   * If true, this clip has been archived by the user (deleted from session panel).
+   * The clip stays in state so it can appear in the archived sub-section of the
+   * session panel, showing its transcript text.
+   */
+  shouldArchive?: boolean;
 };
 
 export type ClipOptimisticallyAdded = {
@@ -486,13 +492,33 @@ export const clipStateReducer: EffectReducer<
         // If there is a first optimistically added clip, we need to pair it with the database clip
         if (firstOfSortedClips) {
           const frontendClip = newClipsState[index];
-          // If the optimistically added clip should be archived, archive the database clip
+          // If the optimistically added clip should be archived, convert to ClipOnDatabase
+          // with shouldArchive: true — still pair, transcribe, and archive in DB, but keep
+          // in state so it appears in the session panel's archived sub-section
           if (
             frontendClip?.type === "optimistically-added" &&
             frontendClip?.shouldArchive
           ) {
+            const archivedDatabaseClip: ClipOnDatabase = {
+              ...databaseClip,
+              type: "on-database",
+              frontendId: frontendClip.frontendId,
+              databaseId: databaseClip.id,
+              scene: frontendClip.scene,
+              profile: frontendClip.profile,
+              insertionOrder: frontendClip.insertionOrder,
+              beatType: frontendClip.beatType,
+              shouldArchive: true,
+            };
+            newClipsState[index] = archivedDatabaseClip;
             clipsToArchive.add(databaseClip.id);
-            newClipsState[index] = undefined;
+            clipsToUpdateScene.set(databaseClip.id, {
+              scene: frontendClip.scene,
+              profile: frontendClip.profile,
+              beatType: frontendClip.beatType,
+            });
+            frontendClipIdsToTranscribe.add(frontendClip.frontendId);
+            databaseClipIdsToTranscribe.add(databaseClip.id);
           } else if (frontendClip?.type === "optimistically-added") {
             const newDatabaseClip: ClipOnDatabase = {
               ...databaseClip,

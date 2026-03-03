@@ -248,7 +248,7 @@ describe("clipStateReducer", () => {
       });
     });
 
-    it("Optimistically added clips that have been archived will archive database clips that replace them", () => {
+    it("Archived optimistic clips are converted to ClipOnDatabase with shouldArchive: true when DB clip arrives", () => {
       const mockExec1 = createMockExec();
       const stateWithOneOptimisticClip = clipStateReducer(
         createInitialState(),
@@ -272,23 +272,94 @@ describe("clipStateReducer", () => {
       );
 
       const reportEffect = createMockExec();
-      const stateWithNoDatabaseClips = clipStateReducer(
+      const finalState = clipStateReducer(
         stateWithOneOptimisticClipDeleted,
         {
           type: "new-database-clips",
-          clips: [fromPartial({ id: "123" })],
+          clips: [
+            fromPartial({
+              id: "123",
+              text: "",
+              videoFilename: "clip.mp4",
+              sourceStartTime: 0,
+              sourceEndTime: 5,
+            }),
+          ],
         },
         reportEffect
       );
 
-      expect(stateWithNoDatabaseClips.items.length).toBe(0);
+      // Clip stays in state as ClipOnDatabase with shouldArchive: true
+      expect(finalState.items.length).toBe(1);
+      expect(finalState.items[0]).toMatchObject({
+        type: "on-database",
+        databaseId: "123",
+        frontendId: optimisticClipId,
+        shouldArchive: true,
+      });
+
+      // Archives the clip in the DB
       expect(reportEffect).toHaveBeenCalledWith({
         type: "archive-clips",
         clipIds: ["123"],
       });
-      expect(reportEffect).not.toHaveBeenCalledWith({
+
+      // Transcribes the clip so transcript text is available
+      expect(reportEffect).toHaveBeenCalledWith({
         type: "transcribe-clips",
         clipIds: ["123"],
+      });
+    });
+
+    it("Archived optimistic clips transfer scene/profile/beatType to the resulting ClipOnDatabase", () => {
+      const mockExec1 = createMockExec();
+      const stateWithOneOptimisticClip = clipStateReducer(
+        createInitialState(),
+        fromPartial({
+          type: "new-optimistic-clip-detected",
+          soundDetectionId: "sound-1",
+          scene: "Camera",
+          profile: "TikTok",
+        }),
+        mockExec1
+      );
+
+      const optimisticClipId = stateWithOneOptimisticClip.items[0]!.frontendId;
+
+      const mockExec2 = createMockExec();
+      const stateWithOneOptimisticClipDeleted = clipStateReducer(
+        stateWithOneOptimisticClip,
+        {
+          type: "clips-deleted",
+          clipIds: [optimisticClipId],
+        },
+        mockExec2
+      );
+
+      const reportEffect = createMockExec();
+      const finalState = clipStateReducer(
+        stateWithOneOptimisticClipDeleted,
+        {
+          type: "new-database-clips",
+          clips: [fromPartial({ id: "456", text: "" })],
+        },
+        reportEffect
+      );
+
+      expect(finalState.items[0]).toMatchObject({
+        type: "on-database",
+        scene: "Camera",
+        profile: "TikTok",
+        beatType: "none",
+        shouldArchive: true,
+      });
+
+      // Scene/profile should be updated on the server too
+      expect(reportEffect).toHaveBeenCalledWith({
+        type: "update-clips",
+        clips: [
+          ["456", { scene: "Camera", profile: "TikTok", beatType: "none" }],
+        ],
       });
     });
   });
