@@ -3,6 +3,7 @@ import { ClipItem } from "./clip-item";
 import { ClipSectionItem } from "./clip-section-item";
 import { PreRecordingChecklist } from "./pre-recording-checklist";
 import { InlineSuggestion } from "./inline-suggestion";
+import { RecordingSessionPanels } from "./recording-session-panel";
 import { isClipSection } from "../clip-utils";
 import { useContextSelector } from "use-context-selector";
 import { VideoEditorContext } from "../video-editor-context";
@@ -133,6 +134,9 @@ export const ClipTimeline = () => {
 
         {/* Inline suggestion display at the bottom of the timeline */}
         <InlineSuggestion />
+
+        {/* Recording session panels below the timeline */}
+        <RecordingSessionPanels />
       </div>
     </div>
   );
