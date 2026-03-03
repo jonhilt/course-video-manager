@@ -6,6 +6,7 @@ import type {
   ClipSection,
   FrontendId,
   FrontendInsertionPoint,
+  SessionId,
   TimelineItem,
 } from "./clip-state-reducer";
 import type { OBSConnectionOuterState } from "./obs-connector";
@@ -70,6 +71,7 @@ const makeOptimisticClip = (
   insertionOrder: 0,
   beatType: "none",
   soundDetectionId: "sd-1",
+  sessionId: "test-session" as SessionId,
   ...overrides,
 });
 

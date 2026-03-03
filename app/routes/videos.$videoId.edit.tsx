@@ -238,6 +238,7 @@ export const ComponentInner = (props: Route.ComponentProps) => {
       insertionOrder: 0,
       insertionPoint: { type: "end" },
       error: null,
+      sessions: [],
     },
     {
       "archive-clips": (_state, effect, dispatch) => {

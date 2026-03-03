@@ -2,6 +2,7 @@ import { fromPartial } from "@total-typescript/shoehorn";
 import { describe, expect, it } from "vitest";
 import {
   clipStateReducer,
+  type ClipOptimisticallyAdded,
   type DatabaseId,
   type FrontendId,
 } from "./clip-state-reducer";
@@ -15,6 +16,7 @@ const createInitialState = (
   insertionPoint: { type: "end" },
   insertionOrder: 0,
   error: null,
+  sessions: [],
   ...overrides,
 });
 
@@ -1709,6 +1711,154 @@ describe("clipStateReducer", () => {
         type: "reorder-clip-section",
         clipSectionId: "db-s1",
         direction: "up",
+      });
+    });
+  });
+
+  describe("Recording Sessions", () => {
+    describe("recording-started", () => {
+      it("Should create a new session with displayNumber 1", () => {
+        const tester = new ReducerTester(
+          clipStateReducer,
+          createInitialState()
+        );
+
+        tester.send({ type: "recording-started" });
+
+        const state = tester.getState();
+        expect(state.sessions).toHaveLength(1);
+        expect(state.sessions[0]).toMatchObject({
+          displayNumber: 1,
+          isRecording: true,
+        });
+        expect(state.sessions[0]!.id).toBeTruthy();
+      });
+
+      it("Should increment displayNumber for subsequent sessions", () => {
+        const tester = new ReducerTester(
+          clipStateReducer,
+          createInitialState()
+        );
+
+        tester
+          .send({ type: "recording-started" })
+          .send({ type: "recording-started" });
+
+        const state = tester.getState();
+        expect(state.sessions).toHaveLength(2);
+        expect(state.sessions[0]).toMatchObject({ displayNumber: 1 });
+        expect(state.sessions[1]).toMatchObject({ displayNumber: 2 });
+      });
+
+      it("Should not affect existing items or insertionPoint", () => {
+        const tester = new ReducerTester(
+          clipStateReducer,
+          createInitialState()
+        );
+
+        const stateBefore = tester.getState();
+        tester.send({ type: "recording-started" });
+        const stateAfter = tester.getState();
+
+        expect(stateAfter.items).toEqual(stateBefore.items);
+        expect(stateAfter.insertionPoint).toEqual(stateBefore.insertionPoint);
+        expect(stateAfter.insertionOrder).toEqual(stateBefore.insertionOrder);
+      });
+    });
+
+    describe("new-optimistic-clip-detected with sessions", () => {
+      it("Should associate optimistic clip with active recording session", () => {
+        const tester = new ReducerTester(
+          clipStateReducer,
+          createInitialState()
+        );
+
+        tester.send({ type: "recording-started" }).send(
+          fromPartial({
+            type: "new-optimistic-clip-detected",
+            soundDetectionId: "sound-1",
+          })
+        );
+
+        const state = tester.getState();
+        const clip = state.items[0] as ClipOptimisticallyAdded;
+        expect(clip.sessionId).toBe(state.sessions[0]!.id);
+      });
+
+      it("Should auto-create a session if none exists when speech is detected", () => {
+        const tester = new ReducerTester(
+          clipStateReducer,
+          createInitialState()
+        );
+
+        tester.send(
+          fromPartial({
+            type: "new-optimistic-clip-detected",
+            soundDetectionId: "sound-1",
+          })
+        );
+
+        const state = tester.getState();
+        expect(state.sessions).toHaveLength(1);
+        expect(state.sessions[0]).toMatchObject({
+          displayNumber: 1,
+          isRecording: true,
+        });
+        const clip = state.items[0] as ClipOptimisticallyAdded;
+        expect(clip.sessionId).toBe(state.sessions[0]!.id);
+      });
+
+      it("Should associate multiple clips with the same active session", () => {
+        const tester = new ReducerTester(
+          clipStateReducer,
+          createInitialState()
+        );
+
+        tester
+          .send({ type: "recording-started" })
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-1",
+            })
+          )
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-2",
+            })
+          );
+
+        const state = tester.getState();
+        const sessionId = state.sessions[0]!.id;
+        const clip1 = state.items[0] as ClipOptimisticallyAdded;
+        const clip2 = state.items[1] as ClipOptimisticallyAdded;
+        expect(clip1.sessionId).toBe(sessionId);
+        expect(clip2.sessionId).toBe(sessionId);
+      });
+
+      it("Should not create a duplicate session when auto-creating and then detecting again", () => {
+        const tester = new ReducerTester(
+          clipStateReducer,
+          createInitialState()
+        );
+
+        tester
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-1",
+            })
+          )
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-2",
+            })
+          );
+
+        const state = tester.getState();
+        expect(state.sessions).toHaveLength(1);
       });
     });
   });

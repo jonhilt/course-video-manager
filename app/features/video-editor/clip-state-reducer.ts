@@ -58,6 +58,11 @@ export type ClipOptimisticallyAdded = {
    * Used for deduplication - prevents duplicate clips from React StrictMode double-firing.
    */
   soundDetectionId: string;
+  /**
+   * The recording session this clip belongs to.
+   * Used to group optimistic clips in per-session UI panels.
+   */
+  sessionId: SessionId;
 };
 
 export const createFrontendId = (): FrontendId => {
@@ -94,6 +99,18 @@ export type EditorError = {
   timestamp: number;
 };
 
+export type SessionId = Brand<string, "SessionId">;
+
+export const createSessionId = (): SessionId => {
+  return crypto.randomUUID() as SessionId;
+};
+
+export type RecordingSession = {
+  id: SessionId;
+  displayNumber: number;
+  isRecording: boolean;
+};
+
 export namespace clipStateReducer {
   export type State = {
     items: TimelineItem[];
@@ -105,9 +122,17 @@ export namespace clipStateReducer {
      * The editor should display an error overlay and require a page refresh.
      */
     error: EditorError | null;
+    /**
+     * Recording sessions. Each session groups optimistic clips created during
+     * a single recording. Session numbering resets on page reload.
+     */
+    sessions: RecordingSession[];
   };
 
   export type Action =
+    | {
+        type: "recording-started";
+      }
     | {
         type: "new-optimistic-clip-detected";
         scene: string;
@@ -247,6 +272,23 @@ export const clipStateReducer: EffectReducer<
   exec
 ): clipStateReducer.State => {
   switch (action.type) {
+    case "recording-started": {
+      const nextDisplayNumber =
+        state.sessions.length > 0
+          ? Math.max(...state.sessions.map((s) => s.displayNumber)) + 1
+          : 1;
+
+      const newSession: RecordingSession = {
+        id: createSessionId(),
+        displayNumber: nextDisplayNumber,
+        isRecording: true,
+      };
+
+      return {
+        ...state,
+        sessions: [...state.sessions, newSession],
+      };
+    }
     case "new-optimistic-clip-detected": {
       // Check if clip with same soundDetectionId already exists (deduplication for React StrictMode)
       const existingClip = state.items.find(
@@ -258,6 +300,22 @@ export const clipStateReducer: EffectReducer<
         return state;
       }
 
+      // Find active recording session, or auto-create one
+      let sessions = state.sessions;
+      let activeSession = sessions.find((s) => s.isRecording);
+      if (!activeSession) {
+        const nextDisplayNumber =
+          sessions.length > 0
+            ? Math.max(...sessions.map((s) => s.displayNumber)) + 1
+            : 1;
+        activeSession = {
+          id: createSessionId(),
+          displayNumber: nextDisplayNumber,
+          isRecording: true,
+        };
+        sessions = [...sessions, activeSession];
+      }
+
       const newFrontendId = createFrontendId();
       const newClip: ClipOptimisticallyAdded = {
         type: "optimistically-added",
@@ -267,6 +325,7 @@ export const clipStateReducer: EffectReducer<
         insertionOrder: state.insertionOrder + 1,
         beatType: "none",
         soundDetectionId: action.soundDetectionId,
+        sessionId: activeSession.id,
       };
 
       let newInsertionPoint: FrontendInsertionPoint = state.insertionPoint;
@@ -330,6 +389,7 @@ export const clipStateReducer: EffectReducer<
         items: newClips,
         insertionOrder: state.insertionOrder + 1,
         insertionPoint: newInsertionPoint,
+        sessions,
       };
     }
     case "new-database-clips": {
