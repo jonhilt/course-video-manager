@@ -5,11 +5,6 @@ import { RenameVideoModal } from "@/components/rename-video-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
@@ -25,8 +20,8 @@ import type { Plan } from "@/features/course-planner/types";
 import { cn } from "@/lib/utils";
 import {
   Archive,
-  ChevronRight,
   ClipboardList,
+  Eye,
   FolderGit2,
   FolderOpen,
   Menu,
@@ -116,90 +111,79 @@ export function AppSidebar({
 
   const sidebarContent = (
     <>
-      {/* Courses */}
-      <Collapsible defaultOpen>
-        <div className="flex items-center justify-between">
-          <CollapsibleTrigger className="flex items-center gap-2 text-lg font-semibold hover:text-foreground/80 transition-colors group">
-            <ChevronRight className="w-4 h-4 transition-transform group-data-[state=open]:rotate-90" />
-            <FolderGit2 className="w-5 h-5" />
-            Courses
-          </CollapsibleTrigger>
+      {/* Courses Card */}
+      <div className="rounded-lg border bg-card p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <FolderGit2 className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Courses</span>
+          </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-6 w-6"
             onClick={() => setIsAddRepoModalOpen?.(true)}
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
           </Button>
         </div>
-        <CollapsibleContent>
-          <div className="ml-6 mt-2 space-y-1">
-            {repos.map((repo) => (
-              <ContextMenu key={repo.id}>
-                <ContextMenuTrigger asChild>
-                  <Button
-                    variant={selectedRepoId === repo.id ? "default" : "ghost"}
-                    size="sm"
-                    className={cn(
-                      "w-full justify-start whitespace-normal text-left h-auto py-1.5",
-                      selectedRepoId === repo.id &&
-                        "bg-muted text-foreground/90 hover:bg-muted/90"
-                    )}
-                    onClick={() => {
-                      navigate(`/?repoId=${repo.id}`, {
-                        preventScrollReset: true,
-                      });
-                    }}
-                  >
-                    {repo.name}
-                  </Button>
-                </ContextMenuTrigger>
-                <ContextMenuContent>
-                  <ContextMenuItem
-                    onSelect={() => {
-                      archiveRepoFetcher.submit(
-                        { archived: "true" },
-                        {
-                          method: "post",
-                          action: `/api/repos/${repo.id}/archive`,
-                        }
-                      );
-                    }}
-                  >
-                    <Archive className="w-4 h-4" />
-                    Archive
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            ))}
+        <div className="space-y-0.5">
+          {repos.map((repo) => (
+            <ContextMenu key={repo.id}>
+              <ContextMenuTrigger asChild>
+                <button
+                  className={cn(
+                    "w-full text-left text-sm px-2 py-1.5 rounded-md hover:bg-accent transition-colors",
+                    selectedRepoId === repo.id && "bg-muted text-foreground/90"
+                  )}
+                  onClick={() => {
+                    navigate(`/?repoId=${repo.id}`, {
+                      preventScrollReset: true,
+                    });
+                  }}
+                >
+                  {repo.name}
+                </button>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem
+                  onSelect={() => {
+                    archiveRepoFetcher.submit(
+                      { archived: "true" },
+                      {
+                        method: "post",
+                        action: `/api/repos/${repo.id}/archive`,
+                      }
+                    );
+                  }}
+                >
+                  <Archive className="w-4 h-4" />
+                  Archive
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          ))}
+        </div>
+        <Link
+          to="/archived-repos"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mt-2 px-2 transition-colors"
+        >
+          <Archive className="w-3 h-3" />
+          Archived Courses
+        </Link>
+      </div>
 
-            {/* Archived Courses */}
-            <Link to="/archived-repos">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-muted-foreground"
-              >
-                Archived Courses
-              </Button>
-            </Link>
+      {/* Videos Card */}
+      <div className="rounded-lg border bg-card p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <VideoIcon className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Videos</span>
           </div>
-        </CollapsibleContent>
-      </Collapsible>
-
-      {/* Videos */}
-      <Collapsible defaultOpen>
-        <div className="flex items-center justify-between">
-          <CollapsibleTrigger className="flex items-center gap-2 text-lg font-semibold hover:text-foreground/80 transition-colors group">
-            <ChevronRight className="w-4 h-4 transition-transform group-data-[state=open]:rotate-90" />
-            <VideoIcon className="w-5 h-5" />
-            Videos
-          </CollapsibleTrigger>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-6 w-6"
             onClick={() => {
               if (setIsAddStandaloneVideoModalOpen) {
                 setIsAddStandaloneVideoModalOpen(true);
@@ -208,156 +192,145 @@ export function AppSidebar({
               }
             }}
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
           </Button>
         </div>
-        <CollapsibleContent>
-          <div className="ml-6 mt-2 space-y-1">
-            {standaloneVideos.map((video) => (
-              <ContextMenu key={video.id}>
+        <div className="space-y-0.5">
+          {standaloneVideos.map((video) => (
+            <ContextMenu key={video.id}>
+              <ContextMenuTrigger asChild>
+                <Link
+                  to={`/videos/${video.id}/edit`}
+                  className="block w-full text-left text-sm px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
+                >
+                  {video.path}
+                </Link>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem
+                  onSelect={() => {
+                    setVideoToRename({ id: video.id, path: video.path });
+                  }}
+                >
+                  <PencilIcon className="w-4 h-4" />
+                  Rename
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onSelect={() => {
+                    revealVideoFetcher.submit(
+                      {},
+                      {
+                        method: "post",
+                        action: `/api/videos/${video.id}/reveal`,
+                      }
+                    );
+                  }}
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  Reveal in File System
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onSelect={() => {
+                    archiveVideoFetcher.submit(
+                      { archived: "true" },
+                      {
+                        method: "post",
+                        action: `/api/videos/${video.id}/archive`,
+                      }
+                    );
+                  }}
+                >
+                  <Archive className="w-4 h-4" />
+                  Archive
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          ))}
+        </div>
+        <Link
+          to="/videos"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mt-2 px-2 transition-colors"
+        >
+          <Eye className="w-3 h-3" />
+          View All Videos
+        </Link>
+      </div>
+
+      {/* Plans Card */}
+      <div className="rounded-lg border bg-card p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Plans</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => setIsCreatePlanModalOpen(true)}
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+        <div className="space-y-0.5">
+          {plans.map((plan) =>
+            renamingPlanId === plan.id ? (
+              <Input
+                key={plan.id}
+                ref={renameInputRef}
+                value={renamingPlanTitle}
+                onChange={(e) => setRenamingPlanTitle(e.target.value)}
+                className="h-8 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSavePlanRename();
+                  if (e.key === "Escape") handleCancelPlanRename();
+                }}
+                onBlur={handleSavePlanRename}
+              />
+            ) : (
+              <ContextMenu key={plan.id}>
                 <ContextMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start whitespace-normal text-left h-auto py-1.5"
-                    asChild
+                  <Link
+                    to={`/plans/${plan.id}`}
+                    className="block w-full text-left text-sm px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
                   >
-                    <Link to={`/videos/${video.id}/edit`}>{video.path}</Link>
-                  </Button>
+                    {plan.title}
+                  </Link>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
                   <ContextMenuItem
                     onSelect={() => {
-                      setVideoToRename({ id: video.id, path: video.path });
+                      setRenamingPlanId(plan.id);
+                      setRenamingPlanTitle(plan.title);
                     }}
                   >
                     <PencilIcon className="w-4 h-4" />
                     Rename
                   </ContextMenuItem>
                   <ContextMenuItem
+                    variant="destructive"
                     onSelect={() => {
-                      revealVideoFetcher.submit(
+                      deletePlanFetcher.submit(
                         {},
                         {
                           method: "post",
-                          action: `/api/videos/${video.id}/reveal`,
+                          action: `/api/plans/${plan.id}/delete`,
                         }
                       );
                     }}
                   >
-                    <FolderOpen className="w-4 h-4" />
-                    Reveal in File System
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    onSelect={() => {
-                      archiveVideoFetcher.submit(
-                        { archived: "true" },
-                        {
-                          method: "post",
-                          action: `/api/videos/${video.id}/archive`,
-                        }
-                      );
-                    }}
-                  >
-                    <Archive className="w-4 h-4" />
-                    Archive
+                    <Trash2 className="w-4 h-4" />
+                    Delete
                   </ContextMenuItem>
                 </ContextMenuContent>
               </ContextMenu>
-            ))}
-            <Link to="/videos">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-muted-foreground"
-              >
-                View All Videos
-              </Button>
-            </Link>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-
-      {/* Plans */}
-      <Collapsible defaultOpen>
-        <div className="flex items-center justify-between">
-          <CollapsibleTrigger className="flex items-center gap-2 text-lg font-semibold hover:text-foreground/80 transition-colors group">
-            <ChevronRight className="w-4 h-4 transition-transform group-data-[state=open]:rotate-90" />
-            <ClipboardList className="w-5 h-5" />
-            Plans
-          </CollapsibleTrigger>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setIsCreatePlanModalOpen(true)}
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
+            )
+          )}
+          {plans.length === 0 && (
+            <p className="text-sm text-muted-foreground px-2">No plans yet</p>
+          )}
         </div>
-        <CollapsibleContent>
-          <div className="ml-6 mt-2 space-y-1">
-            {plans.map((plan) =>
-              renamingPlanId === plan.id ? (
-                <Input
-                  key={plan.id}
-                  ref={renameInputRef}
-                  value={renamingPlanTitle}
-                  onChange={(e) => setRenamingPlanTitle(e.target.value)}
-                  className="h-8 text-sm"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSavePlanRename();
-                    if (e.key === "Escape") handleCancelPlanRename();
-                  }}
-                  onBlur={handleSavePlanRename}
-                />
-              ) : (
-                <ContextMenu key={plan.id}>
-                  <ContextMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start whitespace-normal text-left h-auto py-1.5"
-                      asChild
-                    >
-                      <Link to={`/plans/${plan.id}`}>{plan.title}</Link>
-                    </Button>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuItem
-                      onSelect={() => {
-                        setRenamingPlanId(plan.id);
-                        setRenamingPlanTitle(plan.title);
-                      }}
-                    >
-                      <PencilIcon className="w-4 h-4" />
-                      Rename
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      variant="destructive"
-                      onSelect={() => {
-                        deletePlanFetcher.submit(
-                          {},
-                          {
-                            method: "post",
-                            action: `/api/plans/${plan.id}/delete`,
-                          }
-                        );
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
-              )
-            )}
-            {plans.length === 0 && (
-              <p className="text-sm text-muted-foreground px-2">No plans yet</p>
-            )}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+      </div>
     </>
   );
 
@@ -366,7 +339,7 @@ export function AppSidebar({
       {/* Static sidebar for large screens */}
       <div className="w-80 border-r bg-muted/30 hidden lg:flex flex-col">
         <div className="p-4 flex-1 flex flex-col min-h-0">
-          <div className="space-y-2 flex-1 overflow-y-auto">
+          <div className="space-y-3 flex-1 overflow-y-auto">
             {sidebarContent}
           </div>
         </div>
@@ -388,7 +361,7 @@ export function AppSidebar({
             <SheetTitle>Navigation</SheetTitle>
           </SheetHeader>
           <div className="p-4 flex-1 flex flex-col min-h-0">
-            <div className="space-y-2 flex-1 overflow-y-auto">
+            <div className="space-y-3 flex-1 overflow-y-auto">
               {sidebarContent}
             </div>
           </div>
