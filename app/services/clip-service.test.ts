@@ -1373,6 +1373,45 @@ describe("ClipService", () => {
       const timeline = await clipService.getTimeline(video.id);
       expect(timeline).toHaveLength(1);
     });
+
+    it("skips shouldArchive clips when resolving end insertion point", async () => {
+      const video = await clipService.createVideo("test-video.mp4");
+
+      // Create clipA in DB then archive it (simulates optimistic delete -> DB pairing -> archive)
+      const [clipA] = await clipService.appendClips({
+        videoId: video.id,
+        insertionPoint: start,
+        items: [],
+        clips: [{ inputVideo: "test.mp4", startTime: 0, endTime: 10 }],
+      });
+      await clipService.archiveClips([clipA!.id]);
+
+      // Frontend still has clipA as on-database with shouldArchive: true
+      const items: FrontendTimelineItem[] = [
+        {
+          type: "on-database",
+          frontendId: clipA!.id as FrontendId,
+          databaseId: clipA!.id as DatabaseId,
+          shouldArchive: true,
+        },
+      ];
+
+      mockVideoProcessing.getLatestOBSVideoClips = vi.fn().mockResolvedValue({
+        clips: [
+          { inputVideo: "/mnt/c/obs/video.mkv", startTime: 0, endTime: 10 },
+        ],
+      });
+
+      // This should NOT throw "Could not find a clip to insert after"
+      // because resolveInsertionPoint should skip the shouldArchive clip
+      const result = await clipService.appendFromObs({
+        videoId: video.id,
+        insertionPoint: end,
+        items,
+      });
+
+      expect(result).toHaveLength(1);
+    });
   });
 
   // ==========================================================================

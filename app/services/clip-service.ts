@@ -87,7 +87,12 @@ export type FrontendInsertionPoint =
  * or on-database (already saved).
  */
 export type FrontendTimelineItem =
-  | { type: "on-database"; frontendId: FrontendId; databaseId: DatabaseId }
+  | {
+      type: "on-database";
+      frontendId: FrontendId;
+      databaseId: DatabaseId;
+      shouldArchive?: boolean;
+    }
   | { type: "optimistically-added"; frontendId: FrontendId }
   | {
       type: "clip-section-on-database";
@@ -103,6 +108,15 @@ export type FrontendTimelineItem =
  * Internal to ClipService - consumers pass FrontendInsertionPoint and items
  * to ClipService methods, and the conversion happens automatically.
  */
+/** Check if an item is persisted and not pending archival */
+const isPersistedAndActive = (
+  c: FrontendTimelineItem
+): c is
+  | Extract<FrontendTimelineItem, { type: "on-database" }>
+  | Extract<FrontendTimelineItem, { type: "clip-section-on-database" }> =>
+  (c.type === "on-database" && !c.shouldArchive) ||
+  c.type === "clip-section-on-database";
+
 const resolveInsertionPoint = (
   insertionPoint: FrontendInsertionPoint,
   items: FrontendTimelineItem[]
@@ -121,9 +135,7 @@ const resolveInsertionPoint = (
 
     const previousPersistedItem = items
       .slice(0, frontendClipIndex + 1)
-      .findLast(
-        (c) => c.type === "on-database" || c.type === "clip-section-on-database"
-      );
+      .findLast(isPersistedAndActive);
 
     if (!previousPersistedItem) {
       return { type: "start" };
@@ -163,9 +175,7 @@ const resolveInsertionPoint = (
     // Optimistic section (no DB ID yet) — fall back to last persisted item before it
     const previousPersistedItem = items
       .slice(0, frontendClipSectionIndex + 1)
-      .findLast(
-        (c) => c.type === "on-database" || c.type === "clip-section-on-database"
-      );
+      .findLast(isPersistedAndActive);
 
     if (!previousPersistedItem) {
       return { type: "start" };
@@ -186,9 +196,7 @@ const resolveInsertionPoint = (
 
   if (insertionPoint.type === "end") {
     // Find the last persisted item (clip or section)
-    const lastPersistedItem = items.findLast(
-      (c) => c.type === "on-database" || c.type === "clip-section-on-database"
-    );
+    const lastPersistedItem = items.findLast(isPersistedAndActive);
 
     if (!lastPersistedItem) {
       return { type: "start" };
