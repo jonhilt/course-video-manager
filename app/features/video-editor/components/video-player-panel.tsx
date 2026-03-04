@@ -16,7 +16,7 @@ import {
   getShouldShowLastFrameOverlay as getShouldShowLastFrameOverlaySelector,
   getShowCenterLine as getShowCenterLineSelector,
 } from "../video-editor-selectors";
-import { AlertTriangleIcon } from "lucide-react";
+import { AlertTriangleIcon, VideoOffIcon } from "lucide-react";
 import { useFetcher } from "react-router";
 import { useContextSelector } from "use-context-selector";
 import {
@@ -249,67 +249,78 @@ export const VideoPlayerPanel = () => {
               </h1>
             </div>
 
-            {liveMediaStream && (
-              <div
-                className={cn(
-                  "w-full h-full relative aspect-[16/9]",
-                  isLiveStreamPortrait && "w-92 aspect-[9/16]",
-                  "hidden",
-                  !showVideoPlayer &&
-                    (showLiveStream || showLastFrame) &&
-                    "block"
-                )}
-              >
-                {obsConnectorState.type === "obs-recording" && (
-                  <RecordingSignalIndicator />
-                )}
-
-                {isOBSActive && (
-                  <LiveMediaStream
-                    mediaStream={liveMediaStream}
-                    obsConnectorState={obsConnectorState}
-                    speechDetectorState={speechDetectorState}
-                    showCenterLine={showCenterLine}
-                  />
-                )}
-                {!showVideoPlayer &&
-                  shouldShowLastFrameOverlay &&
-                  databaseClipToShowLastFrameOf && (
-                    <div
-                      className={cn(
-                        "absolute top-0 left-0 rounded-lg",
-                        databaseClipToShowLastFrameOf.profile === "TikTok" &&
-                          "w-92 aspect-[9/16]"
-                      )}
-                    >
-                      <img
-                        className="w-full h-full rounded-lg opacity-50"
-                        src={`/clips/${databaseClipToShowLastFrameOf.databaseId}/last-frame`}
-                      />
-                    </div>
-                  )}
+            {!liveMediaStream && clips.length === 0 ? (
+              <div className="w-full aspect-[16/9] bg-gray-800 rounded-lg flex flex-col items-center justify-center gap-3">
+                <VideoOffIcon className="size-10 text-gray-500" />
+                <p className="text-gray-400 text-sm text-center px-4">
+                  No video stream or clips yet. Connect OBS to start recording.
+                </p>
               </div>
+            ) : (
+              <>
+                {liveMediaStream && (
+                  <div
+                    className={cn(
+                      "w-full h-full relative aspect-[16/9]",
+                      isLiveStreamPortrait && "w-92 aspect-[9/16]",
+                      "hidden",
+                      !showVideoPlayer &&
+                        (showLiveStream || showLastFrame) &&
+                        "block"
+                    )}
+                  >
+                    {obsConnectorState.type === "obs-recording" && (
+                      <RecordingSignalIndicator />
+                    )}
+
+                    {isOBSActive && (
+                      <LiveMediaStream
+                        mediaStream={liveMediaStream}
+                        obsConnectorState={obsConnectorState}
+                        speechDetectorState={speechDetectorState}
+                        showCenterLine={showCenterLine}
+                      />
+                    )}
+                    {!showVideoPlayer &&
+                      shouldShowLastFrameOverlay &&
+                      databaseClipToShowLastFrameOf && (
+                        <div
+                          className={cn(
+                            "absolute top-0 left-0 rounded-lg",
+                            databaseClipToShowLastFrameOf.profile ===
+                              "TikTok" && "w-92 aspect-[9/16]"
+                          )}
+                        >
+                          <img
+                            className="w-full h-full rounded-lg opacity-50"
+                            src={`/clips/${databaseClipToShowLastFrameOf.databaseId}/last-frame`}
+                          />
+                        </div>
+                      )}
+                  </div>
+                )}
+                <div
+                  className={cn(
+                    "w-full aspect-[16/9]",
+                    !showVideoPlayer && "hidden"
+                  )}
+                >
+                  <PreloadableClipManager
+                    clipsToAggressivelyPreload={clipsToAggressivelyPreload}
+                    clips={clips
+                      .filter((clip) => clipIdsPreloaded.has(clip.frontendId))
+                      .filter((clip) => clip.type === "on-database")}
+                    finalClipId={clips[clips.length - 1]?.frontendId}
+                    state={runningState}
+                    currentClipId={currentClipId}
+                    currentClipProfile={currentClipProfile}
+                    onClipFinished={onClipFinished}
+                    onUpdateCurrentTime={onUpdateCurrentTime}
+                    playbackRate={playbackRate}
+                  />
+                </div>
+              </>
             )}
-            <div
-              className={cn(
-                "w-full aspect-[16/9]",
-                !showVideoPlayer && "hidden"
-              )}
-            >
-              <PreloadableClipManager
-                clipsToAggressivelyPreload={clipsToAggressivelyPreload}
-                clips={clips
-                  .filter((clip) => clipIdsPreloaded.has(clip.frontendId))
-                  .filter((clip) => clip.type === "on-database")}
-                finalClipId={clips[clips.length - 1]?.frontendId}
-                state={runningState}
-                currentClipId={currentClipId}
-                currentClipProfile={currentClipProfile}
-                onClipFinished={onClipFinished}
-                onUpdateCurrentTime={onUpdateCurrentTime}
-                playbackRate={playbackRate}
-              />
-            </div>
 
             <div className="flex gap-2 mt-4">
               <ActionsDropdown
