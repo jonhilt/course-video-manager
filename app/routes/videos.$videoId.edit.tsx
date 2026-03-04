@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { DB } from "@/db/schema";
 import type {
   ClipOnDatabase,
@@ -487,6 +488,20 @@ export const ComponentInner = (props: Route.ComponentProps) => {
       });
     },
   });
+
+  // Sync OBS recording state to clip-state-reducer sessions
+  const prevOBSStateTypeRef = useRef(obsConnector.state.type);
+  useEffect(() => {
+    const prevType = prevOBSStateTypeRef.current;
+    const currType = obsConnector.state.type;
+    prevOBSStateTypeRef.current = currType;
+
+    if (prevType !== "obs-recording" && currType === "obs-recording") {
+      dispatch({ type: "recording-started" });
+    } else if (prevType === "obs-recording" && currType !== "obs-recording") {
+      dispatch({ type: "recording-stopped" });
+    }
+  }, [obsConnector.state.type]);
 
   return (
     <VideoEditor
