@@ -511,8 +511,22 @@ export const clipStateReducer: EffectReducer<
 
       let newInsertionPoint: FrontendInsertionPoint = state.insertionPoint;
 
+      // When outputPath is provided, scope matching to the session with that
+      // outputPath. This ensures DB clips from file A only pair with optimistic
+      // clips from session A, not session B.
+      const scopeBySession = action.outputPath !== undefined;
+      const matchingSessionId = scopeBySession
+        ? state.sessions.find((s) => s.outputPath === action.outputPath)?.id
+        : undefined;
+
       const optimisticClipsSortedByInsertionOrder = newClipsState
-        .filter((c) => c?.type === "optimistically-added")
+        .filter(
+          (c): c is ClipOptimisticallyAdded =>
+            c?.type === "optimistically-added" &&
+            // If scoped by session, only consider clips from the matching session
+            // (if no session matches the outputPath, this filters out everything)
+            (!scopeBySession || c.sessionId === matchingSessionId)
+        )
         .sort((a, b) => {
           return a.insertionOrder! - b.insertionOrder!;
         });
