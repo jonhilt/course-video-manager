@@ -373,6 +373,7 @@ export default function PostPage(props: Route.ComponentProps) {
   // Delete link fetcher
   const deleteLinkFetcher = useFetcher();
   const openFolderFetcher = useFetcher();
+  const revealVideoFetcher = useFetcher();
 
   useEffect(() => {
     const result = openFolderFetcher.data as { error?: string } | undefined;
@@ -732,6 +733,15 @@ export default function PostPage(props: Route.ComponentProps) {
             });
           }}
           videoSlot={<Video src={`/api/videos/${videoId}/stream`} />}
+          onRevealInFileSystem={() => {
+            revealVideoFetcher.submit(
+              {},
+              {
+                method: "post",
+                action: `/api/videos/${videoId}/reveal`,
+              }
+            );
+          }}
         />
 
         {/* Right panel: Tabbed posting interface */}

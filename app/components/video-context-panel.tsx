@@ -75,6 +75,9 @@ export type VideoContextPanelProps = {
 
   // Video component slot (allows custom video player)
   videoSlot?: React.ReactNode;
+
+  // Reveal video file in file system
+  onRevealInFileSystem?: () => void;
 };
 
 export function VideoContextPanel({
@@ -101,6 +104,7 @@ export function VideoContextPanel({
   onAddLinkClick,
   onDeleteLink,
   videoSlot,
+  onRevealInFileSystem,
 }: VideoContextPanelProps) {
   const [sidebarTab, setSidebarTab] = useState<"context" | "links">("context");
 
@@ -108,6 +112,17 @@ export function VideoContextPanel({
     <div className="w-1/4 border-r flex flex-col overflow-hidden">
       <div className="p-4 pb-0">
         {videoSlot ?? <video src={videoSrc} className="w-full" controls />}
+        {onRevealInFileSystem && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-1 text-muted-foreground"
+            onClick={onRevealInFileSystem}
+          >
+            <FolderOpenIcon className="h-3.5 w-3.5" />
+            Reveal in File System
+          </Button>
+        )}
       </div>
       {/* Tab buttons */}
       <div className="flex gap-1 px-4 pt-2 pb-4">
