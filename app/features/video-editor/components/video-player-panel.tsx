@@ -352,7 +352,7 @@ export const VideoPlayerPanel = () => {
               />
               <Button variant="secondary" onClick={onAddNoteFromClipboard}>
                 <ClipboardIcon className="w-4 h-4 mr-1" />
-                Add Note from Clipboard
+                Add Note
               </Button>
             </div>
 
