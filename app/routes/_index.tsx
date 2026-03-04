@@ -804,10 +804,10 @@ export default function Component(props: Route.ComponentProps) {
                                           variant="destructive"
                                           onSelect={() => {
                                             deleteVideoFileFetcher.submit(
-                                              null,
+                                              {},
                                               {
-                                                method: "DELETE",
-                                                action: `/videos/${video.id}`,
+                                                method: "post",
+                                                action: `/api/videos/${video.id}/delete-file`,
                                               }
                                             );
                                           }}
