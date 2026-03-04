@@ -63,7 +63,8 @@
       "WebFetch(domain:developers.kit.com)",
       "Bash(git remote:*)",
       "Bash(npx react-router:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npm run build *)"
     ],
     "deny": [],
     "ask": []
