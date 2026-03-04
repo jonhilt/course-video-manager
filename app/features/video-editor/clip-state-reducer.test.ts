@@ -2516,6 +2516,77 @@ describe("clipStateReducer", () => {
 
         expect(tester.getState()).toEqual(stateBefore);
       });
+
+      it("Should cause unpaired DB clips arriving later to appear as new timeline clips", () => {
+        const tester = new ReducerTester(
+          clipStateReducer,
+          createInitialState()
+        );
+
+        // Start recording, add two optimistic clips, archive them
+        tester
+          .send({ type: "recording-started" })
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-1",
+            })
+          )
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-2",
+            })
+          );
+
+        const sessionId = tester.getState().sessions[0]!.id;
+        const clip1Id = tester.getState().items[0]!.frontendId;
+        const clip2Id = tester.getState().items[1]!.frontendId;
+
+        // Delete both clips (archive them)
+        tester.send({ type: "clips-deleted", clipIds: [clip1Id, clip2Id] });
+
+        expect(tester.getState().items).toHaveLength(2);
+        expect(
+          (tester.getState().items[0] as ClipOptimisticallyAdded).shouldArchive
+        ).toBe(true);
+
+        // "Clear all" — permanently removes archived clips before DB clips arrive
+        tester.send({
+          type: "permanently-remove-archived",
+          sessionId,
+        });
+
+        expect(tester.getState().items).toHaveLength(0);
+
+        // DB clips arrive after clear all — should appear as new unpaired clips
+        tester.resetExec().send({
+          type: "new-database-clips",
+          clips: [
+            fromPartial({ id: "db-1" as DatabaseId, text: "First clip" }),
+            fromPartial({ id: "db-2" as DatabaseId, text: "Second clip" }),
+          ],
+        });
+
+        // Both should appear as new timeline clips (not archived)
+        expect(tester.getState().items).toHaveLength(2);
+
+        const newClip1 = tester.getState().items[0] as ClipOnDatabase;
+        const newClip2 = tester.getState().items[1] as ClipOnDatabase;
+
+        expect(newClip1.type).toBe("on-database");
+        expect(newClip1.databaseId).toBe("db-1");
+        expect(newClip1.shouldArchive).toBeUndefined();
+        // New frontend IDs — not the original archived clip IDs
+        expect(newClip1.frontendId).not.toBe(clip1Id);
+        expect(newClip1.frontendId).not.toBe(clip2Id);
+
+        expect(newClip2.type).toBe("on-database");
+        expect(newClip2.databaseId).toBe("db-2");
+        expect(newClip2.shouldArchive).toBeUndefined();
+        expect(newClip2.frontendId).not.toBe(clip1Id);
+        expect(newClip2.frontendId).not.toBe(clip2Id);
+      });
     });
   });
 });
