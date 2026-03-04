@@ -87,14 +87,14 @@ export const getSessionPanels = (
   return sessions
     .filter(
       (session) =>
-        session.isRecording ||
+        session.status === "recording" ||
         pendingBySession.has(session.id) ||
         archivedBySession.has(session.id)
     )
     .map((session) => ({
       sessionId: session.id,
       displayNumber: session.displayNumber,
-      isRecording: session.isRecording,
+      isRecording: session.status === "recording",
       pendingClips: pendingBySession.get(session.id) ?? [],
       archivedClips: archivedBySession.get(session.id) ?? [],
     }))

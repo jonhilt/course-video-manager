@@ -1795,13 +1795,16 @@ describe("clipStateReducer", () => {
           createInitialState()
         );
 
-        tester.send({ type: "recording-started" });
+        tester.send({
+          type: "recording-started",
+          outputPath: "/tmp/recording.mkv",
+        });
 
         const state = tester.getState();
         expect(state.sessions).toHaveLength(1);
         expect(state.sessions[0]).toMatchObject({
           displayNumber: 1,
-          isRecording: true,
+          status: "recording",
         });
         expect(state.sessions[0]!.id).toBeTruthy();
       });
@@ -1813,8 +1816,11 @@ describe("clipStateReducer", () => {
         );
 
         tester
-          .send({ type: "recording-started" })
-          .send({ type: "recording-started" });
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
+          .send({
+            type: "recording-started",
+            outputPath: "/tmp/recording.mkv",
+          });
 
         const state = tester.getState();
         expect(state.sessions).toHaveLength(2);
@@ -1829,12 +1835,81 @@ describe("clipStateReducer", () => {
         );
 
         const stateBefore = tester.getState();
-        tester.send({ type: "recording-started" });
+        tester.send({
+          type: "recording-started",
+          outputPath: "/tmp/recording.mkv",
+        });
         const stateAfter = tester.getState();
 
         expect(stateAfter.items).toEqual(stateBefore.items);
         expect(stateAfter.insertionPoint).toEqual(stateBefore.insertionPoint);
         expect(stateAfter.insertionOrder).toEqual(stateBefore.insertionOrder);
+      });
+
+      it("Should store the outputPath from the action", () => {
+        const tester = new ReducerTester(
+          clipStateReducer,
+          createInitialState()
+        );
+
+        tester.send({
+          type: "recording-started",
+          outputPath: "/videos/2026-03-04_10-30-00.mkv",
+        });
+
+        const state = tester.getState();
+        expect(state.sessions[0]).toMatchObject({
+          outputPath: "/videos/2026-03-04_10-30-00.mkv",
+          status: "recording",
+        });
+      });
+
+      it("Should preserve outputPath after recording stops", () => {
+        const tester = new ReducerTester(
+          clipStateReducer,
+          createInitialState()
+        );
+
+        tester
+          .send({
+            type: "recording-started",
+            outputPath: "/videos/session1.mkv",
+          })
+          .send({ type: "recording-stopped" });
+
+        const state = tester.getState();
+        expect(state.sessions[0]).toMatchObject({
+          outputPath: "/videos/session1.mkv",
+          status: "polling",
+        });
+      });
+
+      it("Should store different outputPaths for different sessions", () => {
+        const tester = new ReducerTester(
+          clipStateReducer,
+          createInitialState()
+        );
+
+        tester
+          .send({
+            type: "recording-started",
+            outputPath: "/videos/session1.mkv",
+          })
+          .send({ type: "recording-stopped" })
+          .send({
+            type: "recording-started",
+            outputPath: "/videos/session2.mkv",
+          });
+
+        const state = tester.getState();
+        expect(state.sessions[0]).toMatchObject({
+          outputPath: "/videos/session1.mkv",
+          status: "polling",
+        });
+        expect(state.sessions[1]).toMatchObject({
+          outputPath: "/videos/session2.mkv",
+          status: "recording",
+        });
       });
     });
 
@@ -1846,14 +1921,14 @@ describe("clipStateReducer", () => {
         );
 
         tester
-          .send({ type: "recording-started" })
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
           .send({ type: "recording-stopped" });
 
         const state = tester.getState();
         expect(state.sessions).toHaveLength(1);
         expect(state.sessions[0]).toMatchObject({
           displayNumber: 1,
-          isRecording: false,
+          status: "polling",
         });
       });
 
@@ -1865,20 +1940,23 @@ describe("clipStateReducer", () => {
 
         // Start first session, stop it, start second session
         tester
-          .send({ type: "recording-started" })
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
           .send({ type: "recording-stopped" })
-          .send({ type: "recording-started" });
+          .send({
+            type: "recording-started",
+            outputPath: "/tmp/recording.mkv",
+          });
 
         const stateBefore = tester.getState();
-        expect(stateBefore.sessions[0]).toMatchObject({ isRecording: false });
-        expect(stateBefore.sessions[1]).toMatchObject({ isRecording: true });
+        expect(stateBefore.sessions[0]).toMatchObject({ status: "polling" });
+        expect(stateBefore.sessions[1]).toMatchObject({ status: "recording" });
 
         // Stop second session
         tester.send({ type: "recording-stopped" });
 
         const state = tester.getState();
-        expect(state.sessions[0]).toMatchObject({ isRecording: false });
-        expect(state.sessions[1]).toMatchObject({ isRecording: false });
+        expect(state.sessions[0]).toMatchObject({ status: "polling" });
+        expect(state.sessions[1]).toMatchObject({ status: "polling" });
       });
 
       it("Should fire start-orphan-timer effect with the session id", () => {
@@ -1887,7 +1965,10 @@ describe("clipStateReducer", () => {
           createInitialState()
         );
 
-        tester.send({ type: "recording-started" });
+        tester.send({
+          type: "recording-started",
+          outputPath: "/tmp/recording.mkv",
+        });
         const sessionId = tester.getState().sessions[0]!.id;
 
         tester.resetExec().send({ type: "recording-stopped" });
@@ -1921,7 +2002,7 @@ describe("clipStateReducer", () => {
         );
 
         tester
-          .send({ type: "recording-started" })
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
           .send(
             fromPartial({
               type: "new-optimistic-clip-detected",
@@ -1955,7 +2036,7 @@ describe("clipStateReducer", () => {
 
         // Session 1 with a clip
         tester
-          .send({ type: "recording-started" })
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
           .send(
             fromPartial({
               type: "new-optimistic-clip-detected",
@@ -1968,7 +2049,7 @@ describe("clipStateReducer", () => {
 
         // Session 2 with a clip
         tester
-          .send({ type: "recording-started" })
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
           .send(
             fromPartial({
               type: "new-optimistic-clip-detected",
@@ -1994,7 +2075,7 @@ describe("clipStateReducer", () => {
         );
 
         tester
-          .send({ type: "recording-started" })
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
           .send(
             fromPartial({
               type: "new-optimistic-clip-detected",
@@ -2039,7 +2120,7 @@ describe("clipStateReducer", () => {
         );
 
         tester
-          .send({ type: "recording-started" })
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
           .send({ type: "recording-stopped" });
 
         const sessionId = tester.getState().sessions[0]!.id;
@@ -2058,7 +2139,7 @@ describe("clipStateReducer", () => {
         );
 
         tester
-          .send({ type: "recording-started" })
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
           .send(
             fromPartial({
               type: "new-optimistic-clip-detected",
@@ -2104,12 +2185,14 @@ describe("clipStateReducer", () => {
           createInitialState()
         );
 
-        tester.send({ type: "recording-started" }).send(
-          fromPartial({
-            type: "new-optimistic-clip-detected",
-            soundDetectionId: "sound-1",
-          })
-        );
+        tester
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-1",
+            })
+          );
 
         const state = tester.getState();
         const clip = state.items[0] as ClipOptimisticallyAdded;
@@ -2133,7 +2216,7 @@ describe("clipStateReducer", () => {
         expect(state.sessions).toHaveLength(1);
         expect(state.sessions[0]).toMatchObject({
           displayNumber: 1,
-          isRecording: true,
+          status: "recording",
         });
         const clip = state.items[0] as ClipOptimisticallyAdded;
         expect(clip.sessionId).toBe(state.sessions[0]!.id);
@@ -2146,7 +2229,7 @@ describe("clipStateReducer", () => {
         );
 
         tester
-          .send({ type: "recording-started" })
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
           .send(
             fromPartial({
               type: "new-optimistic-clip-detected",
@@ -2200,12 +2283,14 @@ describe("clipStateReducer", () => {
           createInitialState()
         );
 
-        tester.send({ type: "recording-started" }).send(
-          fromPartial({
-            type: "new-optimistic-clip-detected",
-            soundDetectionId: "sound-1",
-          })
-        );
+        tester
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-1",
+            })
+          );
 
         const clipId = tester.getState().items[0]!.frontendId;
 
@@ -2230,12 +2315,14 @@ describe("clipStateReducer", () => {
           createInitialState()
         );
 
-        tester.send({ type: "recording-started" }).send(
-          fromPartial({
-            type: "new-optimistic-clip-detected",
-            soundDetectionId: "sound-1",
-          })
-        );
+        tester
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-1",
+            })
+          );
 
         const clipId = tester.getState().items[0]!.frontendId;
 
@@ -2262,12 +2349,14 @@ describe("clipStateReducer", () => {
           createInitialState()
         );
 
-        tester.send({ type: "recording-started" }).send(
-          fromPartial({
-            type: "new-optimistic-clip-detected",
-            soundDetectionId: "sound-1",
-          })
-        );
+        tester
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-1",
+            })
+          );
 
         const clipId = tester.getState().items[0]!.frontendId;
 
@@ -2291,12 +2380,14 @@ describe("clipStateReducer", () => {
           createInitialState()
         );
 
-        tester.send({ type: "recording-started" }).send(
-          fromPartial({
-            type: "new-optimistic-clip-detected",
-            soundDetectionId: "sound-1",
-          })
-        );
+        tester
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-1",
+            })
+          );
 
         const clipId = tester.getState().items[0]!.frontendId;
 
@@ -2334,7 +2425,10 @@ describe("clipStateReducer", () => {
           createInitialState()
         );
 
-        tester.send({ type: "recording-started" });
+        tester.send({
+          type: "recording-started",
+          outputPath: "/tmp/recording.mkv",
+        });
 
         const sessionId = tester.getState().sessions[0]!.id;
 
@@ -2381,12 +2475,14 @@ describe("clipStateReducer", () => {
           createInitialState()
         );
 
-        tester.send({ type: "recording-started" }).send(
-          fromPartial({
-            type: "new-optimistic-clip-detected",
-            soundDetectionId: "sound-1",
-          })
-        );
+        tester
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-1",
+            })
+          );
 
         const clipId = tester.getState().items[0]!.frontendId;
 
@@ -2416,12 +2512,14 @@ describe("clipStateReducer", () => {
         );
 
         // Session 1: create and archive a clip
-        tester.send({ type: "recording-started" }).send(
-          fromPartial({
-            type: "new-optimistic-clip-detected",
-            soundDetectionId: "sound-1",
-          })
-        );
+        tester
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-1",
+            })
+          );
 
         const session1Id = tester.getState().sessions[0]!.id;
         const clip1Id = tester.getState().items[0]!.frontendId;
@@ -2430,12 +2528,14 @@ describe("clipStateReducer", () => {
           .send({ type: "recording-stopped" });
 
         // Session 2: create and archive a clip
-        tester.send({ type: "recording-started" }).send(
-          fromPartial({
-            type: "new-optimistic-clip-detected",
-            soundDetectionId: "sound-2",
-          })
-        );
+        tester
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-2",
+            })
+          );
 
         const clip2Id = tester.getState().items[1]!.frontendId;
         tester.send({ type: "clips-deleted", clipIds: [clip2Id] });
@@ -2460,7 +2560,7 @@ describe("clipStateReducer", () => {
         );
 
         tester
-          .send({ type: "recording-started" })
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
           .send(
             fromPartial({
               type: "new-optimistic-clip-detected",
@@ -2499,12 +2599,14 @@ describe("clipStateReducer", () => {
           createInitialState()
         );
 
-        tester.send({ type: "recording-started" }).send(
-          fromPartial({
-            type: "new-optimistic-clip-detected",
-            soundDetectionId: "sound-1",
-          })
-        );
+        tester
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
+          .send(
+            fromPartial({
+              type: "new-optimistic-clip-detected",
+              soundDetectionId: "sound-1",
+            })
+          );
 
         const sessionId = tester.getState().sessions[0]!.id;
         const stateBefore = tester.getState();
@@ -2525,7 +2627,7 @@ describe("clipStateReducer", () => {
 
         // Start recording, add two optimistic clips, archive them
         tester
-          .send({ type: "recording-started" })
+          .send({ type: "recording-started", outputPath: "/tmp/recording.mkv" })
           .send(
             fromPartial({
               type: "new-optimistic-clip-detected",

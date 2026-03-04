@@ -96,7 +96,8 @@ const makeSession = (
   overrides: Partial<RecordingSession> & { id: SessionId }
 ): RecordingSession => ({
   displayNumber: 1,
-  isRecording: true,
+  status: "recording",
+  outputPath: "/tmp/test.mkv",
   ...overrides,
 });
 
@@ -949,8 +950,8 @@ describe("getSessionPanels", () => {
 
   it("excludes non-recording sessions with no pending clips", () => {
     const sessions: RecordingSession[] = [
-      makeSession({ id: sid("s1"), displayNumber: 1, isRecording: false }),
-      makeSession({ id: sid("s2"), displayNumber: 2, isRecording: false }),
+      makeSession({ id: sid("s1"), displayNumber: 1, status: "done" }),
+      makeSession({ id: sid("s2"), displayNumber: 2, status: "done" }),
     ];
     const items: TimelineItem[] = [
       makeOptimisticClip({ frontendId: id("c1"), sessionId: sid("s1") }),
@@ -1065,8 +1066,8 @@ describe("getSessionPanels", () => {
 
   it("excludes non-recording sessions with no pending or archived clips", () => {
     const sessions: RecordingSession[] = [
-      makeSession({ id: sid("s1"), displayNumber: 1, isRecording: false }),
-      makeSession({ id: sid("s2"), displayNumber: 2, isRecording: false }),
+      makeSession({ id: sid("s1"), displayNumber: 1, status: "done" }),
+      makeSession({ id: sid("s2"), displayNumber: 2, status: "done" }),
     ];
     const items: TimelineItem[] = [
       makeOptimisticClip({ frontendId: id("c1"), sessionId: sid("s1") }),
@@ -1105,10 +1106,10 @@ describe("getSessionPanels", () => {
     expect(panels.map((p) => p.displayNumber)).toEqual([1, 2, 3]);
   });
 
-  it("includes isRecording from session metadata", () => {
+  it("derives isRecording from session status", () => {
     const sessions: RecordingSession[] = [
-      makeSession({ id: sid("s1"), displayNumber: 1, isRecording: true }),
-      makeSession({ id: sid("s2"), displayNumber: 2, isRecording: false }),
+      makeSession({ id: sid("s1"), displayNumber: 1, status: "recording" }),
+      makeSession({ id: sid("s2"), displayNumber: 2, status: "done" }),
     ];
     const items: TimelineItem[] = [
       makeOptimisticClip({ frontendId: id("c1"), sessionId: sid("s1") }),
@@ -1121,7 +1122,7 @@ describe("getSessionPanels", () => {
 
   it("includes recording sessions even with no clips", () => {
     const sessions: RecordingSession[] = [
-      makeSession({ id: sid("s1"), displayNumber: 1, isRecording: true }),
+      makeSession({ id: sid("s1"), displayNumber: 1, status: "recording" }),
     ];
     const items: TimelineItem[] = [];
     const panels = getSessionPanels(items, sessions);

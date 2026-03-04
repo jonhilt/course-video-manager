@@ -122,10 +122,13 @@ export const createSessionId = (): SessionId => {
   return crypto.randomUUID() as SessionId;
 };
 
+export type RecordingSessionStatus = "recording" | "polling" | "done";
+
 export type RecordingSession = {
   id: SessionId;
   displayNumber: number;
-  isRecording: boolean;
+  status: RecordingSessionStatus;
+  outputPath: string;
 };
 
 export namespace clipStateReducer {
@@ -149,6 +152,7 @@ export namespace clipStateReducer {
   export type Action =
     | {
         type: "recording-started";
+        outputPath: string;
       }
     | {
         type: "recording-stopped";
@@ -321,7 +325,8 @@ export const clipStateReducer: EffectReducer<
       const newSession: RecordingSession = {
         id: createSessionId(),
         displayNumber: nextDisplayNumber,
-        isRecording: true,
+        status: "recording",
+        outputPath: action.outputPath,
       };
 
       return {
@@ -330,7 +335,9 @@ export const clipStateReducer: EffectReducer<
       };
     }
     case "recording-stopped": {
-      const activeSession = state.sessions.find((s) => s.isRecording);
+      const activeSession = state.sessions.find(
+        (s) => s.status === "recording"
+      );
       if (!activeSession) {
         return state;
       }
@@ -343,7 +350,7 @@ export const clipStateReducer: EffectReducer<
       return {
         ...state,
         sessions: state.sessions.map((s) =>
-          s.id === activeSession.id ? { ...s, isRecording: false } : s
+          s.id === activeSession.id ? { ...s, status: "polling" } : s
         ),
       };
     }
@@ -386,7 +393,7 @@ export const clipStateReducer: EffectReducer<
 
       // Find active recording session, or auto-create one
       let sessions = state.sessions;
-      let activeSession = sessions.find((s) => s.isRecording);
+      let activeSession = sessions.find((s) => s.status === "recording");
       if (!activeSession) {
         const nextDisplayNumber =
           sessions.length > 0
@@ -395,7 +402,8 @@ export const clipStateReducer: EffectReducer<
         activeSession = {
           id: createSessionId(),
           displayNumber: nextDisplayNumber,
-          isRecording: true,
+          status: "recording",
+          outputPath: "",
         };
         sessions = [...sessions, activeSession];
       }

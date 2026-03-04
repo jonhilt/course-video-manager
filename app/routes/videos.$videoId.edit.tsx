@@ -497,7 +497,13 @@ export const ComponentInner = (props: Route.ComponentProps) => {
     prevOBSStateTypeRef.current = currType;
 
     if (prevType !== "obs-recording" && currType === "obs-recording") {
-      dispatch({ type: "recording-started" });
+      dispatch({
+        type: "recording-started",
+        outputPath:
+          obsConnector.state.type === "obs-recording"
+            ? obsConnector.state.latestOutputPath
+            : "",
+      });
     } else if (prevType === "obs-recording" && currType !== "obs-recording") {
       dispatch({ type: "recording-stopped" });
     }
