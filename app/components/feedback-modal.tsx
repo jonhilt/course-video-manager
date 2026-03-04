@@ -58,6 +58,12 @@ export function FeedbackModal(props: {
               placeholder="Describe your feedback in detail..."
               rows={4}
               required
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  formRef.current?.requestSubmit();
+                }
+              }}
             />
           </div>
           <div className="flex justify-end gap-2">
