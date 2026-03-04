@@ -263,7 +263,9 @@ export const VideoPlayerPanel = () => {
                   "w-full h-full relative aspect-[16/9]",
                   isLiveStreamPortrait && "w-92 aspect-[9/16]",
                   "hidden",
-                  (showLiveStream || showLastFrame) && "block"
+                  !showVideoPlayer &&
+                    (showLiveStream || showLastFrame) &&
+                    "block"
                 )}
               >
                 {obsConnectorState.type === "obs-recording" && (
