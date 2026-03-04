@@ -28,7 +28,12 @@ export function FeedbackModal(props: {
         const openCount = (fetcher.data as { openIssueCount?: number | null })
           .openIssueCount;
         const countMsg = openCount != null ? ` ${openCount} open issues.` : "";
-        toast(`Feedback submitted! Thank you.${countMsg}`);
+        toast(`Feedback submitted! Thank you.${countMsg}`, {
+          action: {
+            label: "New feedback",
+            onClick: () => props.onOpenChange(true),
+          },
+        });
         formRef.current?.reset();
         props.onOpenChange(false);
       }
