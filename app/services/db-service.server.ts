@@ -1081,6 +1081,17 @@ export class DBFunctionsService extends Effect.Service<DBFunctionsService>()(
               .where(eq(videos.id, opts.videoId))
           );
         }),
+        updateVideoLesson: Effect.fn("updateVideoLesson")(function* (opts: {
+          videoId: string;
+          lessonId: string;
+        }) {
+          yield* makeDbCall(() =>
+            db
+              .update(videos)
+              .set({ lessonId: opts.lessonId, updatedAt: new Date() })
+              .where(eq(videos.id, opts.videoId))
+          );
+        }),
         getRepoById,
         getRepoByFilePath,
         getRepoWithSectionsById,

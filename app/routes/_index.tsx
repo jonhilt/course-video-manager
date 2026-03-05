@@ -6,6 +6,7 @@ import { ClearVideoFilesModal } from "@/components/clear-video-files-modal";
 import { CreateVersionModal } from "@/components/create-version-modal";
 import { DeleteVersionModal } from "@/components/delete-version-modal";
 import { EditLessonModal } from "@/components/edit-lesson-modal";
+import { MoveVideoModal } from "@/components/move-video-modal";
 import { RenameRepoModal } from "@/components/rename-repo-modal";
 import { RewriteRepoPathModal } from "@/components/rewrite-repo-path-modal";
 import { RenameVersionModal } from "@/components/rename-version-modal";
@@ -45,6 +46,7 @@ import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 import {
   Archive,
+  ArrowRightLeft,
   BookOpen,
   ChevronDown,
   Copy,
@@ -258,6 +260,11 @@ export default function Component(props: Route.ComponentProps) {
     useState(false);
   const [isAddStandaloneVideoModalOpen, setIsAddStandaloneVideoModalOpen] =
     useState(false);
+  const [moveVideoState, setMoveVideoState] = useState<{
+    videoId: string;
+    videoPath: string;
+    currentLessonId: string;
+  } | null>(null);
 
   const publishRepoFetcher = useFetcher();
   const { startExportUpload, startBatchExportUpload } =
@@ -806,6 +813,18 @@ export default function Component(props: Route.ComponentProps) {
                                           Reveal in File System
                                         </ContextMenuItem>
                                         <ContextMenuItem
+                                          onSelect={() => {
+                                            setMoveVideoState({
+                                              videoId: video.id,
+                                              videoPath: video.path,
+                                              currentLessonId: lesson.id,
+                                            });
+                                          }}
+                                        >
+                                          <ArrowRightLeft className="w-4 h-4" />
+                                          Move to Lesson
+                                        </ContextMenuItem>
+                                        <ContextMenuItem
                                           variant="destructive"
                                           onSelect={() => {
                                             deleteVideoFileFetcher.submit(
@@ -1027,6 +1046,19 @@ export default function Component(props: Route.ComponentProps) {
           currentPath={currentRepo.filePath}
           open={isRewriteRepoPathModalOpen}
           onOpenChange={setIsRewriteRepoPathModalOpen}
+        />
+      )}
+
+      {moveVideoState && currentRepo && (
+        <MoveVideoModal
+          videoId={moveVideoState.videoId}
+          videoPath={moveVideoState.videoPath}
+          currentLessonId={moveVideoState.currentLessonId}
+          sections={currentRepo.sections}
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setMoveVideoState(null);
+          }}
         />
       )}
     </div>
