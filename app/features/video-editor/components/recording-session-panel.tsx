@@ -136,7 +136,7 @@ const ArchivedClipRow = ({
 /**
  * Renders a single session panel with header, pending clips, and archived sub-section.
  */
-const SessionPanel = ({ panel }: { panel: SessionPanelData }) => {
+export const SessionPanel = ({ panel }: { panel: SessionPanelData }) => {
   const dispatch = useContextSelector(
     VideoEditorContext,
     (ctx) => ctx.dispatch

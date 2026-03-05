@@ -17,8 +17,7 @@ import {
 } from "lucide-react";
 import type { ClipSection } from "../clip-state-reducer";
 import { ClipSectionDivider } from "./clip-section-divider";
-import { InsertionPointIndicator } from "./timeline-indicators";
-import { RecordingSessionPanels } from "./recording-session-panel";
+import { InsertionPointWithSession } from "./insertion-point-with-session";
 import { useContextSelector } from "use-context-selector";
 import { VideoEditorContext } from "../video-editor-context";
 
@@ -176,10 +175,7 @@ export const ClipSectionItem = (props: {
       </ContextMenu>
       {insertionPoint.type === "after-clip-section" &&
         insertionPoint.frontendClipSectionId === props.section.frontendId && (
-          <>
-            <InsertionPointIndicator />
-            <RecordingSessionPanels />
-          </>
+          <InsertionPointWithSession />
         )}
     </div>
   );

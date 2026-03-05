@@ -1,9 +1,9 @@
-import { InsertionPointIndicator, BeatIndicator } from "./timeline-indicators";
+import { BeatIndicator } from "./timeline-indicators";
 import { ClipItem } from "./clip-item";
 import { ClipSectionItem } from "./clip-section-item";
 import { PreRecordingChecklist } from "./pre-recording-checklist";
 import { InlineSuggestion } from "./inline-suggestion";
-import { RecordingSessionPanels } from "./recording-session-panel";
+import { InsertionPointWithSession } from "./insertion-point-with-session";
 import { isClipSection } from "../clip-utils";
 import { useContextSelector } from "use-context-selector";
 import { VideoEditorContext } from "../video-editor-context";
@@ -59,12 +59,7 @@ export const ClipTimeline = () => {
 
         {items.length > 0 && (
           <>
-            {insertionPoint.type === "start" && (
-              <>
-                <InsertionPointIndicator />
-                <RecordingSessionPanels />
-              </>
-            )}
+            {insertionPoint.type === "start" && <InsertionPointWithSession />}
             {items.map((item, itemIndex) => {
               const isFirstItem = itemIndex === 0;
               const isLastItem = itemIndex === items.length - 1;
@@ -127,10 +122,7 @@ export const ClipTimeline = () => {
                   {clip.beatType === "long" && <BeatIndicator />}
                   {insertionPoint.type === "after-clip" &&
                     insertionPoint.frontendClipId === clip.frontendId && (
-                      <>
-                        <InsertionPointIndicator />
-                        <RecordingSessionPanels />
-                      </>
+                      <InsertionPointWithSession />
                     )}
                 </div>
               );
@@ -140,24 +132,14 @@ export const ClipTimeline = () => {
             {insertionPoint.type === "after-clip" &&
               !items.some(
                 (item) => item.frontendId === insertionPoint.frontendClipId
-              ) && (
-                <>
-                  <InsertionPointIndicator />
-                  <RecordingSessionPanels />
-                </>
-              )}
+              ) && <InsertionPointWithSession />}
 
-            {insertionPoint.type === "end" && (
-              <>
-                <InsertionPointIndicator />
-                <RecordingSessionPanels />
-              </>
-            )}
+            {insertionPoint.type === "end" && <InsertionPointWithSession />}
           </>
         )}
 
         {items.length === 0 && sessions.length > 0 && (
-          <RecordingSessionPanels />
+          <InsertionPointWithSession />
         )}
 
         {/* Inline suggestion display at the bottom of the timeline */}
