@@ -68,7 +68,7 @@ const createExportEntry = (
   progress: 0,
   status: "uploading",
   uploadType: "export",
-  exportStage: "concatenating-clips",
+  exportStage: "queued",
   isBatchEntry: false,
   errorMessage: null,
   retryCount: 0,
@@ -194,7 +194,7 @@ describe("uploadReducer", () => {
       });
     });
 
-    it("should set uploadType to export and initialize exportStage to concatenating-clips", () => {
+    it("should set uploadType to export and initialize exportStage to queued", () => {
       const state = reduce(createState(), {
         type: "START_UPLOAD",
         uploadId: "upload-1",
@@ -210,7 +210,7 @@ describe("uploadReducer", () => {
         progress: 0,
         status: "uploading",
         uploadType: "export",
-        exportStage: "concatenating-clips",
+        exportStage: "queued",
         isBatchEntry: false,
         errorMessage: null,
         retryCount: 0,
@@ -1584,8 +1584,19 @@ describe("uploadReducer", () => {
       });
       const started = state.uploads["exp-1"]!;
       expect(started.uploadType === "export" && started.exportStage).toBe(
-        "concatenating-clips"
+        "queued"
       );
+
+      // Transition to concatenating-clips
+      state = reduce(state, {
+        type: "UPDATE_EXPORT_STAGE",
+        uploadId: "exp-1",
+        stage: "concatenating-clips",
+      });
+      const concatenating = state.uploads["exp-1"]!;
+      expect(
+        concatenating.uploadType === "export" && concatenating.exportStage
+      ).toBe("concatenating-clips");
 
       // Transition to normalizing-audio
       state = reduce(state, {
@@ -1665,7 +1676,7 @@ describe("uploadReducer", () => {
       expect(success.progress).toBe(100);
     });
 
-    it("should reset exportStage to concatenating-clips on retry", () => {
+    it("should reset exportStage to queued on retry", () => {
       let state = reduce(createState(), {
         type: "START_UPLOAD",
         uploadId: "exp-1",
@@ -1688,12 +1699,12 @@ describe("uploadReducer", () => {
 
       expect(state.uploads["exp-1"]!.status).toBe("retrying");
 
-      // Retry resets to concatenating-clips
+      // Retry resets to queued
       state = reduce(state, { type: "RETRY", uploadId: "exp-1" });
       const retried = state.uploads["exp-1"]!;
       expect(retried.status).toBe("uploading");
       expect(retried.uploadType === "export" && retried.exportStage).toBe(
-        "concatenating-clips"
+        "queued"
       );
       expect(retried.progress).toBe(0);
     });

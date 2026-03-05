@@ -122,7 +122,7 @@ export const uploadReducer = (
           entry = {
             ...base,
             uploadType: "export",
-            exportStage: "concatenating-clips",
+            exportStage: "queued",
             isBatchEntry: action.isBatchEntry ?? false,
           };
           break;
@@ -323,7 +323,7 @@ export const uploadReducer = (
           entry = {
             ...base,
             uploadType: "export",
-            exportStage: "concatenating-clips",
+            exportStage: "queued",
             isBatchEntry: upload.isBatchEntry,
           };
           break;
