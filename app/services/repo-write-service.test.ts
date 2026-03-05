@@ -265,4 +265,156 @@ describe("RepoWriteService", () => {
       ).toBe(true);
     });
   });
+
+  describe("renameLesson", () => {
+    const createAndCommitLesson = (
+      sectionDir: string,
+      lessonDirName: string
+    ) => {
+      const lessonDir = path.join(sectionDir, lessonDirName, "explainer");
+      fs.mkdirSync(lessonDir, { recursive: true });
+      fs.writeFileSync(path.join(lessonDir, "readme.md"), "# Test\n");
+      execSync("git add . && git commit -m 'add lesson'", { cwd: tempDir });
+    };
+
+    it("renames lesson directory via git mv, preserving lesson number", async () => {
+      const sectionDir = path.join(tempDir, "01-intro");
+      createAndCommitLesson(sectionDir, "01.03-old-name");
+
+      const result = await runEffect(
+        Effect.gen(function* () {
+          const service = yield* RepoWriteService;
+          return yield* service.renameLesson({
+            repoPath: tempDir,
+            sectionPath: "01-intro",
+            oldLessonDirName: "01.03-old-name",
+            newSlug: "new-name",
+          });
+        })
+      );
+
+      expect(result.newLessonDirName).toBe("01.03-new-name");
+      expect(
+        fs.existsSync(
+          path.join(sectionDir, "01.03-new-name", "explainer", "readme.md")
+        )
+      ).toBe(true);
+      expect(fs.existsSync(path.join(sectionDir, "01.03-old-name"))).toBe(
+        false
+      );
+    });
+
+    it("rename is staged in git", async () => {
+      const sectionDir = path.join(tempDir, "01-intro");
+      createAndCommitLesson(sectionDir, "01.01-original");
+
+      await runEffect(
+        Effect.gen(function* () {
+          const service = yield* RepoWriteService;
+          yield* service.renameLesson({
+            repoPath: tempDir,
+            sectionPath: "01-intro",
+            oldLessonDirName: "01.01-original",
+            newSlug: "renamed",
+          });
+        })
+      );
+
+      const status = execSync("git status --porcelain", { cwd: tempDir })
+        .toString()
+        .trim();
+      // git mv produces rename entries in the staging area
+      expect(status).toContain("01.01-renamed");
+    });
+
+    it("returns same name when slug is unchanged (no-op)", async () => {
+      const sectionDir = path.join(tempDir, "01-intro");
+      createAndCommitLesson(sectionDir, "01.02-keep-this");
+
+      const result = await runEffect(
+        Effect.gen(function* () {
+          const service = yield* RepoWriteService;
+          return yield* service.renameLesson({
+            repoPath: tempDir,
+            sectionPath: "01-intro",
+            oldLessonDirName: "01.02-keep-this",
+            newSlug: "keep-this",
+          });
+        })
+      );
+
+      expect(result.newLessonDirName).toBe("01.02-keep-this");
+      // Directory should still exist unchanged
+      expect(
+        fs.existsSync(
+          path.join(sectionDir, "01.02-keep-this", "explainer", "readme.md")
+        )
+      ).toBe(true);
+    });
+
+    it("preserves unstaged changes through rename", async () => {
+      const sectionDir = path.join(tempDir, "01-intro");
+      createAndCommitLesson(sectionDir, "01.01-has-changes");
+
+      // Add unstaged modification
+      fs.writeFileSync(
+        path.join(sectionDir, "01.01-has-changes", "explainer", "readme.md"),
+        "# Modified content\n"
+      );
+
+      await runEffect(
+        Effect.gen(function* () {
+          const service = yield* RepoWriteService;
+          yield* service.renameLesson({
+            repoPath: tempDir,
+            sectionPath: "01-intro",
+            oldLessonDirName: "01.01-has-changes",
+            newSlug: "renamed-changes",
+          });
+        })
+      );
+
+      // File should exist at new location with modified content preserved
+      const content = fs.readFileSync(
+        path.join(
+          sectionDir,
+          "01.01-renamed-changes",
+          "explainer",
+          "readme.md"
+        ),
+        "utf-8"
+      );
+      expect(content).toBe("# Modified content\n");
+    });
+
+    it("preserves untracked files through rename", async () => {
+      const sectionDir = path.join(tempDir, "01-intro");
+      createAndCommitLesson(sectionDir, "01.01-has-untracked");
+
+      // Add an untracked file
+      fs.writeFileSync(
+        path.join(sectionDir, "01.01-has-untracked", "notes.txt"),
+        "my notes"
+      );
+
+      await runEffect(
+        Effect.gen(function* () {
+          const service = yield* RepoWriteService;
+          yield* service.renameLesson({
+            repoPath: tempDir,
+            sectionPath: "01-intro",
+            oldLessonDirName: "01.01-has-untracked",
+            newSlug: "renamed-untracked",
+          });
+        })
+      );
+
+      // Untracked file should be carried along
+      const content = fs.readFileSync(
+        path.join(sectionDir, "01.01-renamed-untracked", "notes.txt"),
+        "utf-8"
+      );
+      expect(content).toBe("my notes");
+    });
+  });
 });

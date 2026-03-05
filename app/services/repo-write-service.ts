@@ -1,6 +1,7 @@
 import { FileSystem } from "@effect/platform";
 import { NodeFileSystem } from "@effect/platform-node";
 import { Data, Effect } from "effect";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { buildLessonPath, parseLessonPath } from "./lesson-path-service";
 
@@ -102,7 +103,68 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
         return { lessonDirName, lessonNumber: nextLessonNumber };
       });
 
-      return { createLessonDirectory, addLesson };
+      /**
+       * Renames a lesson directory by changing only its slug portion.
+       * Uses `git mv` to preserve git history.
+       *
+       * @param repoPath - Absolute path to the course repo root
+       * @param sectionPath - Section directory name (e.g., "01-intro")
+       * @param oldLessonDirName - Current lesson directory name (e.g., "01.03-old-name")
+       * @param newSlug - The new slug (e.g., "new-name")
+       * @returns The new lesson directory name
+       */
+      const renameLesson = Effect.fn("renameLesson")(function* (opts: {
+        repoPath: string;
+        sectionPath: string;
+        oldLessonDirName: string;
+        newSlug: string;
+      }) {
+        const parsed = parseLessonPath(opts.oldLessonDirName);
+        if (!parsed) {
+          return yield* new RepoWriteError({
+            cause: null,
+            message: `Cannot parse lesson path: ${opts.oldLessonDirName}`,
+          });
+        }
+
+        const sectionNumber = parsed.sectionNumber ?? 1;
+        const newLessonDirName = buildLessonPath(
+          sectionNumber,
+          parsed.lessonNumber,
+          opts.newSlug
+        );
+
+        if (newLessonDirName === opts.oldLessonDirName) {
+          return { newLessonDirName };
+        }
+
+        const oldFullPath = path.join(
+          opts.repoPath,
+          opts.sectionPath,
+          opts.oldLessonDirName
+        );
+        const newFullPath = path.join(
+          opts.repoPath,
+          opts.sectionPath,
+          newLessonDirName
+        );
+
+        yield* Effect.try({
+          try: () =>
+            execFileSync("git", ["mv", oldFullPath, newFullPath], {
+              cwd: opts.repoPath,
+            }),
+          catch: (cause) =>
+            new RepoWriteError({
+              cause,
+              message: `git mv failed: ${opts.oldLessonDirName} → ${newLessonDirName}`,
+            }),
+        });
+
+        return { newLessonDirName };
+      });
+
+      return { createLessonDirectory, addLesson, renameLesson };
     }),
     dependencies: [NodeFileSystem.layer],
   }
