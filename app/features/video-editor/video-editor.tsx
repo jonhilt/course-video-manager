@@ -249,7 +249,10 @@ export const VideoEditor = (props: {
 
   const totalDuration = getTotalDuration(clips);
 
-  const showVideoPlayer = getShowVideoPlayer(state.runningState);
+  const showVideoPlayer = getShowVideoPlayer(
+    state.runningState,
+    !!props.liveMediaStream
+  );
   const showLiveStream = getShowLiveStream(
     !!props.liveMediaStream,
     state.runningState

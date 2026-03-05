@@ -149,9 +149,14 @@ export const getTotalDuration = (clips: Clip[]): number => {
 };
 
 export const getShowVideoPlayer = (
-  runningState: "playing" | "paused"
+  runningState: "playing" | "paused",
+  hasLiveMediaStream: boolean
 ): boolean => {
-  return runningState === "playing";
+  if (runningState === "playing") return true;
+  // When paused with no live stream, show the video player so the user
+  // can see the paused frame of the clip
+  if (!hasLiveMediaStream) return true;
+  return false;
 };
 
 export const getShowLiveStream = (

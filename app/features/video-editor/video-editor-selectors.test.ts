@@ -246,11 +246,16 @@ describe("getTotalDuration", () => {
 
 describe("getShowVideoPlayer", () => {
   it("returns true when playing", () => {
-    expect(getShowVideoPlayer("playing")).toBe(true);
+    expect(getShowVideoPlayer("playing", true)).toBe(true);
+    expect(getShowVideoPlayer("playing", false)).toBe(true);
   });
 
-  it("returns false when paused", () => {
-    expect(getShowVideoPlayer("paused")).toBe(false);
+  it("returns false when paused with live stream", () => {
+    expect(getShowVideoPlayer("paused", true)).toBe(false);
+  });
+
+  it("returns true when paused without live stream", () => {
+    expect(getShowVideoPlayer("paused", false)).toBe(true);
   });
 });
 
