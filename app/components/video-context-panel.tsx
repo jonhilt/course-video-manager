@@ -111,7 +111,9 @@ export function VideoContextPanel({
   return (
     <div className="w-1/4 border-r flex flex-col overflow-hidden">
       <div className="p-4 pb-0">
-        {videoSlot ?? <video src={videoSrc} className="w-full" controls />}
+        {videoSlot ?? (
+          <video src={videoSrc} className="w-full" controls preload="none" />
+        )}
         {onRevealInFileSystem && (
           <Button
             variant="ghost"

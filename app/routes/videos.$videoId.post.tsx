@@ -315,7 +315,15 @@ const Video = (props: { src: string }) => {
     }
   }, [props.src, ref.current]);
 
-  return <video src={props.src} className="w-full" controls ref={ref} />;
+  return (
+    <video
+      src={props.src}
+      className="w-full"
+      controls
+      preload="none"
+      ref={ref}
+    />
+  );
 };
 
 export default function PostPage(props: Route.ComponentProps) {
