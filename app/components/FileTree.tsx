@@ -101,6 +101,7 @@ type FileTreeNodeProps = {
   onToggle: (paths: string[], enabled: boolean) => void;
   onFileClick?: (filePath: string) => void;
   depth: number;
+  disabled?: boolean;
 };
 
 const FileTreeNode = ({
@@ -109,6 +110,7 @@ const FileTreeNode = ({
   onToggle,
   onFileClick,
   depth,
+  disabled,
 }: FileTreeNodeProps) => {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -122,6 +124,7 @@ const FileTreeNode = ({
       >
         <Checkbox
           checked={isChecked}
+          disabled={disabled}
           onCheckedChange={(checked) => {
             onToggle([node.path], !!checked);
           }}
@@ -159,6 +162,7 @@ const FileTreeNode = ({
       >
         <Checkbox
           checked={checkboxState}
+          disabled={disabled}
           onCheckedChange={(checked) => {
             onToggle(descendantPaths, !!checked);
           }}
@@ -183,6 +187,7 @@ const FileTreeNode = ({
             onToggle={onToggle}
             onFileClick={onFileClick}
             depth={depth + 1}
+            disabled={disabled}
           />
         ))}
       </CollapsibleContent>
@@ -195,6 +200,7 @@ type FileTreeProps = {
   enabledFiles: Set<string>;
   onEnabledFilesChange: (enabledFiles: Set<string>) => void;
   onFileClick?: (filePath: string) => void;
+  disabled?: boolean;
 };
 
 export const FileTree = ({
@@ -202,6 +208,7 @@ export const FileTree = ({
   enabledFiles,
   onEnabledFilesChange,
   onFileClick,
+  disabled,
 }: FileTreeProps) => {
   const tree = buildTree(files);
 
@@ -229,6 +236,7 @@ export const FileTree = ({
           onToggle={handleToggle}
           onFileClick={onFileClick}
           depth={0}
+          disabled={disabled}
         />
       ))}
     </div>

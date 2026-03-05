@@ -215,13 +215,14 @@ export function SuggestionsPanel(props: SuggestionsPanelProps) {
         </Label>
       </div>
 
-      {enabled && props.files.length > 0 && (
+      {props.files.length > 0 && (
         <div className="border-t border-gray-700 pt-4">
           <FileTree
             files={props.files}
             enabledFiles={enabledFiles}
             onEnabledFilesChange={handleEnabledFilesChange}
             onFileClick={handleFileClick}
+            disabled={!enabled}
           />
         </div>
       )}
