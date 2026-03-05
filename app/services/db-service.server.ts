@@ -825,6 +825,7 @@ export class DBFunctionsService extends Effect.Service<DBFunctionsService>()(
                           with: {
                             videos: {
                               orderBy: asc(videos.path),
+                              where: eq(videos.archived, false),
                               with: {
                                 clips: {
                                   orderBy: asc(clips.order),
