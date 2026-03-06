@@ -64,6 +64,7 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Console, Effect } from "effect";
@@ -90,7 +91,13 @@ import {
   Trash2,
   VideoIcon,
 } from "lucide-react";
-import { useCallback, useContext, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+} from "react";
 import {
   data,
   Link,
@@ -314,6 +321,7 @@ export default function Component(props: Route.ComponentProps) {
   const revealVideoFetcher = useFetcher();
   const archiveRepoFetcher = useFetcher();
   const reorderLessonFetcher = useFetcher();
+  const reorderSectionFetcher = useFetcher();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -344,6 +352,29 @@ export default function Component(props: Route.ComponentProps) {
       );
     },
     [reorderLessonFetcher]
+  );
+
+  const handleSectionDragEnd = useCallback(
+    (sections: { id: string }[], repoVersionId: string) =>
+      (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const fromIndex = sections.findIndex((s) => s.id === active.id);
+        const toIndex = sections.findIndex((s) => s.id === over.id);
+        if (fromIndex === -1 || toIndex === -1) return;
+
+        const newOrder = arrayMove(sections, fromIndex, toIndex);
+
+        reorderSectionFetcher.submit(
+          {
+            repoVersionId,
+            sectionIds: JSON.stringify(newOrder.map((s) => s.id)),
+          },
+          { method: "post", action: "/api/sections/reorder" }
+        );
+      },
+    [reorderSectionFetcher]
   );
 
   const data = props.loaderData;
@@ -730,156 +761,236 @@ export default function Component(props: Route.ComponentProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {currentRepo.sections.map((section) => {
-                  // Optimistic reordering: use pending fetcher data to show new order immediately
-                  let lessons = section.lessons;
-                  const pendingReorder = reorderLessonFetcher.formData;
-                  if (
-                    pendingReorder &&
-                    pendingReorder.get("sectionId") === section.id
-                  ) {
-                    const lessonIds = JSON.parse(
-                      pendingReorder.get("lessonIds") as string
-                    ) as string[];
-                    const lessonMap = new Map(
-                      section.lessons.map((l) => [l.id, l])
-                    );
-                    const reordered = lessonIds
-                      .map((id) => lessonMap.get(id))
-                      .filter(Boolean) as typeof section.lessons;
-                    if (reordered.length === section.lessons.length) {
-                      lessons = reordered;
-                    }
-                  }
-
-                  const sectionDuration = lessons.reduce((acc, lesson) => {
-                    return (
-                      acc +
-                      lesson.videos.reduce((videoAcc, video) => {
-                        return (
-                          videoAcc +
-                          video.clips.reduce((clipAcc, clip) => {
-                            return (
-                              clipAcc +
-                              (clip.sourceEndTime - clip.sourceStartTime)
-                            );
-                          }, 0)
-                        );
-                      }, 0)
-                    );
-                  }, 0);
-
-                  const isGhostSection =
-                    lessons.length === 0 ||
-                    lessons.every((l) => l.fsStatus === "ghost");
-
-                  return (
-                    <div
-                      key={section.id}
-                      className={cn(
-                        "rounded-lg border bg-card",
-                        isGhostSection &&
-                          "border-dashed border-muted-foreground/30 bg-muted/10"
-                      )}
-                    >
-                      <ContextMenu>
-                        <ContextMenuTrigger asChild>
-                          <div className="px-4 py-3 border-b bg-muted/30 cursor-context-menu">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <h2
-                                  className={cn(
-                                    "font-medium text-sm",
-                                    isGhostSection &&
-                                      "text-muted-foreground/70 italic"
-                                  )}
-                                >
-                                  {section.path}
-                                </h2>
-                                {isGhostSection && (
-                                  <Ghost className="w-3.5 h-3.5 text-muted-foreground/40" />
-                                )}
-                              </div>
-                              <Badge
-                                variant="secondary"
-                                className="text-[10px]"
-                              >
-                                {formatSecondsToTimeCode(sectionDuration)}
-                              </Badge>
-                            </div>
-                          </div>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                          <ContextMenuItem
-                            onSelect={() => setAddLessonSectionId(section.id)}
-                          >
-                            <Plus className="w-4 h-4" />
-                            Add Lesson
-                          </ContextMenuItem>
-                          <ContextMenuItem
-                            onSelect={() =>
-                              setAddGhostLessonSectionId(section.id)
-                            }
-                          >
-                            <Ghost className="w-4 h-4" />
-                            Add Ghost Lesson
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      </ContextMenu>
-                      <AddLessonModal
-                        sectionId={section.id}
-                        open={addLessonSectionId === section.id}
-                        onOpenChange={(open) => {
-                          setAddLessonSectionId(open ? section.id : null);
-                        }}
-                      />
-                      <AddGhostLessonModal
-                        sectionId={section.id}
-                        open={addGhostLessonSectionId === section.id}
-                        onOpenChange={(open) => {
-                          setAddGhostLessonSectionId(open ? section.id : null);
-                        }}
-                      />
-                      <div className="p-2">
-                        <DndContext
-                          sensors={sensors}
-                          collisionDetection={closestCenter}
-                          onDragEnd={handleLessonDragEnd(section.id, lessons)}
-                        >
-                          <SortableContext
-                            items={lessons.map((l) => l.id)}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            {lessons.map((lesson, li) => (
-                              <SortableLessonItem
-                                key={lesson.id}
-                                lesson={lesson}
-                                lessonIndex={li}
-                                section={section}
-                                data={data}
-                                navigate={navigate}
-                                setAddVideoToLessonId={setAddVideoToLessonId}
-                                addVideoToLessonId={addVideoToLessonId}
-                                setEditLessonId={setEditLessonId}
-                                editLessonId={editLessonId}
-                                setVideoPlayerState={setVideoPlayerState}
-                                startExportUpload={startExportUpload}
-                                revealVideoFetcher={revealVideoFetcher}
-                                setRenameVideoState={setRenameVideoState}
-                                setMoveVideoState={setMoveVideoState}
-                                deleteVideoFileFetcher={deleteVideoFileFetcher}
-                                deleteVideoFetcher={deleteVideoFetcher}
-                                deleteLessonFetcher={deleteLessonFetcher}
-                              />
-                            ))}
-                          </SortableContext>
-                        </DndContext>
-                      </div>
-                    </div>
+              {(() => {
+                // Optimistic section reordering
+                let displaySections = currentRepo.sections;
+                const pendingSectionReorder = reorderSectionFetcher.formData;
+                if (pendingSectionReorder) {
+                  const sectionIds = JSON.parse(
+                    pendingSectionReorder.get("sectionIds") as string
+                  ) as string[];
+                  const sectionMap = new Map(
+                    currentRepo.sections.map((s) => [s.id, s])
                   );
-                })}
-              </div>
+                  const reordered = sectionIds
+                    .map((id) => sectionMap.get(id))
+                    .filter(Boolean) as typeof currentRepo.sections;
+                  if (reordered.length === currentRepo.sections.length) {
+                    displaySections = reordered;
+                  }
+                }
+
+                return (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleSectionDragEnd(
+                      displaySections,
+                      data.selectedVersion!.id
+                    )}
+                  >
+                    <SortableContext
+                      items={displaySections.map((s) => s.id)}
+                      strategy={rectSortingStrategy}
+                    >
+                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {displaySections.map((section) => {
+                          // Optimistic lesson reordering
+                          let lessons = section.lessons;
+                          const pendingReorder = reorderLessonFetcher.formData;
+                          if (
+                            pendingReorder &&
+                            pendingReorder.get("sectionId") === section.id
+                          ) {
+                            const lessonIds = JSON.parse(
+                              pendingReorder.get("lessonIds") as string
+                            ) as string[];
+                            const lessonMap = new Map(
+                              section.lessons.map((l) => [l.id, l])
+                            );
+                            const reordered = lessonIds
+                              .map((id) => lessonMap.get(id))
+                              .filter(Boolean) as typeof section.lessons;
+                            if (reordered.length === section.lessons.length) {
+                              lessons = reordered;
+                            }
+                          }
+
+                          const sectionDuration = lessons.reduce(
+                            (acc, lesson) => {
+                              return (
+                                acc +
+                                lesson.videos.reduce((videoAcc, video) => {
+                                  return (
+                                    videoAcc +
+                                    video.clips.reduce((clipAcc, clip) => {
+                                      return (
+                                        clipAcc +
+                                        (clip.sourceEndTime -
+                                          clip.sourceStartTime)
+                                      );
+                                    }, 0)
+                                  );
+                                }, 0)
+                              );
+                            },
+                            0
+                          );
+
+                          const isGhostSection =
+                            lessons.length === 0 ||
+                            lessons.every((l) => l.fsStatus === "ghost");
+
+                          return (
+                            <SortableSectionItem
+                              key={section.id}
+                              id={section.id}
+                              isGhostSection={isGhostSection}
+                            >
+                              {(dragHandleListeners) => (
+                                <>
+                                  <ContextMenu>
+                                    <ContextMenuTrigger asChild>
+                                      <div className="px-4 py-3 border-b bg-muted/30 cursor-context-menu">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              className="cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground touch-none"
+                                              {...dragHandleListeners}
+                                            >
+                                              <GripVertical className="w-4 h-4" />
+                                            </button>
+                                            <h2
+                                              className={cn(
+                                                "font-medium text-sm",
+                                                isGhostSection &&
+                                                  "text-muted-foreground/70 italic"
+                                              )}
+                                            >
+                                              {section.path}
+                                            </h2>
+                                            {isGhostSection && (
+                                              <Ghost className="w-3.5 h-3.5 text-muted-foreground/40" />
+                                            )}
+                                          </div>
+                                          <Badge
+                                            variant="secondary"
+                                            className="text-[10px]"
+                                          >
+                                            {formatSecondsToTimeCode(
+                                              sectionDuration
+                                            )}
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                    </ContextMenuTrigger>
+                                    <ContextMenuContent>
+                                      <ContextMenuItem
+                                        onSelect={() =>
+                                          setAddLessonSectionId(section.id)
+                                        }
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                        Add Lesson
+                                      </ContextMenuItem>
+                                      <ContextMenuItem
+                                        onSelect={() =>
+                                          setAddGhostLessonSectionId(section.id)
+                                        }
+                                      >
+                                        <Ghost className="w-4 h-4" />
+                                        Add Ghost Lesson
+                                      </ContextMenuItem>
+                                    </ContextMenuContent>
+                                  </ContextMenu>
+                                  <AddLessonModal
+                                    sectionId={section.id}
+                                    open={addLessonSectionId === section.id}
+                                    onOpenChange={(open) => {
+                                      setAddLessonSectionId(
+                                        open ? section.id : null
+                                      );
+                                    }}
+                                  />
+                                  <AddGhostLessonModal
+                                    sectionId={section.id}
+                                    open={
+                                      addGhostLessonSectionId === section.id
+                                    }
+                                    onOpenChange={(open) => {
+                                      setAddGhostLessonSectionId(
+                                        open ? section.id : null
+                                      );
+                                    }}
+                                  />
+                                  <div className="p-2">
+                                    <DndContext
+                                      sensors={sensors}
+                                      collisionDetection={closestCenter}
+                                      onDragEnd={handleLessonDragEnd(
+                                        section.id,
+                                        lessons
+                                      )}
+                                    >
+                                      <SortableContext
+                                        items={lessons.map((l) => l.id)}
+                                        strategy={verticalListSortingStrategy}
+                                      >
+                                        {lessons.map((lesson, li) => (
+                                          <SortableLessonItem
+                                            key={lesson.id}
+                                            lesson={lesson}
+                                            lessonIndex={li}
+                                            section={section}
+                                            data={data}
+                                            navigate={navigate}
+                                            setAddVideoToLessonId={
+                                              setAddVideoToLessonId
+                                            }
+                                            addVideoToLessonId={
+                                              addVideoToLessonId
+                                            }
+                                            setEditLessonId={setEditLessonId}
+                                            editLessonId={editLessonId}
+                                            setVideoPlayerState={
+                                              setVideoPlayerState
+                                            }
+                                            startExportUpload={
+                                              startExportUpload
+                                            }
+                                            revealVideoFetcher={
+                                              revealVideoFetcher
+                                            }
+                                            setRenameVideoState={
+                                              setRenameVideoState
+                                            }
+                                            setMoveVideoState={
+                                              setMoveVideoState
+                                            }
+                                            deleteVideoFileFetcher={
+                                              deleteVideoFileFetcher
+                                            }
+                                            deleteVideoFetcher={
+                                              deleteVideoFetcher
+                                            }
+                                            deleteLessonFetcher={
+                                              deleteLessonFetcher
+                                            }
+                                          />
+                                        ))}
+                                      </SortableContext>
+                                    </DndContext>
+                                  </div>
+                                </>
+                              )}
+                            </SortableSectionItem>
+                          );
+                        })}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                );
+              })()}
             </>
           ) : (
             <div className="max-w-4xl mx-auto">
@@ -1093,6 +1204,47 @@ export default function Component(props: Route.ComponentProps) {
 type LoaderData = Route.ComponentProps["loaderData"];
 type Section = NonNullable<LoaderData["selectedRepo"]>["sections"][number];
 type Lesson = Section["lessons"][number];
+
+function SortableSectionItem({
+  id,
+  isGhostSection,
+  children,
+}: {
+  id: string;
+  isGhostSection: boolean;
+  children: (
+    dragHandleListeners: ReturnType<typeof useSortable>["listeners"]
+  ) => ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className={cn(
+        "rounded-lg border bg-card",
+        isGhostSection && "border-dashed border-muted-foreground/30 bg-muted/10"
+      )}
+    >
+      {children(listeners)}
+    </div>
+  );
+}
 
 function SortableLessonItem({
   lesson,
