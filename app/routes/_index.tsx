@@ -1839,21 +1839,23 @@ function SortableLessonItem({
                     <ArrowRightLeft className="w-4 h-4" />
                     Move to Lesson
                   </ContextMenuItem>
-                  <ContextMenuItem
-                    variant="destructive"
-                    onSelect={() => {
-                      deleteVideoFileFetcher.submit(
-                        {},
-                        {
-                          method: "post",
-                          action: `/api/videos/${video.id}/delete-file`,
-                        }
-                      );
-                    }}
-                  >
-                    <FileX className="w-4 h-4" />
-                    Delete from File System
-                  </ContextMenuItem>
+                  {data.hasExportedVideoMap[video.id] && (
+                    <ContextMenuItem
+                      variant="destructive"
+                      onSelect={() => {
+                        deleteVideoFileFetcher.submit(
+                          {},
+                          {
+                            method: "post",
+                            action: `/api/videos/${video.id}/delete-file`,
+                          }
+                        );
+                      }}
+                    >
+                      <FileX className="w-4 h-4" />
+                      Delete from File System
+                    </ContextMenuItem>
+                  )}
                   <ContextMenuItem
                     variant="destructive"
                     onSelect={() => {

@@ -230,21 +230,23 @@ export default function Component(props: Route.ComponentProps) {
                         <Archive className="w-4 h-4" />
                         Archive
                       </ContextMenuItem>
-                      <ContextMenuItem
-                        variant="destructive"
-                        onSelect={() => {
-                          deleteVideoFileFetcher.submit(
-                            {},
-                            {
-                              method: "post",
-                              action: `/api/videos/${video.id}/delete-file`,
-                            }
-                          );
-                        }}
-                      >
-                        <FileX className="w-4 h-4" />
-                        Delete from File System
-                      </ContextMenuItem>
+                      {hasExportedVideoMap[video.id] && (
+                        <ContextMenuItem
+                          variant="destructive"
+                          onSelect={() => {
+                            deleteVideoFileFetcher.submit(
+                              {},
+                              {
+                                method: "post",
+                                action: `/api/videos/${video.id}/delete-file`,
+                              }
+                            );
+                          }}
+                        >
+                          <FileX className="w-4 h-4" />
+                          Delete from File System
+                        </ContextMenuItem>
+                      )}
                       <ContextMenuItem
                         variant="destructive"
                         onSelect={() => {
@@ -346,21 +348,23 @@ export default function Component(props: Route.ComponentProps) {
                           <Archive className="w-4 h-4" />
                           Unarchive
                         </ContextMenuItem>
-                        <ContextMenuItem
-                          variant="destructive"
-                          onSelect={() => {
-                            deleteVideoFileFetcher.submit(
-                              {},
-                              {
-                                method: "post",
-                                action: `/api/videos/${video.id}/delete-file`,
-                              }
-                            );
-                          }}
-                        >
-                          <FileX className="w-4 h-4" />
-                          Delete from File System
-                        </ContextMenuItem>
+                        {hasExportedVideoMap[video.id] && (
+                          <ContextMenuItem
+                            variant="destructive"
+                            onSelect={() => {
+                              deleteVideoFileFetcher.submit(
+                                {},
+                                {
+                                  method: "post",
+                                  action: `/api/videos/${video.id}/delete-file`,
+                                }
+                              );
+                            }}
+                          >
+                            <FileX className="w-4 h-4" />
+                            Delete from File System
+                          </ContextMenuItem>
+                        )}
                         <ContextMenuItem
                           variant="destructive"
                           onSelect={() => {
