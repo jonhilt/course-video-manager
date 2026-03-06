@@ -1594,7 +1594,7 @@ function SortableLessonItem({
                 {lesson.title || lesson.path}
               </span>
               {isGhost && (
-                <span className="flex items-center text-xs text-muted-foreground/60 px-1 py-0.5 rounded-sm bg-muted/50 shrink-0">
+                <span className="flex items-center text-muted-foreground/60 shrink-0">
                   <Ghost className="w-3 h-3" />
                 </span>
               )}
