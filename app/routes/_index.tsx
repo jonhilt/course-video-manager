@@ -42,6 +42,7 @@ import { useFocusRevalidate } from "@/hooks/use-focus-revalidate";
 import { getVideoPath } from "@/lib/get-video";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { cn, isLeftClick } from "@/lib/utils";
 import { DBFunctionsService } from "@/services/db-service.server";
 import { FeatureFlagService } from "@/services/feature-flag-service";
@@ -89,7 +90,7 @@ import {
   Trash2,
   VideoIcon,
 } from "lucide-react";
-import { useCallback, useContext, useState } from "react";
+import { useCallback, useContext, useRef, useState } from "react";
 import {
   data,
   Link,
@@ -1156,6 +1157,26 @@ function SortableLessonItem({
 
   const isGhost = lesson.fsStatus === "ghost";
   const createOnDiskFetcher = useFetcher();
+  const descriptionFetcher = useFetcher();
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [descValue, setDescValue] = useState(lesson.description || "");
+  const descTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const saveDescription = useCallback(
+    (value: string) => {
+      setEditingDesc(false);
+      if (value !== (lesson.description || "")) {
+        descriptionFetcher.submit(
+          { description: value },
+          {
+            method: "post",
+            action: `/api/lessons/${lesson.id}/update-description`,
+          }
+        );
+      }
+    },
+    [lesson.description, lesson.id, descriptionFetcher]
+  );
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -1163,7 +1184,7 @@ function SortableLessonItem({
       {lessonIndex > 0 && <Separator className="my-1" />}
       <div
         className={cn(
-          "rounded-md px-2 py-2",
+          "rounded-md px-2 py-2 group",
           isGhost &&
             "border border-dashed border-muted-foreground/30 bg-muted/20"
         )}
@@ -1247,6 +1268,15 @@ function SortableLessonItem({
               </>
             )}
             <ContextMenuItem
+              onSelect={() => {
+                setDescValue(lesson.description || "");
+                setEditingDesc(true);
+              }}
+            >
+              <FileText className="w-4 h-4" />
+              Edit Description
+            </ContextMenuItem>
+            <ContextMenuItem
               variant="destructive"
               onSelect={() => {
                 deleteLessonFetcher.submit(
@@ -1263,6 +1293,50 @@ function SortableLessonItem({
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
+        <div className="ml-5">
+          {editingDesc ? (
+            <div className="mt-1">
+              <Textarea
+                ref={descTextareaRef}
+                value={descValue}
+                onChange={(e) => setDescValue(e.target.value)}
+                placeholder="What should this lesson teach?"
+                className="text-sm min-h-[60px]"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setDescValue(lesson.description || "");
+                    setEditingDesc(false);
+                  }
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    saveDescription(descValue);
+                  }
+                }}
+                onBlur={() => saveDescription(descValue)}
+              />
+            </div>
+          ) : lesson.description ? (
+            <p
+              className="text-xs text-muted-foreground mt-1 cursor-pointer hover:text-foreground/70"
+              onClick={() => {
+                setDescValue(lesson.description || "");
+                setEditingDesc(true);
+              }}
+            >
+              {lesson.description}
+            </p>
+          ) : (
+            <button
+              className="text-xs text-muted-foreground/40 mt-1 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => {
+                setDescValue("");
+                setEditingDesc(true);
+              }}
+            >
+              + Add description
+            </button>
+          )}
+        </div>
         <AddVideoModal
           lessonId={lesson.id}
           videoCount={lesson.videos.length}

@@ -1260,6 +1260,7 @@ export class DBFunctionsService extends Effect.Service<DBFunctionsService>()(
             lessonNumber?: number;
             title?: string;
             fsStatus?: string;
+            description?: string;
           }
         ) {
           const lessonResult = yield* makeDbCall(() =>
@@ -1271,6 +1272,7 @@ export class DBFunctionsService extends Effect.Service<DBFunctionsService>()(
                 order: lesson.lessonNumber,
                 title: lesson.title,
                 fsStatus: lesson.fsStatus,
+                description: lesson.description,
               })
               .where(eq(lessons.id, lessonId))
           );
