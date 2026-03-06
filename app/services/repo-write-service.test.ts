@@ -441,6 +441,165 @@ describe("RepoWriteService", () => {
     });
   });
 
+  describe("renameSections (batch)", () => {
+    const createAndCommitSections = (sectionNames: string[]) => {
+      for (const name of sectionNames) {
+        const sectionDir = path.join(tempDir, name);
+        const lessonDir = path.join(sectionDir, "01.01-example", "explainer");
+        fs.mkdirSync(lessonDir, { recursive: true });
+        fs.writeFileSync(path.join(lessonDir, "readme.md"), `# ${name}\n`);
+      }
+      execSync("git add . && git commit -m 'add sections'", { cwd: tempDir });
+    };
+
+    it("swaps two sections without path collision", async () => {
+      createAndCommitSections(["01-intro", "02-advanced"]);
+
+      await runEffect(
+        Effect.gen(function* () {
+          const service = yield* RepoWriteService;
+          yield* service.renameSections({
+            repoPath: tempDir,
+            renames: [
+              { oldPath: "01-intro", newPath: "02-intro" },
+              { oldPath: "02-advanced", newPath: "01-advanced" },
+            ],
+          });
+        })
+      );
+
+      expect(fs.existsSync(path.join(tempDir, "01-advanced"))).toBe(true);
+      expect(fs.existsSync(path.join(tempDir, "02-intro"))).toBe(true);
+      expect(fs.existsSync(path.join(tempDir, "01-intro"))).toBe(false);
+      expect(fs.existsSync(path.join(tempDir, "02-advanced"))).toBe(false);
+    });
+
+    it("handles empty renames array (no-op)", async () => {
+      createAndCommitSections(["01-intro"]);
+
+      await runEffect(
+        Effect.gen(function* () {
+          const service = yield* RepoWriteService;
+          yield* service.renameSections({
+            repoPath: tempDir,
+            renames: [],
+          });
+        })
+      );
+
+      expect(fs.existsSync(path.join(tempDir, "01-intro"))).toBe(true);
+    });
+
+    it("renames are staged in git", async () => {
+      createAndCommitSections(["01-intro", "02-advanced"]);
+
+      await runEffect(
+        Effect.gen(function* () {
+          const service = yield* RepoWriteService;
+          yield* service.renameSections({
+            repoPath: tempDir,
+            renames: [
+              { oldPath: "01-intro", newPath: "02-intro" },
+              { oldPath: "02-advanced", newPath: "01-advanced" },
+            ],
+          });
+        })
+      );
+
+      const status = execSync("git status --porcelain", { cwd: tempDir })
+        .toString()
+        .trim();
+      expect(status).toContain("01-advanced");
+      expect(status).toContain("02-intro");
+    });
+
+    it("preserves lesson contents through section rename", async () => {
+      createAndCommitSections(["01-intro", "02-advanced"]);
+
+      await runEffect(
+        Effect.gen(function* () {
+          const service = yield* RepoWriteService;
+          yield* service.renameSections({
+            repoPath: tempDir,
+            renames: [
+              { oldPath: "01-intro", newPath: "02-intro" },
+              { oldPath: "02-advanced", newPath: "01-advanced" },
+            ],
+          });
+        })
+      );
+
+      // Lessons should have moved with their section
+      expect(
+        fs.existsSync(
+          path.join(
+            tempDir,
+            "01-advanced",
+            "01.01-example",
+            "explainer",
+            "readme.md"
+          )
+        )
+      ).toBe(true);
+      expect(
+        fs.existsSync(
+          path.join(
+            tempDir,
+            "02-intro",
+            "01.01-example",
+            "explainer",
+            "readme.md"
+          )
+        )
+      ).toBe(true);
+    });
+
+    it("no temporary directories remain after rename", async () => {
+      createAndCommitSections(["01-intro", "02-advanced"]);
+
+      await runEffect(
+        Effect.gen(function* () {
+          const service = yield* RepoWriteService;
+          yield* service.renameSections({
+            repoPath: tempDir,
+            renames: [
+              { oldPath: "01-intro", newPath: "02-intro" },
+              { oldPath: "02-advanced", newPath: "01-advanced" },
+            ],
+          });
+        })
+      );
+
+      const entries = fs.readdirSync(tempDir);
+      const tempEntries = entries.filter((e) =>
+        e.startsWith("__section_reorder_tmp_")
+      );
+      expect(tempEntries).toHaveLength(0);
+    });
+
+    it("handles three-way rotation", async () => {
+      createAndCommitSections(["01-intro", "02-basics", "03-advanced"]);
+
+      await runEffect(
+        Effect.gen(function* () {
+          const service = yield* RepoWriteService;
+          yield* service.renameSections({
+            repoPath: tempDir,
+            renames: [
+              { oldPath: "01-intro", newPath: "03-intro" },
+              { oldPath: "02-basics", newPath: "01-basics" },
+              { oldPath: "03-advanced", newPath: "02-advanced" },
+            ],
+          });
+        })
+      );
+
+      expect(fs.existsSync(path.join(tempDir, "01-basics"))).toBe(true);
+      expect(fs.existsSync(path.join(tempDir, "02-advanced"))).toBe(true);
+      expect(fs.existsSync(path.join(tempDir, "03-intro"))).toBe(true);
+    });
+  });
+
   describe("deleteLesson", () => {
     it("removes an untracked lesson directory from disk", async () => {
       const sectionDir = path.join(tempDir, "01-intro");

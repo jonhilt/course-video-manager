@@ -1309,6 +1309,24 @@ export class DBFunctionsService extends Effect.Service<DBFunctionsService>()(
             db.update(sections).set({ order }).where(eq(sections.id, sectionId))
           );
         }),
+        updateSectionPath: Effect.fn("updateSectionPath")(function* (
+          sectionId: string,
+          path: string
+        ) {
+          return yield* makeDbCall(() =>
+            db.update(sections).set({ path }).where(eq(sections.id, sectionId))
+          );
+        }),
+        getSectionsByIds: Effect.fn("getSectionsByIds")(function* (
+          ids: readonly string[]
+        ) {
+          if (ids.length === 0) return [];
+          return yield* makeDbCall(() =>
+            db.query.sections.findMany({
+              where: inArray(sections.id, ids as string[]),
+            })
+          );
+        }),
         updateLessonOrder: Effect.fn("updateLessonOrder")(function* (
           lessonId: string,
           order: number

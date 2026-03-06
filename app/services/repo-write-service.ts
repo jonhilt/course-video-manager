@@ -239,6 +239,62 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
       });
 
       /**
+       * Executes a batch of `git mv` operations for reordering sections.
+       * Uses a two-pass rename (old → temp, temp → final) to avoid path collisions.
+       *
+       * @param repoPath - Absolute path to the course repo root
+       * @param renames - Array of {oldPath, newPath} rename operations for section directories
+       */
+      const renameSections = Effect.fn("renameSections")(function* (opts: {
+        repoPath: string;
+        renames: Array<{ oldPath: string; newPath: string }>;
+      }) {
+        if (opts.renames.length === 0) return;
+
+        const tempPrefix = `__section_reorder_tmp_`;
+
+        // Pass 1: old → temp (avoids collisions)
+        for (let i = 0; i < opts.renames.length; i++) {
+          const rename = opts.renames[i]!;
+          const tempName = `${tempPrefix}${i}_${rename.newPath}`;
+          const oldFullPath = path.join(opts.repoPath, rename.oldPath);
+          const tempFullPath = path.join(opts.repoPath, tempName);
+
+          yield* Effect.try({
+            try: () =>
+              execFileSync("git", ["mv", oldFullPath, tempFullPath], {
+                cwd: opts.repoPath,
+              }),
+            catch: (cause) =>
+              new RepoWriteError({
+                cause,
+                message: `git mv failed (pass 1): ${rename.oldPath} → ${tempName}`,
+              }),
+          });
+        }
+
+        // Pass 2: temp → final
+        for (let i = 0; i < opts.renames.length; i++) {
+          const rename = opts.renames[i]!;
+          const tempName = `${tempPrefix}${i}_${rename.newPath}`;
+          const tempFullPath = path.join(opts.repoPath, tempName);
+          const newFullPath = path.join(opts.repoPath, rename.newPath);
+
+          yield* Effect.try({
+            try: () =>
+              execFileSync("git", ["mv", tempFullPath, newFullPath], {
+                cwd: opts.repoPath,
+              }),
+            catch: (cause) =>
+              new RepoWriteError({
+                cause,
+                message: `git mv failed (pass 2): ${tempName} → ${rename.newPath}`,
+              }),
+          });
+        }
+      });
+
+      /**
        * Deletes a lesson directory from the filesystem.
        * Uses `git rm -rf` for tracked files; falls back to recursive
        * removal for untracked directories (e.g. newly added, never committed).
@@ -284,6 +340,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
         addLesson,
         renameLesson,
         renameLessons,
+        renameSections,
         deleteLesson,
       };
     }),
