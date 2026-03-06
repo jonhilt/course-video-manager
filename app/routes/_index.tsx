@@ -2,6 +2,7 @@
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { AddGhostLessonModal } from "@/components/add-ghost-lesson-modal";
+import { ConvertToGhostModal } from "@/components/convert-to-ghost-modal";
 import { AddVideoModal } from "@/components/add-video-modal";
 import { ClearVideoFilesModal } from "@/components/clear-video-files-modal";
 import { CreateVersionModal } from "@/components/create-version-modal";
@@ -225,12 +226,20 @@ export const loader = async (args: Route.LoaderArgs) => {
           }))
       ) ?? [];
 
+    const lessonHasFilesMap: Record<string, boolean> = {};
+
     yield* Effect.forEach(lessons, (lesson) => {
       return Effect.gen(function* () {
         const explainerPath = `${lesson.fullPath}/explainer`;
         const hasExplainerFolder = yield* fs.exists(explainerPath);
 
         hasExplainerFolderMap[lesson.id] = hasExplainerFolder;
+
+        // Check if lesson directory has any files/subdirectories
+        const entries = yield* fs
+          .readDirectory(lesson.fullPath)
+          .pipe(Effect.catchAll(() => Effect.succeed([] as string[])));
+        lessonHasFilesMap[lesson.id] = entries.length > 0;
       });
     });
 
@@ -251,6 +260,7 @@ export const loader = async (args: Route.LoaderArgs) => {
       isLatestVersion,
       hasExportedVideoMap,
       hasExplainerFolderMap,
+      lessonHasFilesMap,
       plans,
       showMediaFilesList: featureFlags.isEnabled("ENABLE_MEDIA_FILES_LIST"),
     };
@@ -278,6 +288,9 @@ export default function Component(props: Route.ComponentProps) {
     null
   );
   const [editLessonId, setEditLessonId] = useState<string | null>(null);
+  const [convertToGhostLessonId, setConvertToGhostLessonId] = useState<
+    string | null
+  >(null);
   const [videoPlayerState, setVideoPlayerState] = useState<{
     isOpen: boolean;
     videoId: string;
@@ -1133,6 +1146,12 @@ export default function Component(props: Route.ComponentProps) {
                                             deleteLessonFetcher={
                                               deleteLessonFetcher
                                             }
+                                            convertToGhostLessonId={
+                                              convertToGhostLessonId
+                                            }
+                                            setConvertToGhostLessonId={
+                                              setConvertToGhostLessonId
+                                            }
                                             dependencyMap={dependencyMap}
                                           />
                                         ))}
@@ -1417,6 +1436,8 @@ function SortableLessonItem({
   deleteVideoFileFetcher,
   deleteVideoFetcher,
   deleteLessonFetcher,
+  convertToGhostLessonId,
+  setConvertToGhostLessonId,
   allFlatLessons,
   dependencyMap,
 }: {
@@ -1449,6 +1470,8 @@ function SortableLessonItem({
   deleteVideoFileFetcher: ReturnType<typeof useFetcher>;
   deleteVideoFetcher: ReturnType<typeof useFetcher>;
   deleteLessonFetcher: ReturnType<typeof useFetcher>;
+  convertToGhostLessonId: string | null;
+  setConvertToGhostLessonId: (id: string | null) => void;
   allFlatLessons: DependencyLessonItem[];
   dependencyMap: Record<string, string[]>;
 }) {
@@ -1631,6 +1654,13 @@ function SortableLessonItem({
                   <PencilIcon className="w-4 h-4" />
                   Rename
                 </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem
+                  onSelect={() => setConvertToGhostLessonId(lesson.id)}
+                >
+                  <Ghost className="w-4 h-4" />
+                  Convert to Ghost
+                </ContextMenuItem>
               </>
             )}
             <ContextMenuItem
@@ -1719,6 +1749,18 @@ function SortableLessonItem({
             open={editLessonId === lesson.id}
             onOpenChange={(open) => {
               setEditLessonId(open ? lesson.id : null);
+            }}
+          />
+        )}
+        {!isGhost && (
+          <ConvertToGhostModal
+            lessonId={lesson.id}
+            lessonTitle={lesson.title || lesson.path}
+            hasFilesOnDisk={data.lessonHasFilesMap[lesson.id] ?? false}
+            hasVideos={lesson.videos.length > 0}
+            open={convertToGhostLessonId === lesson.id}
+            onOpenChange={(open) => {
+              setConvertToGhostLessonId(open ? lesson.id : null);
             }}
           />
         )}
