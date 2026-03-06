@@ -59,32 +59,24 @@ export type RenameEntry = {
 };
 
 /**
- * Given the current lessons in a section (in order) and a move operation,
+ * Given the current lessons in a section and the desired new order (as an array of IDs),
  * returns the list of renames needed to keep numbering sequential.
  *
- * @param lessons - Lessons in their current order
- * @param fromIndex - Index of the lesson being moved (0-based)
- * @param toIndex - Target index for the lesson (0-based)
+ * @param currentLessons - Lessons with their current paths
+ * @param newOrderIds - Lesson IDs in the desired new order
  * @returns Array of renames where the path actually changed
  */
 export const computeRenumberingPlan = (
-  lessons: LessonForReorder[],
-  fromIndex: number,
-  toIndex: number
+  currentLessons: LessonForReorder[],
+  newOrderIds: readonly string[]
 ): RenameEntry[] => {
-  if (lessons.length === 0) return [];
-  if (fromIndex === toIndex) return [];
-  if (fromIndex < 0 || fromIndex >= lessons.length) return [];
-  if (toIndex < 0 || toIndex >= lessons.length) return [];
+  if (currentLessons.length === 0 || newOrderIds.length === 0) return [];
 
-  // Reorder: remove from fromIndex, insert at toIndex
-  const reordered = [...lessons];
-  const [moved] = reordered.splice(fromIndex, 1);
-  reordered.splice(toIndex, 0, moved!);
+  const lessonMap = new Map(currentLessons.map((l) => [l.id, l]));
 
   // Determine section number from the first parseable lesson
   let sectionNumber = 1;
-  for (const lesson of reordered) {
+  for (const lesson of currentLessons) {
     const parsed = parseLessonPath(lesson.path);
     if (parsed?.sectionNumber != null) {
       sectionNumber = parsed.sectionNumber;
@@ -92,10 +84,12 @@ export const computeRenumberingPlan = (
     }
   }
 
-  // Compute new paths with sequential numbering
+  // Compute new paths based on the provided order
   const renames: RenameEntry[] = [];
-  for (let i = 0; i < reordered.length; i++) {
-    const lesson = reordered[i]!;
+  for (let i = 0; i < newOrderIds.length; i++) {
+    const lesson = lessonMap.get(newOrderIds[i]!);
+    if (!lesson) continue;
+
     const parsed = parseLessonPath(lesson.path);
     if (!parsed) continue;
 

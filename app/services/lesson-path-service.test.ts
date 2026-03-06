@@ -158,32 +158,30 @@ describe("computeRenumberingPlan", () => {
     }));
 
   it("returns empty array for empty lessons", () => {
-    expect(computeRenumberingPlan([], 0, 1)).toEqual([]);
+    expect(computeRenumberingPlan([], [])).toEqual([]);
   });
 
-  it("returns empty array when fromIndex equals toIndex (no-op)", () => {
+  it("returns empty array for empty newOrderIds", () => {
+    const lessons = makeLessons(["alpha", "beta"]);
+    expect(computeRenumberingPlan(lessons, [])).toEqual([]);
+  });
+
+  it("returns empty array when order is unchanged (no-op)", () => {
     const lessons = makeLessons(["alpha", "beta", "gamma"]);
-    expect(computeRenumberingPlan(lessons, 1, 1)).toEqual([]);
-  });
-
-  it("returns empty array for out-of-bounds fromIndex", () => {
-    const lessons = makeLessons(["alpha", "beta"]);
-    expect(computeRenumberingPlan(lessons, -1, 0)).toEqual([]);
-    expect(computeRenumberingPlan(lessons, 5, 0)).toEqual([]);
-  });
-
-  it("returns empty array for out-of-bounds toIndex", () => {
-    const lessons = makeLessons(["alpha", "beta"]);
-    expect(computeRenumberingPlan(lessons, 0, -1)).toEqual([]);
-    expect(computeRenumberingPlan(lessons, 0, 5)).toEqual([]);
+    expect(
+      computeRenumberingPlan(lessons, ["lesson-1", "lesson-2", "lesson-3"])
+    ).toEqual([]);
   });
 
   it("moves last lesson to first position", () => {
     const lessons = makeLessons(["alpha", "beta", "gamma"]);
-    const plan = computeRenumberingPlan(lessons, 2, 0);
-
     // New order: gamma, alpha, beta
-    // gamma: 01.03 → 01.01, alpha: 01.01 → 01.02, beta: 01.02 → 01.03
+    const plan = computeRenumberingPlan(lessons, [
+      "lesson-3",
+      "lesson-1",
+      "lesson-2",
+    ]);
+
     expect(plan).toEqual([
       { id: "lesson-3", oldPath: "01.03-gamma", newPath: "01.01-gamma" },
       { id: "lesson-1", oldPath: "01.01-alpha", newPath: "01.02-alpha" },
@@ -193,10 +191,13 @@ describe("computeRenumberingPlan", () => {
 
   it("moves first lesson to last position", () => {
     const lessons = makeLessons(["alpha", "beta", "gamma"]);
-    const plan = computeRenumberingPlan(lessons, 0, 2);
-
     // New order: beta, gamma, alpha
-    // beta: 01.02 → 01.01, gamma: 01.03 → 01.02, alpha: 01.01 → 01.03
+    const plan = computeRenumberingPlan(lessons, [
+      "lesson-2",
+      "lesson-3",
+      "lesson-1",
+    ]);
+
     expect(plan).toEqual([
       { id: "lesson-2", oldPath: "01.02-beta", newPath: "01.01-beta" },
       { id: "lesson-3", oldPath: "01.03-gamma", newPath: "01.02-gamma" },
@@ -206,9 +207,14 @@ describe("computeRenumberingPlan", () => {
 
   it("moves a middle lesson down one position", () => {
     const lessons = makeLessons(["alpha", "beta", "gamma", "delta"]);
-    const plan = computeRenumberingPlan(lessons, 1, 2);
-
     // New order: alpha, gamma, beta, delta
+    const plan = computeRenumberingPlan(lessons, [
+      "lesson-1",
+      "lesson-3",
+      "lesson-2",
+      "lesson-4",
+    ]);
+
     // alpha stays 01.01 (no change), gamma: 01.03→01.02, beta: 01.02→01.03, delta stays 01.04
     expect(plan).toEqual([
       { id: "lesson-3", oldPath: "01.03-gamma", newPath: "01.02-gamma" },
@@ -216,21 +222,9 @@ describe("computeRenumberingPlan", () => {
     ]);
   });
 
-  it("moves a middle lesson up one position", () => {
-    const lessons = makeLessons(["alpha", "beta", "gamma", "delta"]);
-    const plan = computeRenumberingPlan(lessons, 2, 1);
-
-    // New order: alpha, gamma, beta, delta
-    // Same result as above
-    expect(plan).toEqual([
-      { id: "lesson-3", oldPath: "01.03-gamma", newPath: "01.02-gamma" },
-      { id: "lesson-2", oldPath: "01.02-beta", newPath: "01.03-beta" },
-    ]);
-  });
-
-  it("handles single lesson (no-op since fromIndex must equal toIndex)", () => {
+  it("handles single lesson with same order (no-op)", () => {
     const lessons = makeLessons(["only-lesson"]);
-    expect(computeRenumberingPlan(lessons, 0, 0)).toEqual([]);
+    expect(computeRenumberingPlan(lessons, ["lesson-1"])).toEqual([]);
   });
 
   it("preserves section number from existing paths", () => {
@@ -239,7 +233,8 @@ describe("computeRenumberingPlan", () => {
       { id: "b", path: "03.02-basics" },
       { id: "c", path: "03.03-advanced" },
     ];
-    const plan = computeRenumberingPlan(lessons, 2, 0);
+    // New order: advanced, intro, basics
+    const plan = computeRenumberingPlan(lessons, ["c", "a", "b"]);
 
     expect(plan).toEqual([
       { id: "c", oldPath: "03.03-advanced", newPath: "03.01-advanced" },
@@ -250,10 +245,15 @@ describe("computeRenumberingPlan", () => {
 
   it("only includes lessons whose path actually changes", () => {
     const lessons = makeLessons(["alpha", "beta", "gamma", "delta", "epsilon"]);
-    // Move lesson at index 3 to index 1
-    const plan = computeRenumberingPlan(lessons, 3, 1);
-
     // New order: alpha, delta, beta, gamma, epsilon
+    const plan = computeRenumberingPlan(lessons, [
+      "lesson-1",
+      "lesson-4",
+      "lesson-2",
+      "lesson-3",
+      "lesson-5",
+    ]);
+
     // alpha stays 01.01, epsilon stays 01.05
     expect(plan).toHaveLength(3);
     expect(plan.find((r) => r.id === "lesson-1")).toBeUndefined();
@@ -262,12 +262,27 @@ describe("computeRenumberingPlan", () => {
 
   it("handles two lessons swapping positions", () => {
     const lessons = makeLessons(["first", "second"]);
-    const plan = computeRenumberingPlan(lessons, 0, 1);
-
     // New order: second, first
+    const plan = computeRenumberingPlan(lessons, ["lesson-2", "lesson-1"]);
+
     expect(plan).toEqual([
       { id: "lesson-2", oldPath: "01.02-second", newPath: "01.01-second" },
       { id: "lesson-1", oldPath: "01.01-first", newPath: "01.02-first" },
+    ]);
+  });
+
+  it("ignores unknown IDs in newOrderIds", () => {
+    const lessons = makeLessons(["alpha", "beta"]);
+    const plan = computeRenumberingPlan(lessons, [
+      "lesson-2",
+      "unknown-id",
+      "lesson-1",
+    ]);
+
+    // unknown-id is skipped; lesson-2 becomes position 1, lesson-1 becomes position 3
+    expect(plan).toEqual([
+      { id: "lesson-2", oldPath: "01.02-beta", newPath: "01.01-beta" },
+      { id: "lesson-1", oldPath: "01.01-alpha", newPath: "01.03-alpha" },
     ]);
   });
 });

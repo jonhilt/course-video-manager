@@ -14,8 +14,10 @@ const reorderSchema = Schema.Struct({
   sectionId: Schema.String.pipe(
     Schema.minLength(1, { message: () => "Section ID is required" })
   ),
-  fromIndex: Schema.NumberFromString,
-  toIndex: Schema.NumberFromString,
+  lessonIds: Schema.transform(Schema.String, Schema.Array(Schema.String), {
+    decode: (s) => JSON.parse(s) as string[],
+    encode: (a) => JSON.stringify(a),
+  }),
 });
 
 export const action = async (args: Route.ActionArgs) => {
@@ -23,7 +25,7 @@ export const action = async (args: Route.ActionArgs) => {
   const formDataObject = Object.fromEntries(formData);
 
   return Effect.gen(function* () {
-    const { sectionId, fromIndex, toIndex } =
+    const { sectionId, lessonIds } =
       yield* Schema.decodeUnknown(reorderSchema)(formDataObject);
 
     const db = yield* DBFunctionsService;
@@ -37,16 +39,12 @@ export const action = async (args: Route.ActionArgs) => {
     // Get all lessons for the section, ordered by their current order
     const sectionLessons = yield* db.getLessonsBySectionId(sectionId);
 
-    // Compute the renumbering plan
+    // Compute the renumbering plan using the full ordered array from the client
     const lessonsForReorder = sectionLessons.map((l) => ({
       id: l.id,
       path: l.path,
     }));
-    const renames = computeRenumberingPlan(
-      lessonsForReorder,
-      fromIndex,
-      toIndex
-    );
+    const renames = computeRenumberingPlan(lessonsForReorder, lessonIds);
 
     if (renames.length > 0) {
       // Execute git mv for all affected directories

@@ -56,6 +56,7 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
+  arrayMove,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
@@ -323,11 +324,12 @@ export default function Component(props: Route.ComponentProps) {
       const toIndex = lessons.findIndex((l) => l.id === over.id);
       if (fromIndex === -1 || toIndex === -1) return;
 
+      const newOrder = arrayMove(lessons, fromIndex, toIndex);
+
       reorderLessonFetcher.submit(
         {
           sectionId,
-          fromIndex: fromIndex.toString(),
-          toIndex: toIndex.toString(),
+          lessonIds: JSON.stringify(newOrder.map((l) => l.id)),
         },
         { method: "post", action: "/api/lessons/reorder" }
       );
