@@ -32,7 +32,7 @@ export function AddGhostLessonModal(props: {
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Ghost Lesson</DialogTitle>
+          <DialogTitle>Add Lesson</DialogTitle>
         </DialogHeader>
         <fetcher.Form
           method="post"
@@ -73,7 +73,7 @@ export function AddGhostLessonModal(props: {
               {fetcher.state === "submitting" ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                "Add Ghost Lesson"
+                "Add Lesson"
               )}
             </Button>
           </div>

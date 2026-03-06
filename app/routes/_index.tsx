@@ -2,7 +2,6 @@
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { AddGhostLessonModal } from "@/components/add-ghost-lesson-modal";
-import { AddLessonModal } from "@/components/add-lesson-modal";
 import { AddVideoModal } from "@/components/add-video-modal";
 import { ClearVideoFilesModal } from "@/components/clear-video-files-modal";
 import { CreateVersionModal } from "@/components/create-version-modal";
@@ -272,9 +271,6 @@ export default function Component(props: Route.ComponentProps) {
   const navigate = useNavigate();
   const selectedRepoId = searchParams.get("repoId");
   const [isAddRepoModalOpen, setIsAddRepoModalOpen] = useState(false);
-  const [addLessonSectionId, setAddLessonSectionId] = useState<string | null>(
-    null
-  );
   const [addGhostLessonSectionId, setAddGhostLessonSectionId] = useState<
     string | null
   >(null);
@@ -1057,31 +1053,14 @@ export default function Component(props: Route.ComponentProps) {
                                     <ContextMenuContent>
                                       <ContextMenuItem
                                         onSelect={() =>
-                                          setAddLessonSectionId(section.id)
+                                          setAddGhostLessonSectionId(section.id)
                                         }
                                       >
                                         <Plus className="w-4 h-4" />
                                         Add Lesson
                                       </ContextMenuItem>
-                                      <ContextMenuItem
-                                        onSelect={() =>
-                                          setAddGhostLessonSectionId(section.id)
-                                        }
-                                      >
-                                        <Ghost className="w-4 h-4" />
-                                        Add Ghost Lesson
-                                      </ContextMenuItem>
                                     </ContextMenuContent>
                                   </ContextMenu>
-                                  <AddLessonModal
-                                    sectionId={section.id}
-                                    open={addLessonSectionId === section.id}
-                                    onOpenChange={(open) => {
-                                      setAddLessonSectionId(
-                                        open ? section.id : null
-                                      );
-                                    }}
-                                  />
                                   <AddGhostLessonModal
                                     sectionId={section.id}
                                     open={
