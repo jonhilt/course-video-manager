@@ -7,6 +7,8 @@ import { InsertionPointWithSession } from "./insertion-point-with-session";
 import { isClipSection } from "../clip-utils";
 import { useContextSelector } from "use-context-selector";
 import { VideoEditorContext } from "../video-editor-context";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 /**
  * ClipTimeline component displays the main timeline of clips and clip sections.
@@ -50,11 +52,25 @@ export const ClipTimeline = () => {
     VideoEditorContext,
     (ctx) => ctx.sessions
   );
+  const onOpenCreateSectionModal = useContextSelector(
+    VideoEditorContext,
+    (ctx) => ctx.onOpenCreateSectionModal
+  );
   return (
     <div className="lg:flex-1 flex gap-2 h-full order-2 lg:order-1 overflow-y-auto">
       <div className="grid gap-4 w-full p-2">
         {clips.length === 0 && sessions.length === 0 && (
-          <PreRecordingChecklist />
+          <>
+            <PreRecordingChecklist />
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={onOpenCreateSectionModal}
+            >
+              <Plus className="size-4 mr-2" />
+              Add Section
+            </Button>
+          </>
         )}
 
         {items.length > 0 && (

@@ -316,6 +316,13 @@ export const VideoEditor = (props: {
     props.onAddClipSection("Intro");
   }, [props]);
 
+  const onOpenCreateSectionModal = useCallback(() => {
+    setClipSectionNamingModal({
+      mode: "create",
+      defaultName: generateDefaultClipSectionName(),
+    });
+  }, [generateDefaultClipSectionName]);
+
   // F2 to rename selected section
   const selectedClipsSet = state.selectedClipsSet;
   useEffect(() => {
@@ -456,6 +463,7 @@ export const VideoEditor = (props: {
         });
       },
       onAddIntroSection,
+      onOpenCreateSectionModal,
       onEditSection,
       onAddSectionBefore,
       onAddSectionAfter,
@@ -535,6 +543,7 @@ export const VideoEditor = (props: {
       suggestionState,
       setSuggestionState,
       onAddIntroSection,
+      onOpenCreateSectionModal,
       onEditSection,
       onAddSectionBefore,
       onAddSectionAfter,

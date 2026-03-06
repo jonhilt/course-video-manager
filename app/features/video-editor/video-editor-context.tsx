@@ -89,6 +89,7 @@ export type VideoEditorContextType = {
   onUpdateCurrentTime: (time: number) => void;
   onSectionClick: (sectionId: FrontendId, index: number) => void;
   onAddIntroSection: () => void;
+  onOpenCreateSectionModal: () => void;
   onEditSection: (sectionId: FrontendId, currentName: string) => void;
   onAddSectionBefore: (itemId: FrontendId, defaultName: string) => void;
   onAddSectionAfter: (itemId: FrontendId, defaultName: string) => void;
