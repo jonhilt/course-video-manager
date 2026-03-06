@@ -81,9 +81,11 @@ import {
   FileX,
   FolderOpen,
   FolderPen,
+  Code,
   Ghost,
   GripVertical,
   Loader2,
+  MessageCircle,
   PencilIcon,
   Play,
   Plus,
@@ -309,6 +311,23 @@ export default function Component(props: Route.ComponentProps) {
     videoPath: string;
   } | null>(null);
 
+  const [priorityFilter, setPriorityFilter] = useState<number[]>([]);
+  const [iconFilter, setIconFilter] = useState<string[]>([]);
+
+  const togglePriorityFilter = useCallback((priority: number) => {
+    setPriorityFilter((prev) =>
+      prev.includes(priority)
+        ? prev.filter((p) => p !== priority)
+        : [...prev, priority]
+    );
+  }, []);
+
+  const toggleIconFilter = useCallback((icon: string) => {
+    setIconFilter((prev) =>
+      prev.includes(icon) ? prev.filter((i) => i !== icon) : [...prev, icon]
+    );
+  }, []);
+
   const publishRepoFetcher = useFetcher();
   const { startExportUpload, startBatchExportUpload } =
     useContext(UploadContext);
@@ -493,6 +512,74 @@ export default function Component(props: Route.ComponentProps) {
                         {totalDurationFormatted}
                       </span>
                     )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Filter:
+                    </span>
+                    {([1, 2, 3] as const).map((priority) => {
+                      const isSelected = priorityFilter.includes(priority);
+                      const showAsActive =
+                        priorityFilter.length === 0 || isSelected;
+                      return (
+                        <button
+                          key={priority}
+                          className={`text-xs px-2 py-0.5 rounded-sm font-medium transition-colors ${
+                            showAsActive
+                              ? priority === 1
+                                ? "bg-red-500/20 text-red-600"
+                                : priority === 2
+                                  ? "bg-yellow-500/20 text-yellow-600"
+                                  : "bg-sky-500/20 text-sky-500"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          } ${isSelected ? "ring-1 ring-current" : ""}`}
+                          onClick={() => togglePriorityFilter(priority)}
+                        >
+                          P{priority}
+                        </button>
+                      );
+                    })}
+
+                    <span className="text-muted-foreground mx-1">|</span>
+                    {(["code", "discussion", "watch"] as const).map((icon) => {
+                      const isSelected = iconFilter.includes(icon);
+                      const showAsActive =
+                        iconFilter.length === 0 || isSelected;
+                      return (
+                        <button
+                          key={icon}
+                          className={`flex items-center justify-center w-6 h-6 rounded-full transition-colors ${
+                            icon === "code"
+                              ? showAsActive
+                                ? "bg-yellow-500/20 text-yellow-600"
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                              : icon === "discussion"
+                                ? showAsActive
+                                  ? "bg-green-500/20 text-green-600"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                : showAsActive
+                                  ? "bg-purple-500/20 text-purple-600"
+                                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          } ${isSelected ? "ring-1 ring-current" : ""}`}
+                          onClick={() => toggleIconFilter(icon)}
+                          title={
+                            icon === "code"
+                              ? "Interactive"
+                              : icon === "discussion"
+                                ? "Discussion"
+                                : "Watch"
+                          }
+                        >
+                          {icon === "code" ? (
+                            <Code className="w-3 h-3" />
+                          ) : icon === "discussion" ? (
+                            <MessageCircle className="w-3 h-3" />
+                          ) : (
+                            <Play className="w-3 h-3" />
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -816,6 +903,21 @@ export default function Component(props: Route.ComponentProps) {
                             }
                           }
 
+                          // Filter lessons based on active filters
+                          const hasActiveFilters =
+                            priorityFilter.length > 0 || iconFilter.length > 0;
+                          const filteredLessons = hasActiveFilters
+                            ? lessons.filter((lesson) => {
+                                const passesPriorityFilter =
+                                  priorityFilter.length === 0 ||
+                                  priorityFilter.includes(lesson.priority ?? 2);
+                                const passesIconFilter =
+                                  iconFilter.length === 0 ||
+                                  iconFilter.includes(lesson.icon ?? "watch");
+                                return passesPriorityFilter && passesIconFilter;
+                              })
+                            : lessons;
+
                           const sectionDuration = lessons.reduce(
                             (acc, lesson) => {
                               return (
@@ -936,7 +1038,13 @@ export default function Component(props: Route.ComponentProps) {
                                         items={lessons.map((l) => l.id)}
                                         strategy={verticalListSortingStrategy}
                                       >
-                                        {lessons.map((lesson, li) => (
+                                        {hasActiveFilters &&
+                                          filteredLessons.length === 0 && (
+                                            <p className="text-xs text-muted-foreground text-center py-3">
+                                              No matching lessons
+                                            </p>
+                                          )}
+                                        {filteredLessons.map((lesson, li) => (
                                           <SortableLessonItem
                                             key={lesson.id}
                                             lesson={lesson}
