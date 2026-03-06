@@ -15,8 +15,10 @@ export function AddGhostLessonModal(props: {
   sectionId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  fetcher?: ReturnType<typeof useFetcher>;
 }) {
-  const fetcher = useFetcher();
+  const internalFetcher = useFetcher();
+  const fetcher = props.fetcher ?? internalFetcher;
   const [title, setTitle] = useState("");
   const isValid = title.trim().length > 0;
 

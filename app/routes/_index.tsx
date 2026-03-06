@@ -345,6 +345,7 @@ export default function Component(props: Route.ComponentProps) {
   const archiveRepoFetcher = useFetcher();
   const reorderLessonFetcher = useFetcher();
   const reorderSectionFetcher = useFetcher();
+  const addGhostFetcher = useFetcher();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -930,6 +931,46 @@ export default function Component(props: Route.ComponentProps) {
                             }
                           }
 
+                          // Optimistic lesson deletion
+                          const pendingDelete = deleteLessonFetcher.formData;
+                          const pendingDeleteId = pendingDelete?.get(
+                            "lessonId"
+                          ) as string | null;
+                          if (pendingDeleteId) {
+                            lessons = lessons.filter(
+                              (l) => l.id !== pendingDeleteId
+                            );
+                          }
+
+                          // Optimistic ghost lesson addition
+                          const pendingGhostAdd = addGhostFetcher.formData;
+                          if (
+                            pendingGhostAdd &&
+                            pendingGhostAdd.get("sectionId") === section.id
+                          ) {
+                            const ghostTitle = pendingGhostAdd.get(
+                              "title"
+                            ) as string;
+                            lessons = [
+                              ...lessons,
+                              {
+                                id: `optimistic-ghost-${ghostTitle}`,
+                                path: ghostTitle,
+                                title: ghostTitle,
+                                fsStatus: "ghost",
+                                description: "",
+                                icon: null,
+                                priority: 2,
+                                dependencies: [],
+                                order: lessons.length,
+                                videos: [],
+                                createdAt: new Date(),
+                                previousVersionLessonId: null,
+                                sectionId: section.id,
+                              } as Lesson,
+                            ];
+                          }
+
                           // Filter lessons based on active filters
                           const hasActiveFilters =
                             priorityFilter.length > 0 || iconFilter.length > 0;
@@ -1051,6 +1092,7 @@ export default function Component(props: Route.ComponentProps) {
                                         open ? section.id : null
                                       );
                                     }}
+                                    fetcher={addGhostFetcher}
                                   />
                                   <div className="p-2">
                                     <DndContext
@@ -1451,8 +1493,9 @@ function SortableLessonItem({
     opacity: isDragging ? 0.5 : undefined,
   };
 
-  const isGhost = lesson.fsStatus === "ghost";
   const createOnDiskFetcher = useFetcher();
+  const isGhost =
+    lesson.fsStatus === "ghost" && createOnDiskFetcher.state === "idle";
   const descriptionFetcher = useFetcher();
   const [editingDesc, setEditingDesc] = useState(false);
   const [descValue, setDescValue] = useState(lesson.description || "");
