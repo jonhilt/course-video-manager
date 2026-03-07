@@ -4,21 +4,12 @@ import { Data, Effect } from "effect";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { buildLessonPath, parseLessonPath } from "./lesson-path-service";
+import { titleFromSlug } from "./section-path-service";
 
 export class RepoWriteError extends Data.TaggedError("RepoWriteError")<{
   cause: unknown;
   message: string;
 }> {}
-
-/**
- * Derives a human-readable title from a slug.
- * e.g., "my-awesome-lesson" → "My Awesome Lesson"
- */
-const titleFromSlug = (slug: string): string =>
-  slug
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
 
 export class RepoWriteService extends Effect.Service<RepoWriteService>()(
   "RepoWriteService",

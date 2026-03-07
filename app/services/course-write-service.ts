@@ -12,6 +12,7 @@ import {
   parseSectionPath,
   buildSectionPath,
   computeSectionRenumberingPlan,
+  titleFromSlug,
 } from "./section-path-service";
 
 export class CourseWriteError extends Data.TaggedError("CourseWriteError")<{
@@ -47,11 +48,19 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         }
 
         const repoPath = lesson.section.repoVersion.repo.filePath;
-        const sectionPath = lesson.section.path;
+        let sectionPath = lesson.section.path;
         const parsed = parseSectionPath(sectionPath);
         const sectionNumber = parsed?.sectionNumber ?? 1;
         const slug =
           toSlug(lesson.title || "") || toSlug(lesson.path) || "untitled";
+
+        // If the section path is not a valid NN-slug format, it's a ghost section
+        // that needs to be materialized (title → slugified path)
+        if (!parsed) {
+          const sectionSlug = toSlug(sectionPath) || "untitled";
+          sectionPath = buildSectionPath(sectionNumber, sectionSlug);
+          yield* db.updateSectionPath(lesson.sectionId, sectionPath);
+        }
 
         // Get all lessons in the section to determine insert position
         const sectionLessons = yield* db.getLessonsBySectionId(
@@ -120,6 +129,29 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         });
 
         return { success: true, path: plan.newLessonDirName };
+      });
+
+      /**
+       * Creates a ghost section in the database (no filesystem operations).
+       * Stores the raw title as the section path.
+       */
+      const addGhostSection = Effect.fn("addGhostSection")(function* (
+        repoVersionId: string,
+        title: string,
+        maxOrder: number = 0
+      ) {
+        const sectionNumber = maxOrder + 1;
+        const [newSection] = yield* db.createSections({
+          repoVersionId,
+          sections: [
+            {
+              sectionPathWithNumber: title,
+              sectionNumber,
+            },
+          ],
+        });
+
+        return { success: true, sectionId: newSection!.id };
       });
 
       /**
@@ -242,6 +274,15 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
                 path: rename.newPath,
               });
             }
+          }
+        }
+
+        // If no real lessons remain, revert the section path to title case
+        if (remainingReal.length === 0) {
+          const sectionParsed = parseSectionPath(sectionPath);
+          if (sectionParsed) {
+            const title = titleFromSlug(sectionParsed.slug);
+            yield* db.updateSectionPath(lesson.sectionId, title);
           }
         }
 
@@ -637,6 +678,7 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
 
       return {
         materializeGhost,
+        addGhostSection,
         addGhostLesson,
         deleteLesson,
         convertToGhost,

@@ -149,6 +149,7 @@ const setup = async () => {
 
   return {
     run,
+    repoVersionId: version.id,
     createSection,
     createGhostSection,
     createRealLesson,
@@ -1506,6 +1507,154 @@ describe("CourseWriteService", () => {
       const updatedLesson = await getLesson(ghostResult.lessonId);
       expect(updatedLesson.path).toBe("01.01-where-we-are-going");
       expect(updatedLesson.fsStatus).toBe("real");
+    });
+  });
+
+  describe("ghost section lifecycle", () => {
+    it("materializing a ghost lesson in a ghost section slugifies the section path and creates the directory", async () => {
+      const { run, createGhostSection, createGhostLesson, getSection } =
+        await setup();
+
+      const section = await createGhostSection("Before We Start", 1);
+      const ghost = await createGhostLesson(
+        section.id,
+        "Where Were Going",
+        "where-were-going",
+        1
+      );
+
+      await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.materializeGhost(ghost.id);
+        })
+      );
+
+      const updatedSection = await getSection(section.id);
+      expect(updatedSection.path).toBe("01-before-we-start");
+
+      // Verify section directory was created on disk
+      expect(fs.existsSync(path.join(tempDir, "01-before-we-start"))).toBe(
+        true
+      );
+
+      // Verify lesson directory was created inside the slugified section
+      expect(
+        fs.existsSync(
+          path.join(
+            tempDir,
+            "01-before-we-start",
+            "01.01-where-were-going",
+            "explainer"
+          )
+        )
+      ).toBe(true);
+    });
+
+    it("materializing a ghost lesson in an already-real section does not change the section path", async () => {
+      const {
+        run,
+        createSection,
+        createRealLesson,
+        createGhostLesson,
+        getSection,
+      } = await setup();
+
+      const section = await createSection("01-intro", 1);
+      await createRealLesson(section.id, "01-intro", "01.01-first-lesson", 1);
+      const ghost = await createGhostLesson(
+        section.id,
+        "Second Lesson",
+        "second-lesson",
+        2
+      );
+
+      await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.materializeGhost(ghost.id);
+        })
+      );
+
+      const updatedSection = await getSection(section.id);
+      expect(updatedSection.path).toBe("01-intro");
+    });
+
+    it("converting the last real lesson to ghost reverts section path to title case", async () => {
+      const { run, createGhostSection, createGhostLesson, getSection } =
+        await setup();
+
+      const section = await createGhostSection("Before We Start", 1);
+      const ghost = await createGhostLesson(
+        section.id,
+        "Where Were Going",
+        "where-were-going",
+        1
+      );
+
+      // Materialize the ghost lesson (which also materializes the section)
+      await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.materializeGhost(ghost.id);
+        })
+      );
+
+      const realSection = await getSection(section.id);
+      expect(realSection.path).toBe("01-before-we-start");
+
+      // Convert the lesson back to ghost
+      await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.convertToGhost(ghost.id);
+        })
+      );
+
+      const ghostSection = await getSection(section.id);
+      expect(ghostSection.path).toBe("Before We Start");
+    });
+
+    it("addGhostSection creates a section with the raw title as its path", async () => {
+      const { run, repoVersionId, getSection } = await setup();
+
+      const result = await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.addGhostSection(
+            repoVersionId,
+            "Before We Start"
+          );
+        })
+      );
+
+      expect(result.success).toBe(true);
+      const section = await getSection(result.sectionId);
+      expect(section.path).toBe("Before We Start");
+    });
+
+    it("converting a real lesson when other real lessons remain does not change the section path", async () => {
+      const { run, createSection, createRealLesson, getSection } =
+        await setup();
+
+      const section = await createSection("01-intro", 1);
+      const lesson1 = await createRealLesson(
+        section.id,
+        "01-intro",
+        "01.01-first-lesson",
+        1
+      );
+      await createRealLesson(section.id, "01-intro", "01.02-second-lesson", 2);
+
+      await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.convertToGhost(lesson1.id);
+        })
+      );
+
+      const updatedSection = await getSection(section.id);
+      expect(updatedSection.path).toBe("01-intro");
     });
   });
 });
