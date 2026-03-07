@@ -18,7 +18,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:clone-local": "./scripts/clone-db-to-local.sh",
-    "ralph": "./plans/backlog/afk.sh 100"
+    "ralph": "./plans/backlog/afk.sh 100",
+    "check:file-tokens": "./scripts/check-file-tokens.sh"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "2.0.44",
