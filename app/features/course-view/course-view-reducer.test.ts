@@ -52,7 +52,7 @@ describe("courseViewReducer", () => {
       const state = createTester().getState();
       expect(state.priorityFilter).toEqual([]);
       expect(state.iconFilter).toEqual([]);
-      expect(state.fsStatusFilter).toEqual([]);
+      expect(state.fsStatusFilter).toBeNull();
     });
   });
 
@@ -384,27 +384,34 @@ describe("courseViewReducer", () => {
       expect(state.iconFilter).toEqual(["code", "discussion"]);
     });
 
-    it("40. toggle-fs-status-filter: adds status when not present", () => {
+    it("40. toggle-fs-status-filter: sets status when not active", () => {
       const state = createTester()
         .send({ type: "toggle-fs-status-filter", status: "ghost" })
         .getState();
-      expect(state.fsStatusFilter).toEqual(["ghost"]);
+      expect(state.fsStatusFilter).toBe("ghost");
     });
 
-    it("41. toggle-fs-status-filter: removes status when already present", () => {
+    it("41. toggle-fs-status-filter: clears status when already active", () => {
       const state = createTester()
         .send({ type: "toggle-fs-status-filter", status: "ghost" })
         .send({ type: "toggle-fs-status-filter", status: "ghost" })
         .getState();
-      expect(state.fsStatusFilter).toEqual([]);
+      expect(state.fsStatusFilter).toBeNull();
     });
 
-    it("42. toggle-fs-status-filter: supports multiple statuses", () => {
+    it("42. toggle-fs-status-filter: exclusive — selecting one replaces the other", () => {
       const state = createTester()
         .send({ type: "toggle-fs-status-filter", status: "ghost" })
         .send({ type: "toggle-fs-status-filter", status: "real" })
         .getState();
-      expect(state.fsStatusFilter).toEqual(["ghost", "real"]);
+      expect(state.fsStatusFilter).toBe("real");
+    });
+
+    it("42b. toggle-fs-status-filter: todo filter", () => {
+      const state = createTester()
+        .send({ type: "toggle-fs-status-filter", status: "todo" })
+        .getState();
+      expect(state.fsStatusFilter).toBe("todo");
     });
 
     it("43. filters are independent of each other", () => {
@@ -415,7 +422,7 @@ describe("courseViewReducer", () => {
         .getState();
       expect(state.priorityFilter).toEqual([1]);
       expect(state.iconFilter).toEqual(["code"]);
-      expect(state.fsStatusFilter).toEqual(["ghost"]);
+      expect(state.fsStatusFilter).toBe("ghost");
     });
   });
 

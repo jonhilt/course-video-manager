@@ -94,6 +94,7 @@ import {
   Code,
   Ghost,
   GripVertical,
+  ListChecks,
   Loader2,
   MessageCircle,
   PencilIcon,
@@ -920,10 +921,10 @@ export default function Component(props: Route.ComponentProps) {
                     })}
 
                     <span className="text-muted-foreground mx-1">|</span>
-                    {(["ghost", "real"] as const).map((status) => {
-                      const isSelected = fsStatusFilter.includes(status);
+                    {(["ghost", "real", "todo"] as const).map((status) => {
+                      const isSelected = fsStatusFilter === status;
                       const showAsActive =
-                        fsStatusFilter.length === 0 || isSelected;
+                        fsStatusFilter === null || isSelected;
                       return (
                         <button
                           key={status}
@@ -938,14 +939,26 @@ export default function Component(props: Route.ComponentProps) {
                               status,
                             })
                           }
-                          title={status === "ghost" ? "Ghost" : "Real"}
+                          title={
+                            status === "ghost"
+                              ? "Ghost"
+                              : status === "real"
+                                ? "Real"
+                                : "To-do"
+                          }
                         >
                           {status === "ghost" ? (
                             <Ghost className="w-3 h-3" />
-                          ) : (
+                          ) : status === "real" ? (
                             <FileVideo className="w-3 h-3" />
+                          ) : (
+                            <ListChecks className="w-3 h-3" />
                           )}
-                          {status === "ghost" ? "Ghost" : "Real"}
+                          {status === "ghost"
+                            ? "Ghost"
+                            : status === "real"
+                              ? "Real"
+                              : "To-do"}
                         </button>
                       );
                     })}
@@ -1130,7 +1143,7 @@ export default function Component(props: Route.ComponentProps) {
                           const hasActiveFilters =
                             priorityFilter.length > 0 ||
                             iconFilter.length > 0 ||
-                            fsStatusFilter.length > 0;
+                            fsStatusFilter !== null;
                           const filteredLessons = hasActiveFilters
                             ? lessons.filter((lesson) => {
                                 const passesPriorityFilter =
@@ -1139,11 +1152,30 @@ export default function Component(props: Route.ComponentProps) {
                                 const passesIconFilter =
                                   iconFilter.length === 0 ||
                                   iconFilter.includes(lesson.icon ?? "watch");
-                                const passesFsStatusFilter =
-                                  fsStatusFilter.length === 0 ||
-                                  fsStatusFilter.includes(
-                                    lesson.fsStatus ?? "real"
+                                const passesFsStatusFilter = (() => {
+                                  if (fsStatusFilter === null) return true;
+                                  if (fsStatusFilter === "ghost")
+                                    return (
+                                      (lesson.fsStatus ?? "real") === "ghost"
+                                    );
+                                  if (fsStatusFilter === "real")
+                                    return (
+                                      (lesson.fsStatus ?? "real") === "real"
+                                    );
+                                  // "todo" filter
+                                  if ((lesson.fsStatus ?? "real") !== "real")
+                                    return false;
+                                  if (lesson.videos.length === 0) return true;
+                                  if (
+                                    lesson.videos.every(
+                                      (v) => v.clips.length > 1
+                                    )
+                                  )
+                                    return false;
+                                  return lesson.videos.some(
+                                    (v) => v.clips.length === 0
                                   );
+                                })();
                                 return (
                                   passesPriorityFilter &&
                                   passesIconFilter &&

@@ -53,7 +53,7 @@ export namespace courseViewReducer {
     // Filter states
     priorityFilter: number[];
     iconFilter: string[];
-    fsStatusFilter: string[];
+    fsStatusFilter: string | null;
   };
 
   export type Action =
@@ -131,7 +131,7 @@ export function createInitialCourseViewState(): courseViewReducer.State {
     renameVideoState: null,
     priorityFilter: [],
     iconFilter: [],
-    fsStatusFilter: [],
+    fsStatusFilter: null,
   };
 }
 
@@ -247,9 +247,8 @@ export const courseViewReducer: EffectReducer<
     case "toggle-fs-status-filter":
       return {
         ...state,
-        fsStatusFilter: state.fsStatusFilter.includes(action.status)
-          ? state.fsStatusFilter.filter((s) => s !== action.status)
-          : [...state.fsStatusFilter, action.status],
+        fsStatusFilter:
+          state.fsStatusFilter === action.status ? null : action.status,
       };
   }
 };
