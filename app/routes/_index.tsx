@@ -830,7 +830,7 @@ export default function Component(props: Route.ComponentProps) {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  <div className="flex items-center gap-2 mb-8">
+                  <div className="flex items-center gap-2 mb-3">
                     <span className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
                       {totalLessonsWithVideos} / {totalLessons} lessons (
                       {percentageComplete}%)
