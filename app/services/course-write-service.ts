@@ -496,16 +496,34 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         );
 
         if (sectionRenames.length > 0) {
-          // Execute git mv for section directories (two-pass to avoid collisions)
-          yield* repoWrite.renameSections({
-            repoPath,
-            renames: sectionRenames.map((r) => ({
-              oldPath: r.oldPath,
-              newPath: r.newPath,
-            })),
-          });
+          // Determine which sections have directories on disk
+          const sectionsWithDir = new Set<string>();
+          for (const rename of sectionRenames) {
+            const exists = yield* repoWrite.sectionDirExists({
+              repoPath,
+              sectionPath: rename.oldPath,
+            });
+            if (exists) {
+              sectionsWithDir.add(rename.id);
+            }
+          }
 
-          // Update DB paths for renamed sections
+          const fsRenames = sectionRenames.filter((r) =>
+            sectionsWithDir.has(r.id)
+          );
+
+          // Execute git mv only for sections with directories on disk
+          if (fsRenames.length > 0) {
+            yield* repoWrite.renameSections({
+              repoPath,
+              renames: fsRenames.map((r) => ({
+                oldPath: r.oldPath,
+                newPath: r.newPath,
+              })),
+            });
+          }
+
+          // Update DB paths for ALL renamed sections (including ghost-only)
           for (const rename of sectionRenames) {
             yield* db.updateSectionPath(rename.id, rename.newPath);
           }

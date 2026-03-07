@@ -53,6 +53,24 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
 
           yield* fs.makeDirectory(explainerDir, { recursive: true });
           yield* fs.writeFileString(readmePath, `# ${title}\n`);
+
+          // Stage the new files so subsequent git operations (mv, rm) work
+          const lessonFullPath = path.join(
+            opts.repoPath,
+            opts.sectionPath,
+            opts.lessonDirName
+          );
+          yield* Effect.try({
+            try: () =>
+              execFileSync("git", ["add", lessonFullPath], {
+                cwd: opts.repoPath,
+              }),
+            catch: (cause) =>
+              new RepoWriteError({
+                cause,
+                message: `git add failed: ${opts.sectionPath}/${opts.lessonDirName}`,
+              }),
+          });
         }
       );
 
@@ -481,6 +499,17 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
         }
       );
 
+      /**
+       * Checks whether a section directory exists on the filesystem.
+       */
+      const sectionDirExists = Effect.fn("sectionDirExists")(function* (opts: {
+        repoPath: string;
+        sectionPath: string;
+      }) {
+        const fullPath = path.join(opts.repoPath, opts.sectionPath);
+        return yield* fs.exists(fullPath);
+      });
+
       return {
         createLessonDirectory,
         addLesson,
@@ -489,6 +518,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
         renameSections,
         deleteLesson,
         moveLessonToSection,
+        sectionDirExists,
       };
     }),
     dependencies: [NodeFileSystem.layer],

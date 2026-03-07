@@ -121,6 +121,20 @@ const setup = async () => {
     return lesson[0]!;
   };
 
+  /** Creates a section in DB only (no directory on disk). */
+  const createGhostSection = async (sectionPath: string, order: number) => {
+    const sections = await Effect.gen(function* () {
+      const db = yield* DBFunctionsService;
+      return yield* db.createSections({
+        repoVersionId: version.id,
+        sections: [
+          { sectionPathWithNumber: sectionPath, sectionNumber: order },
+        ],
+      });
+    }).pipe(Effect.provide(dbLayer), Effect.runPromise);
+    return sections[0]!;
+  };
+
   const getLesson = (lessonId: string) =>
     Effect.gen(function* () {
       const db = yield* DBFunctionsService;
@@ -136,6 +150,7 @@ const setup = async () => {
   return {
     run,
     createSection,
+    createGhostSection,
     createRealLesson,
     createGhostLesson,
     getLesson,
@@ -1289,6 +1304,70 @@ describe("CourseWriteService", () => {
       expect(updatedSection2.path).toBe("01-advanced");
       expect(updatedSection2.order).toBe(0);
     });
+
+    it("ghost-only section reorder: skips git mv for ghost section, renames real sections", async () => {
+      const {
+        run,
+        createSection,
+        createGhostSection,
+        createRealLesson,
+        createGhostLesson,
+        getLesson,
+        getSection,
+      } = await setup();
+
+      // Real section with a lesson on disk
+      const section1 = await createSection("01-intro", 1);
+      const lesson1 = await createRealLesson(
+        section1.id,
+        "01-intro",
+        "01.01-first-lesson",
+        1
+      );
+
+      // Ghost-only section (no directory on disk)
+      const section2 = await createGhostSection("02-before-we-start", 2);
+      const ghost = await createGhostLesson(
+        section2.id,
+        "Ghost Lesson",
+        "ghost-lesson",
+        1
+      );
+
+      // Reorder: ghost section first, real section second
+      await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.reorderSections([section2.id, section1.id]);
+        })
+      );
+
+      // Real section directory renamed on disk
+      expect(fs.existsSync(path.join(tempDir, "02-intro"))).toBe(true);
+      expect(fs.existsSync(path.join(tempDir, "01-intro"))).toBe(false);
+
+      // Real lesson path updated on disk
+      expect(
+        fs.existsSync(path.join(tempDir, "02-intro", "02.01-first-lesson"))
+      ).toBe(true);
+
+      // DB: section paths updated
+      const updatedSection1 = await getSection(section1.id);
+      expect(updatedSection1.path).toBe("02-intro");
+      expect(updatedSection1.order).toBe(1);
+
+      const updatedSection2 = await getSection(section2.id);
+      expect(updatedSection2.path).toBe("01-before-we-start");
+      expect(updatedSection2.order).toBe(0);
+
+      // DB: real lesson path updated
+      const updatedLesson = await getLesson(lesson1.id);
+      expect(updatedLesson.path).toBe("02.01-first-lesson");
+
+      // DB: ghost lesson path unchanged
+      const updatedGhost = await getLesson(ghost.id);
+      expect(updatedGhost.path).toBe("ghost-lesson");
+    });
   });
 
   describe("end-to-end: create section → add ghost → materialize → rename", () => {
@@ -1307,7 +1386,7 @@ describe("CourseWriteService", () => {
       );
       expect(ghostResult.success).toBe(true);
 
-      // Materialize ghost
+      // Materialize ghost — files are auto-staged by createLessonDirectory
       const materializeResult = await run(
         Effect.gen(function* () {
           const service = yield* CourseWriteService;
@@ -1316,10 +1395,7 @@ describe("CourseWriteService", () => {
       );
       expect(materializeResult.path).toBe("01.01-where-were-going");
 
-      // Commit materialized files so git mv can operate on them
-      execSync("git add . && git commit -m 'materialize'", { cwd: tempDir });
-
-      // Rename lesson (the operation that was failing before the fix)
+      // Rename lesson — works without manual git commit because files are staged
       const renameResult = await run(
         Effect.gen(function* () {
           const service = yield* CourseWriteService;
@@ -1344,6 +1420,89 @@ describe("CourseWriteService", () => {
       ).toBe(false);
 
       // Verify DB state
+      const updatedLesson = await getLesson(ghostResult.lessonId);
+      expect(updatedLesson.path).toBe("01.01-where-we-are-going");
+      expect(updatedLesson.fsStatus).toBe("real");
+    });
+
+    it("reorder ghost section first → materialize → rename works", async () => {
+      const {
+        run,
+        createSection,
+        createGhostSection,
+        createRealLesson,
+        getLesson,
+        getSection,
+      } = await setup();
+
+      // Existing real section
+      const section1 = await createSection("01-intro", 1);
+      await createRealLesson(section1.id, "01-intro", "01.01-basics", 1);
+
+      // New ghost-only section (no directory on disk)
+      const section2 = await createGhostSection("02-before-we-start", 2);
+
+      // Add ghost lesson to the ghost section
+      const ghostResult = await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.addGhostLesson(section2.id, "Where Were Going");
+        })
+      );
+
+      // Reorder: ghost section first
+      await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.reorderSections([section2.id, section1.id]);
+        })
+      );
+
+      // Verify ghost section DB path updated
+      const reorderedSection2 = await getSection(section2.id);
+      expect(reorderedSection2.path).toBe("01-before-we-start");
+
+      // Materialize ghost lesson in the reordered section
+      const materializeResult = await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.materializeGhost(ghostResult.lessonId);
+        })
+      );
+      expect(materializeResult.path).toBe("01.01-where-were-going");
+
+      // Verify directory created at correct path
+      expect(
+        fs.existsSync(
+          path.join(
+            tempDir,
+            "01-before-we-start",
+            "01.01-where-were-going",
+            "explainer",
+            "readme.md"
+          )
+        )
+      ).toBe(true);
+
+      // Rename lesson — works without manual commit
+      const renameResult = await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.renameLesson(
+            ghostResult.lessonId,
+            "where-we-are-going"
+          );
+        })
+      );
+      expect(renameResult.path).toBe("01.01-where-we-are-going");
+
+      // Verify final state
+      expect(
+        fs.existsSync(
+          path.join(tempDir, "01-before-we-start", "01.01-where-we-are-going")
+        )
+      ).toBe(true);
+
       const updatedLesson = await getLesson(ghostResult.lessonId);
       expect(updatedLesson.path).toBe("01.01-where-we-are-going");
       expect(updatedLesson.fsStatus).toBe("real");
