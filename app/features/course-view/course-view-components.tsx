@@ -113,11 +113,13 @@ export function FilterBar({
   priorityFilter,
   iconFilter,
   fsStatusFilter,
+  fsStatusCounts,
   dispatch,
 }: {
   priorityFilter: number[];
   iconFilter: string[];
   fsStatusFilter: string | null;
+  fsStatusCounts: { ghost: number; real: number; todo: number };
   dispatch: (action: courseViewReducer.Action) => void;
 }) {
   return (
@@ -220,6 +222,7 @@ export function FilterBar({
               <ListChecks className="w-3 h-3" />
             )}
             {status === "ghost" ? "Ghost" : status === "real" ? "Real" : "Todo"}
+            <span className="opacity-60">{fsStatusCounts[status]}</span>
           </button>
         );
       })}

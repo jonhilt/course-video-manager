@@ -366,6 +366,34 @@ export default function Component(props: Route.ComponentProps) {
     return map;
   }, [currentRepo?.sections]);
 
+  const fsStatusCounts = useMemo(() => {
+    const counts = { ghost: 0, real: 0, todo: 0 };
+    for (const section of currentRepo?.sections ?? []) {
+      for (const lesson of section.lessons) {
+        const passesPriority =
+          priorityFilter.length === 0 ||
+          priorityFilter.includes(lesson.priority ?? 2);
+        const passesIcon =
+          iconFilter.length === 0 ||
+          iconFilter.includes(lesson.icon ?? "watch");
+        if (!passesPriority || !passesIcon) continue;
+
+        const status = lesson.fsStatus ?? "real";
+        if (status === "ghost") {
+          counts.ghost++;
+        } else {
+          counts.real++;
+          const isTodo =
+            lesson.videos.length === 0 ||
+            (lesson.videos.some((v) => v.clips.length === 0) &&
+              !lesson.videos.every((v) => v.clips.length > 1));
+          if (isTodo) counts.todo++;
+        }
+      }
+    }
+    return counts;
+  }, [currentRepo?.sections, priorityFilter, iconFilter]);
+
   const handleBatchExport = () => {
     if (!loaderData.selectedVersion) return;
     startBatchExportUpload(loaderData.selectedVersion.id);
@@ -457,6 +485,7 @@ export default function Component(props: Route.ComponentProps) {
                   priorityFilter={priorityFilter}
                   iconFilter={iconFilter}
                   fsStatusFilter={fsStatusFilter}
+                  fsStatusCounts={fsStatusCounts}
                   dispatch={dispatch}
                 />
               </div>
