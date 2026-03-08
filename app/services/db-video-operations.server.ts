@@ -336,37 +336,26 @@ export const createVideoOperations = (
     const repoWithVersions = yield* getRepoWithSectionsById(repo.id);
     const latestVersionSections = repoWithVersions.versions[0]?.sections ?? [];
 
-    // Find current lesson in the structure
-    for (let sIdx = 0; sIdx < latestVersionSections.length; sIdx++) {
-      const section = latestVersionSections[sIdx]!;
-      for (let lIdx = 0; lIdx < section.lessons.length; lIdx++) {
-        const lesson = section.lessons[lIdx]!;
-        if (lesson.id === currentLesson.id) {
-          // Try next lesson in current section
-          if (lIdx < section.lessons.length - 1) {
-            const nextLesson = section.lessons[lIdx + 1]!;
-            const firstVideo = nextLesson.videos.sort(
-              (a: { path: string }, b: { path: string }) =>
-                a.path.localeCompare(b.path)
-            )[0];
-            return firstVideo?.id ?? null;
-          }
+    // Build a flat list of real lessons in order
+    const allRealLessons = latestVersionSections.flatMap(
+      (s: (typeof latestVersionSections)[number]) =>
+        s.lessons.filter(
+          (l: (typeof s.lessons)[number]) => l.fsStatus === "real"
+        )
+    );
 
-          // Try first lesson of next section
-          if (sIdx < latestVersionSections.length - 1) {
-            const nextSection = latestVersionSections[sIdx + 1]!;
-            const firstLesson = nextSection.lessons[0];
-            const firstVideo = firstLesson?.videos.sort(
-              (a: { path: string }, b: { path: string }) =>
-                a.path.localeCompare(b.path)
-            )[0];
-            return firstVideo?.id ?? null;
-          }
+    const currentIndex = allRealLessons.findIndex(
+      (l: (typeof allRealLessons)[number]) => l.id === currentLesson.id
+    );
 
-          // No more videos
-          return null;
-        }
-      }
+    // Find next real lesson with videos
+    for (let i = currentIndex + 1; i < allRealLessons.length; i++) {
+      const nextLesson = allRealLessons[i]!;
+      const firstVideo = nextLesson.videos.sort(
+        (a: { path: string }, b: { path: string }) =>
+          a.path.localeCompare(b.path)
+      )[0];
+      if (firstVideo) return firstVideo.id;
     }
 
     return null;
@@ -398,40 +387,27 @@ export const createVideoOperations = (
     const repoWithVersions = yield* getRepoWithSectionsById(repo.id);
     const latestVersionSections = repoWithVersions.versions[0]?.sections ?? [];
 
-    // Find current lesson in the structure
-    for (let sIdx = 0; sIdx < latestVersionSections.length; sIdx++) {
-      const section = latestVersionSections[sIdx]!;
-      for (let lIdx = 0; lIdx < section.lessons.length; lIdx++) {
-        const lesson = section.lessons[lIdx]!;
-        if (lesson.id === currentLesson.id) {
-          // Try previous lesson in current section
-          if (lIdx > 0) {
-            const prevLesson = section.lessons[lIdx - 1]!;
-            const videos = prevLesson.videos.sort(
-              (a: { path: string }, b: { path: string }) =>
-                a.path.localeCompare(b.path)
-            );
-            const lastVideo = videos[videos.length - 1];
-            return lastVideo?.id ?? null;
-          }
+    // Build a flat list of real lessons in order
+    const allRealLessons = latestVersionSections.flatMap(
+      (s: (typeof latestVersionSections)[number]) =>
+        s.lessons.filter(
+          (l: (typeof s.lessons)[number]) => l.fsStatus === "real"
+        )
+    );
 
-          // Try last lesson of previous section
-          if (sIdx > 0) {
-            const prevSection = latestVersionSections[sIdx - 1]!;
-            const lastLesson =
-              prevSection.lessons[prevSection.lessons.length - 1];
-            const videos = lastLesson?.videos.sort(
-              (a: { path: string }, b: { path: string }) =>
-                a.path.localeCompare(b.path)
-            );
-            const lastVideo = videos?.[videos.length - 1];
-            return lastVideo?.id ?? null;
-          }
+    const currentIndex = allRealLessons.findIndex(
+      (l: (typeof allRealLessons)[number]) => l.id === currentLesson.id
+    );
 
-          // No more videos
-          return null;
-        }
-      }
+    // Find previous real lesson with videos
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      const prevLesson = allRealLessons[i]!;
+      const videos = prevLesson.videos.sort(
+        (a: { path: string }, b: { path: string }) =>
+          a.path.localeCompare(b.path)
+      );
+      const lastVideo = videos[videos.length - 1];
+      if (lastVideo) return lastVideo.id;
     }
 
     return null;
