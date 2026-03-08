@@ -21,7 +21,7 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Console, Effect } from "effect";
 import { Plus } from "lucide-react";
-import { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import { data, useFetcher, useNavigate, useSearchParams } from "react-router";
 import type { Route } from "./+types/_index";
 import { toast } from "sonner";
@@ -218,6 +218,7 @@ export default function Component(props: Route.ComponentProps) {
     fsStatusFilter,
   } = viewState;
 
+  const [nextUpDismissed, setNextUpDismissed] = useState(false);
   const publishRepoFetcher = useFetcher();
   const { startExportUpload, startBatchExportUpload } =
     useContext(UploadContext);
@@ -419,13 +420,6 @@ export default function Component(props: Route.ComponentProps) {
                       handleBatchExport={handleBatchExport}
                     />
                   </div>
-                  <FilterBar
-                    selectedRepo={loaderData.selectedRepo}
-                    priorityFilter={priorityFilter}
-                    iconFilter={iconFilter}
-                    fsStatusFilter={fsStatusFilter}
-                    dispatch={dispatch}
-                  />
                 </div>
               </div>
 
@@ -444,6 +438,16 @@ export default function Component(props: Route.ComponentProps) {
                 deleteLessonFetcher={deleteLessonFetcher}
                 allFlatLessons={allFlatLessons}
                 dependencyMap={dependencyMap}
+                dismissed={nextUpDismissed}
+                onDismiss={() => setNextUpDismissed(true)}
+              />
+
+              <FilterBar
+                selectedRepo={loaderData.selectedRepo}
+                priorityFilter={priorityFilter}
+                iconFilter={iconFilter}
+                fsStatusFilter={fsStatusFilter}
+                dispatch={dispatch}
               />
 
               <SectionGrid

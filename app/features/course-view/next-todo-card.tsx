@@ -7,6 +7,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { X } from "lucide-react";
 import { useNavigate, useFetcher } from "react-router";
 
 function isTodoLesson(lesson: Lesson): boolean {
@@ -31,6 +32,8 @@ export function NextTodoCard({
   deleteLessonFetcher,
   allFlatLessons,
   dependencyMap,
+  dismissed,
+  onDismiss,
 }: {
   sections: Section[];
   data: LoaderData;
@@ -46,6 +49,8 @@ export function NextTodoCard({
   deleteLessonFetcher: ReturnType<typeof useFetcher>;
   allFlatLessons: DependencyLessonItem[];
   dependencyMap: Record<string, string[]>;
+  dismissed: boolean;
+  onDismiss: () => void;
 }) {
   // Find highest priority todo lesson across all sections
   let bestLesson: Lesson | null = null;
@@ -64,16 +69,22 @@ export function NextTodoCard({
     }
   }
 
-  if (!bestLesson || !bestSection) return null;
+  if (!bestLesson || !bestSection || dismissed) return null;
 
   return (
-    <div className="mb-6">
+    <div className="mb-4 lg:w-[calc(50%-0.75rem)]">
       <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
         Next Up
       </h3>
       <div className="rounded-lg border bg-card">
-        <div className="px-4 py-3 border-b bg-muted/30">
+        <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
           <h2 className="font-medium text-sm">{bestSection.path}</h2>
+          <button
+            onClick={onDismiss}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
         <div className="p-2">
           <DndContext>
