@@ -334,6 +334,8 @@ export const ComponentInner = (props: Route.ComponentProps) => {
         dispatch({ type: "clips-deleted", clipIds: clipIds });
       }}
       onClipsRetranscribe={(clipIds) => {
+        dispatch({ type: "clips-retranscribing", clipIds });
+
         const databaseIds = clipIds
           .map((frontendId) => {
             const clip = clipState.items.find(

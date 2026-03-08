@@ -176,6 +176,10 @@ export type ClipReducerAction =
       clipIds: FrontendId[];
     }
   | {
+      type: "clips-retranscribing";
+      clipIds: FrontendId[];
+    }
+  | {
       type: "clips-transcribed";
       clips: {
         databaseId: DatabaseId;

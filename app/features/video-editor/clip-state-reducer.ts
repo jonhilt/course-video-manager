@@ -145,6 +145,16 @@ export const clipStateReducer: EffectReducer<
         insertionPoint: insertionPoint,
       };
     }
+    case "clips-retranscribing": {
+      const newSet = new Set([...state.clipIdsBeingTranscribed]);
+      for (const clipId of action.clipIds) {
+        newSet.add(clipId);
+      }
+      return {
+        ...state,
+        clipIdsBeingTranscribed: newSet,
+      };
+    }
     case "clips-transcribed": {
       const set = new Set([...state.clipIdsBeingTranscribed]);
 

@@ -169,9 +169,14 @@ export const ClipItem = (props: ClipItemProps) => {
             {/* Transcript text */}
             <div className="z-10 relative text-white text-sm leading-6">
               {clipIdsBeingTranscribed.has(clip.frontendId) ? (
-                clip.type === "on-database" &&
-                !clip.transcribedAt &&
-                !clip.text && (
+                clip.type === "on-database" && clip.text ? (
+                  <>
+                    <span className="text-gray-400 mr-2">
+                      Re-transcribing...
+                    </span>
+                    <span className="text-gray-500">{clip.text}</span>
+                  </>
+                ) : (
                   <span className="text-gray-400">Transcribing...</span>
                 )
               ) : clip.type === "on-database" ? (
