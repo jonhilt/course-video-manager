@@ -186,6 +186,7 @@ export const loader = async (args: Route.LoaderArgs) => {
       lessonHasFilesMap,
       plans,
       showMediaFilesList: featureFlags.isEnabled("ENABLE_MEDIA_FILES_LIST"),
+      showPlansSection: featureFlags.isEnabled("ENABLE_PLANS_SECTION"),
     };
   }).pipe(
     Effect.tapErrorCause((e) => Console.dir(e, { depth: null })),
@@ -385,6 +386,7 @@ export default function Component(props: Route.ComponentProps) {
           dispatch({ type: "set-add-standalone-video-modal-open", open })
         }
         plans={loaderData.plans}
+        showPlansSection={loaderData.showPlansSection}
       />
 
       {/* Main Content Area */}

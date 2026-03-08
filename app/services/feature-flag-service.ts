@@ -21,6 +21,10 @@ export class FeatureFlagService extends Effect.Service<FeatureFlagService>()(
          * dropdown on the main page.
          */
         ENABLE_MEDIA_FILES_LIST: false,
+        /**
+         * When true, show the Plans section in the sidebar.
+         */
+        ENABLE_PLANS_SECTION: false,
       } as const;
 
       const isEnabled = (flag: keyof typeof flags): boolean => flags[flag];

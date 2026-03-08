@@ -43,6 +43,7 @@ export interface AppSidebarProps {
     path: string;
   }>;
   plans: Plan[];
+  showPlansSection?: boolean;
   selectedRepoId?: string | null;
   isAddRepoModalOpen?: boolean;
   setIsAddRepoModalOpen?: (open: boolean) => void;
@@ -54,6 +55,7 @@ export function AppSidebar({
   repos,
   standaloneVideos,
   plans,
+  showPlansSection = false,
   selectedRepoId = null,
   isAddRepoModalOpen = false,
   setIsAddRepoModalOpen,
@@ -272,110 +274,112 @@ export function AppSidebar({
       </div>
 
       {/* Plans Card */}
-      <div className="rounded-lg border bg-card p-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Plans</span>
+      {showPlansSection && (
+        <div className="rounded-lg border bg-card p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Plans</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setIsCreatePlanModalOpen(true)}
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => setIsCreatePlanModalOpen(true)}
+          <div className="space-y-0.5">
+            {plans.map((plan) =>
+              renamingPlanId === plan.id ? (
+                <Input
+                  key={plan.id}
+                  ref={renameInputRef}
+                  value={renamingPlanTitle}
+                  onChange={(e) => setRenamingPlanTitle(e.target.value)}
+                  className="h-8 text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSavePlanRename();
+                    if (e.key === "Escape") handleCancelPlanRename();
+                  }}
+                  onBlur={handleSavePlanRename}
+                />
+              ) : (
+                <ContextMenu key={plan.id}>
+                  <ContextMenuTrigger asChild>
+                    <button
+                      className="w-full text-left text-sm px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
+                      onMouseDown={(e) => {
+                        if (!isLeftClick(e)) return;
+                        navigate(`/plans/${plan.id}`, {
+                          preventScrollReset: true,
+                        });
+                      }}
+                    >
+                      {plan.title}
+                    </button>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem
+                      onSelect={() => {
+                        setRenamingPlanId(plan.id);
+                        setRenamingPlanTitle(plan.title);
+                      }}
+                    >
+                      <PencilIcon className="w-4 h-4" />
+                      Rename
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onSelect={() => {
+                        archivePlanFetcher.submit(
+                          { archived: "true" },
+                          {
+                            method: "post",
+                            action: `/api/plans/${plan.id}/archive`,
+                          }
+                        );
+                      }}
+                    >
+                      <Archive className="w-4 h-4" />
+                      Archive
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      variant="destructive"
+                      onSelect={() => {
+                        deletePlanFetcher.submit(
+                          {},
+                          {
+                            method: "post",
+                            action: `/api/plans/${plan.id}/delete`,
+                          }
+                        );
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              )
+            )}
+            {plans.length === 0 && (
+              <p className="text-sm text-muted-foreground px-2">No plans yet</p>
+            )}
+          </div>
+          <Link
+            to="/archived-plans"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mt-2 px-2 transition-colors"
+            onClick={(e) => e.preventDefault()}
+            onMouseDown={(e) => {
+              if (e.button === 0) navigate("/archived-plans");
+            }}
           >
-            <Plus className="w-3.5 h-3.5" />
-          </Button>
+            <Archive className="w-3 h-3" />
+            Archived Plans
+          </Link>
         </div>
-        <div className="space-y-0.5">
-          {plans.map((plan) =>
-            renamingPlanId === plan.id ? (
-              <Input
-                key={plan.id}
-                ref={renameInputRef}
-                value={renamingPlanTitle}
-                onChange={(e) => setRenamingPlanTitle(e.target.value)}
-                className="h-8 text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSavePlanRename();
-                  if (e.key === "Escape") handleCancelPlanRename();
-                }}
-                onBlur={handleSavePlanRename}
-              />
-            ) : (
-              <ContextMenu key={plan.id}>
-                <ContextMenuTrigger asChild>
-                  <button
-                    className="w-full text-left text-sm px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
-                    onMouseDown={(e) => {
-                      if (!isLeftClick(e)) return;
-                      navigate(`/plans/${plan.id}`, {
-                        preventScrollReset: true,
-                      });
-                    }}
-                  >
-                    {plan.title}
-                  </button>
-                </ContextMenuTrigger>
-                <ContextMenuContent>
-                  <ContextMenuItem
-                    onSelect={() => {
-                      setRenamingPlanId(plan.id);
-                      setRenamingPlanTitle(plan.title);
-                    }}
-                  >
-                    <PencilIcon className="w-4 h-4" />
-                    Rename
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    onSelect={() => {
-                      archivePlanFetcher.submit(
-                        { archived: "true" },
-                        {
-                          method: "post",
-                          action: `/api/plans/${plan.id}/archive`,
-                        }
-                      );
-                    }}
-                  >
-                    <Archive className="w-4 h-4" />
-                    Archive
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    variant="destructive"
-                    onSelect={() => {
-                      deletePlanFetcher.submit(
-                        {},
-                        {
-                          method: "post",
-                          action: `/api/plans/${plan.id}/delete`,
-                        }
-                      );
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            )
-          )}
-          {plans.length === 0 && (
-            <p className="text-sm text-muted-foreground px-2">No plans yet</p>
-          )}
-        </div>
-        <Link
-          to="/archived-plans"
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mt-2 px-2 transition-colors"
-          onClick={(e) => e.preventDefault()}
-          onMouseDown={(e) => {
-            if (e.button === 0) navigate("/archived-plans");
-          }}
-        >
-          <Archive className="w-3 h-3" />
-          Archived Plans
-        </Link>
-      </div>
+      )}
     </>
   );
 
