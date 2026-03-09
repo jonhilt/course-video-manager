@@ -64,7 +64,7 @@ function VideoThumbnailItem({
               <img
                 src={`/clips/${firstClip.id}/first-frame`}
                 alt={video.path}
-                className="w-full h-full object-cover rounded"
+                className="w-full h-full object-cover"
                 loading="lazy"
               />
             ) : (
