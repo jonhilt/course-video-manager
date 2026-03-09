@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { courseViewReducer } from "@/features/course-view/course-view-reducer";
-import { VideoItem } from "./video-item";
+import { VideoThumbnailGrid } from "./video-thumbnail-grid";
 import type { LoaderData, Section, Lesson } from "./course-view-types";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -515,22 +515,19 @@ export function SortableLessonItem({
             }}
           />
         )}
-        <div className="ml-5 space-y-0.5">
-          {lesson.videos.map((video) => (
-            <VideoItem
-              key={video.id}
-              video={video}
-              section={section}
-              lesson={lesson}
-              data={data}
-              navigate={navigate}
-              dispatch={dispatch}
-              startExportUpload={startExportUpload}
-              revealVideoFetcher={revealVideoFetcher}
-              deleteVideoFileFetcher={deleteVideoFileFetcher}
-              deleteVideoFetcher={deleteVideoFetcher}
-            />
-          ))}
+        <div className="ml-5 mt-1.5">
+          <VideoThumbnailGrid
+            videos={lesson.videos}
+            section={section}
+            lesson={lesson}
+            data={data}
+            navigate={navigate}
+            dispatch={dispatch}
+            startExportUpload={startExportUpload}
+            revealVideoFetcher={revealVideoFetcher}
+            deleteVideoFileFetcher={deleteVideoFileFetcher}
+            deleteVideoFetcher={deleteVideoFetcher}
+          />
         </div>
       </div>
     </div>
