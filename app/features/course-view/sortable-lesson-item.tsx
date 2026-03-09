@@ -361,6 +361,33 @@ export function SortableLessonItem({
             <ContextMenuItem
               onSelect={() =>
                 dispatch({
+                  type: "set-insert-lesson",
+                  sectionId: section.id,
+                  adjacentLessonId: lesson.id,
+                  position: "before",
+                })
+              }
+            >
+              <Plus className="w-4 h-4" />
+              Add Lesson Before
+            </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={() =>
+                dispatch({
+                  type: "set-insert-lesson",
+                  sectionId: section.id,
+                  adjacentLessonId: lesson.id,
+                  position: "after",
+                })
+              }
+            >
+              <Plus className="w-4 h-4" />
+              Add Lesson After
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onSelect={() =>
+                dispatch({
                   type: "open-move-lesson",
                   lessonId: lesson.id,
                   lessonTitle: isGhost

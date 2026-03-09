@@ -206,28 +206,38 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         return { success: true, sectionId: newSection!.id };
       });
 
-      /**
-       * Creates a ghost lesson in the database (no filesystem operations).
-       * Appends at the end of the section's lesson order.
-       */
+      /** Creates a ghost lesson. Supports optional insertion before/after a lesson. */
       const addGhostLesson = Effect.fn("addGhostLesson")(function* (
         sectionId: string,
-        title: string
+        title: string,
+        opts?: { adjacentLessonId?: string; position?: "before" | "after" }
       ) {
-        const existingLessons = yield* db.getLessonsBySectionId(sectionId);
+        const lessons = yield* db.getLessonsBySectionId(sectionId);
         const maxOrder =
-          existingLessons.length > 0
-            ? Math.max(...existingLessons.map((l) => l.order))
-            : 0;
+          lessons.length > 0 ? Math.max(...lessons.map((l) => l.order)) : 0;
+        let insertOrder = maxOrder + 1;
 
-        const slug = toSlug(title) || "untitled";
+        if (opts?.adjacentLessonId && opts?.position) {
+          const adjIdx = lessons.findIndex(
+            (l) => l.id === opts.adjacentLessonId
+          );
+          if (adjIdx !== -1) {
+            const idx = opts.position === "after" ? adjIdx + 1 : adjIdx;
+            for (let i = idx; i < lessons.length; i++) {
+              yield* db.updateLessonOrder(
+                lessons[i]!.id,
+                lessons[i]!.order + 1
+              );
+            }
+            insertOrder = lessons[idx] ? lessons[idx]!.order : maxOrder + 1;
+          }
+        }
 
         const [newLesson] = yield* db.createGhostLesson(sectionId, {
           title,
-          path: slug,
-          order: maxOrder + 1,
+          path: toSlug(title) || "untitled",
+          order: insertOrder,
         });
-
         return { success: true, lessonId: newLesson!.id };
       });
 

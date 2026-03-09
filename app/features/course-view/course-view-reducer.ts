@@ -39,6 +39,8 @@ export namespace courseViewReducer {
 
     // ID-based selection states (null = closed)
     addGhostLessonSectionId: string | null;
+    insertAdjacentLessonId: string | null;
+    insertPosition: "before" | "after" | null;
     addVideoToLessonId: string | null;
     editLessonId: string | null;
     editSectionId: string | null;
@@ -72,6 +74,12 @@ export namespace courseViewReducer {
     | { type: "set-add-standalone-video-modal-open"; open: boolean }
     // ID-based selections
     | { type: "set-add-ghost-lesson-section-id"; sectionId: string | null }
+    | {
+        type: "set-insert-lesson";
+        sectionId: string;
+        adjacentLessonId: string;
+        position: "before" | "after";
+      }
     | { type: "set-add-video-to-lesson-id"; lessonId: string | null }
     | { type: "set-edit-lesson-id"; lessonId: string | null }
     | { type: "set-edit-section-id"; sectionId: string | null }
@@ -125,6 +133,8 @@ export function createInitialCourseViewState(): courseViewReducer.State {
     isRewriteRepoPathModalOpen: false,
     isAddStandaloneVideoModalOpen: false,
     addGhostLessonSectionId: null,
+    insertAdjacentLessonId: null,
+    insertPosition: null,
     addVideoToLessonId: null,
     editLessonId: null,
     editSectionId: null,
@@ -171,7 +181,19 @@ export const courseViewReducer: EffectReducer<
 
     // ID-based selections
     case "set-add-ghost-lesson-section-id":
-      return { ...state, addGhostLessonSectionId: action.sectionId };
+      return {
+        ...state,
+        addGhostLessonSectionId: action.sectionId,
+        insertAdjacentLessonId: null,
+        insertPosition: null,
+      };
+    case "set-insert-lesson":
+      return {
+        ...state,
+        addGhostLessonSectionId: action.sectionId,
+        insertAdjacentLessonId: action.adjacentLessonId,
+        insertPosition: action.position,
+      };
     case "set-add-video-to-lesson-id":
       return { ...state, addVideoToLessonId: action.lessonId };
     case "set-edit-lesson-id":

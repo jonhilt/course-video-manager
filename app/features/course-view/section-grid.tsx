@@ -59,6 +59,8 @@ export function SectionGrid({
   fsStatusFilter,
   searchQuery,
   addGhostLessonSectionId,
+  insertAdjacentLessonId,
+  insertPosition,
   editSectionId,
   addVideoToLessonId,
   editLessonId,
@@ -106,6 +108,8 @@ export function SectionGrid({
   fsStatusFilter: string | null;
   searchQuery: string;
   addGhostLessonSectionId: string | null;
+  insertAdjacentLessonId: string | null;
+  insertPosition: "before" | "after" | null;
   editSectionId: string | null;
   addVideoToLessonId: string | null;
   editLessonId: string | null;
@@ -502,6 +506,8 @@ export function SectionGrid({
                         });
                       }}
                       fetcher={addGhostFetcher}
+                      adjacentLessonId={insertAdjacentLessonId}
+                      position={insertPosition}
                     />
                     <DeleteSectionModal
                       sectionId={section.id}

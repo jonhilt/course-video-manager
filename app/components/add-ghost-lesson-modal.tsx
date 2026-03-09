@@ -17,6 +17,8 @@ export function AddGhostLessonModal(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   fetcher?: ReturnType<typeof useFetcher>;
+  adjacentLessonId?: string | null;
+  position?: "before" | "after" | null;
 }) {
   const internalFetcher = useFetcher();
   const fetcher = props.fetcher ?? internalFetcher;
@@ -33,7 +35,13 @@ export function AddGhostLessonModal(props: {
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Lesson</DialogTitle>
+          <DialogTitle>
+            {props.position === "before"
+              ? "Add Lesson Before"
+              : props.position === "after"
+                ? "Add Lesson After"
+                : "Add Lesson"}
+          </DialogTitle>
         </DialogHeader>
         <fetcher.Form
           method="post"
@@ -53,6 +61,16 @@ export function AddGhostLessonModal(props: {
           }}
         >
           <input type="hidden" name="sectionId" value={props.sectionId} />
+          {props.adjacentLessonId && (
+            <input
+              type="hidden"
+              name="adjacentLessonId"
+              value={props.adjacentLessonId}
+            />
+          )}
+          {props.position && (
+            <input type="hidden" name="position" value={props.position} />
+          )}
           <div className="space-y-2">
             <Label htmlFor="ghost-lesson-title">Title</Label>
             <Input

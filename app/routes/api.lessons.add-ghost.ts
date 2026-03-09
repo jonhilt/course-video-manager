@@ -12,6 +12,8 @@ const addGhostLessonSchema = Schema.Struct({
   title: Schema.String.pipe(
     Schema.minLength(1, { message: () => "Title is required" })
   ),
+  adjacentLessonId: Schema.optional(Schema.String),
+  position: Schema.optional(Schema.Literal("before", "after")),
 });
 
 export const action = async (args: Route.ActionArgs) => {
@@ -19,11 +21,14 @@ export const action = async (args: Route.ActionArgs) => {
   const formDataObject = Object.fromEntries(formData);
 
   return Effect.gen(function* () {
-    const { sectionId, title } =
+    const { sectionId, title, adjacentLessonId, position } =
       yield* Schema.decodeUnknown(addGhostLessonSchema)(formDataObject);
 
     const service = yield* CourseWriteService;
-    return yield* service.addGhostLesson(sectionId, title);
+    return yield* service.addGhostLesson(sectionId, title, {
+      adjacentLessonId,
+      position,
+    });
   }).pipe(
     withDatabaseDump,
     Effect.tapErrorCause((e) => Console.dir(e, { depth: null })),
