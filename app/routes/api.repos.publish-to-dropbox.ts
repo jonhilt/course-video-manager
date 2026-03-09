@@ -159,6 +159,16 @@ export const action = async ({ request }: Route.ActionArgs) => {
       filesSupposedToBeInDropbox.add(opts.toPath);
     });
 
+    // Build a lookup of video ID -> clips for transcript export
+    const videoClipsMap = new Map<string, { text: string | null }[]>();
+    for (const section of repoWithSections.sections) {
+      for (const lesson of section.lessons) {
+        for (const video of lesson.videos) {
+          videoClipsMap.set(video.id, video.clips);
+        }
+      }
+    }
+
     for (const section of sections) {
       const dropboxSectionDirectory = path.join(
         dropboxRepoDirectory,
@@ -184,6 +194,23 @@ export const action = async ({ request }: Route.ActionArgs) => {
               `${video.name}${extName}`
             ),
           });
+
+          // Write transcript file for this video
+          const clips = videoClipsMap.get(video.id);
+          if (clips && clips.length > 0) {
+            const transcript = clips
+              .map((c) => c.text)
+              .filter(Boolean)
+              .join(" ");
+            if (transcript) {
+              const transcriptPath = path.join(
+                dropboxLessonDirectory,
+                `${video.name}.transcript.md`
+              );
+              yield* fs.writeFileString(transcriptPath, transcript);
+              filesSupposedToBeInDropbox.add(transcriptPath);
+            }
+          }
         }
 
         const lessonDirectoryOnFileSystem = path.join(
