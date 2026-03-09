@@ -1,10 +1,12 @@
 import type { DrizzleDB } from "@/services/drizzle-service.server";
 import {
   clips,
+  clipSections,
   lessons,
   repos,
   repoVersions,
   sections,
+  thumbnails,
   videos,
 } from "@/db/schema";
 import {
@@ -297,6 +299,11 @@ export const createVersionOperations = (db: DrizzleDB) => {
                       orderBy: asc(clips.order),
                       where: eq(clips.archived, false),
                     },
+                    clipSections: {
+                      orderBy: asc(clipSections.order),
+                      where: eq(clipSections.archived, false),
+                    },
+                    thumbnails: true,
                   },
                 },
               },
@@ -380,6 +387,32 @@ export const createVersionOperations = (db: DrizzleDB) => {
                     scene: clip.scene,
                     profile: clip.profile,
                     beatType: clip.beatType,
+                  }))
+                )
+              );
+            }
+
+            if (sourceVideo.clipSections.length > 0) {
+              yield* makeDbCall(() =>
+                db.insert(clipSections).values(
+                  sourceVideo.clipSections.map((section) => ({
+                    videoId: newVideo.id,
+                    name: section.name,
+                    order: section.order,
+                    archived: false,
+                  }))
+                )
+              );
+            }
+
+            if (sourceVideo.thumbnails.length > 0) {
+              yield* makeDbCall(() =>
+                db.insert(thumbnails).values(
+                  sourceVideo.thumbnails.map((thumbnail) => ({
+                    videoId: newVideo.id,
+                    layers: thumbnail.layers,
+                    filePath: thumbnail.filePath,
+                    selectedForUpload: thumbnail.selectedForUpload,
                   }))
                 )
               );
