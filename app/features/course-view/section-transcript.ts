@@ -19,6 +19,10 @@ export function buildCourseTranscript(
 ) {
   const lines: string[] = [`<course title="${escapeAttr(coursePath)}">`];
   for (const section of sections) {
+    // Skip sections where all lessons are ghosts
+    if (section.lessons.every((l) => l.fsStatus === "ghost")) {
+      continue;
+    }
     const sectionLines = buildSectionTranscript(
       section.path,
       section.lessons,
