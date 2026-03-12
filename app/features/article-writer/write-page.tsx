@@ -185,6 +185,7 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
   const { document, documentRef, clearDocument, saveDocument, updateDocument } =
     useDocumentFlow({
       videoId,
+      mode,
       isDocumentMode,
       messages,
       status,

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { DocumentAgentMessage } from "./types";
+import type { DocumentAgentMessage, Mode } from "./types";
 import { loadDocumentFromStorage, saveDocumentToStorage } from "./write-utils";
 import { applyEdits, type DocumentEdit } from "./document-editing-engine";
 
 function getAlreadyProcessedToolCallIds(
   messages: DocumentAgentMessage[],
-  videoId: string
+  videoId: string,
+  mode: Mode
 ): Set<string> {
-  const existing = loadDocumentFromStorage(videoId);
+  const existing = loadDocumentFromStorage(videoId, mode);
   if (!existing) return new Set();
   const ids = new Set<string>();
   for (const message of messages) {
@@ -32,6 +33,7 @@ function getAlreadyProcessedToolCallIds(
  */
 export function useDocumentFlow(opts: {
   videoId: string;
+  mode: Mode;
   isDocumentMode: boolean;
   messages: DocumentAgentMessage[];
   status: "streaming" | "submitted" | "ready" | "error";
@@ -41,11 +43,26 @@ export function useDocumentFlow(opts: {
     output: string;
   }) => Promise<void>;
 }) {
-  const { videoId, isDocumentMode, messages, status, addToolOutput } = opts;
+  const { videoId, mode, isDocumentMode, messages, status, addToolOutput } =
+    opts;
 
   const [document, setDocument] = useState<string | undefined>(() =>
-    loadDocumentFromStorage(videoId)
+    loadDocumentFromStorage(videoId, mode)
   );
+
+  // Reload document from localStorage when mode changes
+  const prevModeRef = useRef(mode);
+  useEffect(() => {
+    if (prevModeRef.current !== mode) {
+      prevModeRef.current = mode;
+      setDocument(loadDocumentFromStorage(videoId, mode));
+      processedToolCallsRef.current = getAlreadyProcessedToolCallIds(
+        messages,
+        videoId,
+        mode
+      );
+    }
+  }, [mode, videoId, messages]);
 
   // Ref tracks latest document for use in async callbacks (avoids stale closures)
   const documentRef = useRef(document);
@@ -55,7 +72,7 @@ export function useDocumentFlow(opts: {
     // On mount, if a document already exists in storage, mark all existing
     // writeDocument/editDocument tool calls as already processed so they
     // don't re-run and overwrite the (potentially updated) stored document.
-    getAlreadyProcessedToolCallIds(messages, videoId)
+    getAlreadyProcessedToolCallIds(messages, videoId, mode)
   );
 
   // Handle completed writeDocument tool calls
@@ -73,7 +90,7 @@ export function useDocumentFlow(opts: {
           processedToolCallsRef.current.add(part.toolCallId);
           const content = part.input.content;
           setDocument(content);
-          saveDocumentToStorage(videoId, content);
+          saveDocumentToStorage(videoId, mode, content);
           addToolOutput({
             tool: "writeDocument",
             toolCallId: part.toolCallId,
@@ -108,7 +125,7 @@ export function useDocumentFlow(opts: {
             });
           } else {
             setDocument(result.document);
-            saveDocumentToStorage(videoId, result.document);
+            saveDocumentToStorage(videoId, mode, result.document);
             addToolOutput({
               tool: "editDocument",
               toolCallId: part.toolCallId,
@@ -140,22 +157,22 @@ export function useDocumentFlow(opts: {
 
   const clearDocument = () => {
     setDocument(undefined);
-    saveDocumentToStorage(videoId, undefined);
+    saveDocumentToStorage(videoId, mode, undefined);
     processedToolCallsRef.current.clear();
   };
 
   const saveDocument = () => {
     if (document) {
-      saveDocumentToStorage(videoId, document);
+      saveDocumentToStorage(videoId, mode, document);
     }
   };
 
   const updateDocument = useCallback(
     (content: string) => {
       setDocument(content);
-      saveDocumentToStorage(videoId, content);
+      saveDocumentToStorage(videoId, mode, content);
     },
-    [videoId]
+    [videoId, mode]
   );
 
   return { document, documentRef, clearDocument, saveDocument, updateDocument };

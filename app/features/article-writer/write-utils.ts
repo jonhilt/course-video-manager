@@ -102,15 +102,16 @@ export const saveMessagesToStorage = (
   }
 };
 
-export const getDocumentStorageKey = (videoId: string) =>
-  `article-writer-document-${videoId}`;
+export const getDocumentStorageKey = (videoId: string, mode: Mode) =>
+  `article-writer-document-${videoId}-${mode}`;
 
 export const loadDocumentFromStorage = (
-  videoId: string
+  videoId: string,
+  mode: Mode
 ): string | undefined => {
   if (typeof localStorage === "undefined") return undefined;
   try {
-    const saved = localStorage.getItem(getDocumentStorageKey(videoId));
+    const saved = localStorage.getItem(getDocumentStorageKey(videoId, mode));
     return saved ?? undefined;
   } catch {
     return undefined;
@@ -119,11 +120,12 @@ export const loadDocumentFromStorage = (
 
 export const saveDocumentToStorage = (
   videoId: string,
+  mode: Mode,
   document: string | undefined
 ) => {
   if (typeof localStorage === "undefined") return;
   try {
-    const key = getDocumentStorageKey(videoId);
+    const key = getDocumentStorageKey(videoId, mode);
     if (document === undefined) {
       localStorage.removeItem(key);
     } else {
