@@ -41,6 +41,8 @@ export interface WriteChatProps {
   videoId: string;
   className?: string;
   toolbarProps: WriteToolbarProps;
+  documentRef?: React.RefObject<string | undefined>;
+  updateDocument?: (content: string) => void;
 }
 
 export const WriteChat = memo(function WriteChat(props: WriteChatProps) {
@@ -56,6 +58,8 @@ export const WriteChat = memo(function WriteChat(props: WriteChatProps) {
     videoId,
     className,
     toolbarProps,
+    documentRef,
+    updateDocument,
   } = props;
 
   const [text, setText] = useState("");
@@ -231,7 +235,14 @@ export const WriteChat = memo(function WriteChat(props: WriteChatProps) {
                     return <WriteDocumentDisplay key={partIndex} part={part} />;
                   }
                   if (part.type === "tool-editDocument") {
-                    return <EditDocumentDisplay key={partIndex} part={part} />;
+                    return (
+                      <EditDocumentDisplay
+                        key={partIndex}
+                        part={part}
+                        documentRef={documentRef}
+                        updateDocument={updateDocument}
+                      />
+                    );
                   }
                   return null;
                 })}

@@ -532,6 +532,8 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
       mode,
       videoId,
       toolbarProps,
+      documentRef: isDocumentMode ? documentRef : undefined,
+      updateDocument: isDocumentMode ? updateDocument : undefined,
     }),
     [
       messages,
@@ -544,6 +546,9 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
       mode,
       videoId,
       toolbarProps,
+      isDocumentMode,
+      documentRef,
+      updateDocument,
     ]
   );
 
