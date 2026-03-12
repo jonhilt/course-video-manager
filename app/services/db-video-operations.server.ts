@@ -132,7 +132,9 @@ export const createVideoOperations = (
                   },
                 },
               },
-              videos: true,
+              videos: {
+                where: eq(videos.archived, false),
+              },
             },
           },
           clips: {

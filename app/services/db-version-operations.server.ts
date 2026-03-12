@@ -294,6 +294,7 @@ export const createVersionOperations = (db: DrizzleDB) => {
               with: {
                 videos: {
                   orderBy: asc(videos.path),
+                  where: eq(videos.archived, false),
                   with: {
                     clips: {
                       orderBy: asc(clips.order),
