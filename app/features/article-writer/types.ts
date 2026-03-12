@@ -30,4 +30,5 @@ export type IndexedClip = {
   sourceStartTime: number;
   sourceEndTime: number;
   videoFilename: string;
+  text: string | null;
 };

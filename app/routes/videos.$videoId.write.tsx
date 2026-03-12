@@ -69,6 +69,7 @@ export const loader = async (args: Route.LoaderArgs) => {
             sourceStartTime: clip.sourceStartTime,
             sourceEndTime: clip.sourceEndTime,
             videoFilename: clip.videoFilename,
+            text: clip.text,
           });
         }
       }

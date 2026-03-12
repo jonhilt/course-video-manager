@@ -90,6 +90,11 @@ export function ChooseScreenshot({
         <p className="mb-2 text-xs text-muted-foreground">
           Clip {clipIndex} — {alt}
         </p>
+        {clip.text && (
+          <p className="mb-3 text-sm text-muted-foreground italic line-clamp-3">
+            {clip.text}
+          </p>
+        )}
         <div className="w-full aspect-video rounded-md bg-muted flex items-center justify-center">
           <div className="flex items-center gap-2 text-muted-foreground">
             <LoaderIcon className="h-4 w-4 animate-spin" />
@@ -105,6 +110,11 @@ export function ChooseScreenshot({
       <p className="mb-2 text-xs text-muted-foreground">
         Clip {clipIndex} — {alt}
       </p>
+      {clip.text && (
+        <p className="mb-3 text-sm text-muted-foreground italic line-clamp-3">
+          {clip.text}
+        </p>
+      )}
       <video
         ref={videoRef}
         src={`/view-video?videoPath=${encodeURIComponent(clip.videoFilename)}#t=${clip.sourceStartTime},${clip.sourceEndTime}`}
