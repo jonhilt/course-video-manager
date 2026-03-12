@@ -320,6 +320,8 @@ export class FFmpegCommandsService extends Effect.Service<FFmpegCommandsService>
           inputVideo,
           "-vframes",
           "1",
+          "-vf",
+          "scale=-2:720",
           "-q:v",
           "2",
           outputPath,
