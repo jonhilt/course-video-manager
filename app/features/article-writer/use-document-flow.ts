@@ -3,6 +3,28 @@ import type { DocumentAgentMessage } from "./types";
 import { loadDocumentFromStorage, saveDocumentToStorage } from "./write-utils";
 import { applyEdits, type DocumentEdit } from "./document-editing-engine";
 
+function getAlreadyProcessedToolCallIds(
+  messages: DocumentAgentMessage[],
+  videoId: string
+): Set<string> {
+  const existing = loadDocumentFromStorage(videoId);
+  if (!existing) return new Set();
+  const ids = new Set<string>();
+  for (const message of messages) {
+    if (message.role !== "assistant") continue;
+    for (const part of message.parts) {
+      if (
+        (part.type === "tool-writeDocument" ||
+          part.type === "tool-editDocument") &&
+        part.state !== "input-streaming"
+      ) {
+        ids.add(part.toolCallId);
+      }
+    }
+  }
+  return ids;
+}
+
 /**
  * Manages document state for the article mode document flow.
  * Handles writeDocument tool call interception, live streaming,
@@ -29,7 +51,12 @@ export function useDocumentFlow(opts: {
   const documentRef = useRef(document);
   documentRef.current = document;
 
-  const processedToolCallsRef = useRef<Set<string>>(new Set());
+  const processedToolCallsRef = useRef<Set<string>>(
+    // On mount, if a document already exists in storage, mark all existing
+    // writeDocument/editDocument tool calls as already processed so they
+    // don't re-run and overwrite the (potentially updated) stored document.
+    getAlreadyProcessedToolCallIds(messages, videoId)
+  );
 
   // Handle completed writeDocument tool calls
   useEffect(() => {
