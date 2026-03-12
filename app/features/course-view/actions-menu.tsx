@@ -23,6 +23,7 @@ import {
   Film,
   FileText,
   FileX,
+  GitBranch,
   Loader2,
   PencilIcon,
   Send,
@@ -39,6 +40,7 @@ export function ActionsDropdown({
   dispatch,
   publishRepoFetcher,
   archiveRepoFetcher,
+  gitPushFetcher,
   handleBatchExport,
 }: {
   currentRepo: NonNullable<LoaderData["selectedRepo"]>;
@@ -46,6 +48,7 @@ export function ActionsDropdown({
   dispatch: (action: courseViewReducer.Action) => void;
   publishRepoFetcher: ReturnType<typeof useFetcher>;
   archiveRepoFetcher: ReturnType<typeof useFetcher>;
+  gitPushFetcher: ReturnType<typeof useFetcher>;
   handleBatchExport: () => void;
 }) {
   return (
@@ -116,6 +119,38 @@ export function ActionsDropdown({
             </span>
           </div>
         </DropdownMenuItem>
+
+        {data.gitStatus && data.gitStatus.total > 0 && (
+          <DropdownMenuItem
+            disabled={gitPushFetcher.state === "submitting"}
+            onSelect={() => {
+              gitPushFetcher
+                .submit(
+                  {},
+                  {
+                    method: "post",
+                    action: `/api/repos/${currentRepo.id}/git-push`,
+                  }
+                )
+                .then(() => {
+                  toast.success("Changes pushed to git");
+                })
+                .catch((e) => {
+                  console.error("Git push failed", e);
+                  toast.error("Git push failed");
+                });
+            }}
+          >
+            <GitBranch className="w-4 h-4 mr-2" />
+            <div className="flex flex-col">
+              <span className="font-medium">Push</span>
+              <span className="text-xs text-muted-foreground">
+                Add, commit & push {data.gitStatus.total} change
+                {data.gitStatus.total !== 1 ? "s" : ""}
+              </span>
+            </div>
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Course</DropdownMenuLabel>

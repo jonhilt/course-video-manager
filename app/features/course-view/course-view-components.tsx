@@ -15,6 +15,7 @@ import {
   Code,
   FileVideo,
   Ghost,
+  GitBranch,
   ListChecks,
   MessageCircle,
   Play,
@@ -30,8 +31,10 @@ import type { LoaderData } from "./course-view-types";
 
 export function StatsBar({
   selectedRepo,
+  gitStatus,
 }: {
   selectedRepo: LoaderData["selectedRepo"];
+  gitStatus: LoaderData["gitStatus"];
 }) {
   const totalLessonsWithVideos =
     selectedRepo?.sections.reduce((acc, section) => {
@@ -107,6 +110,18 @@ export function StatsBar({
       {totalDurationSeconds > 0 && (
         <span className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
           {totalDurationFormatted}
+        </span>
+      )}
+      {gitStatus && gitStatus.total > 0 && (
+        <span className="inline-flex items-center gap-1 rounded-md bg-yellow-500/20 px-2 py-1 text-xs font-medium text-yellow-600">
+          <GitBranch className="w-3 h-3" />
+          {gitStatus.total} change{gitStatus.total !== 1 ? "s" : ""}
+        </span>
+      )}
+      {gitStatus && gitStatus.total === 0 && (
+        <span className="inline-flex items-center gap-1 rounded-md bg-green-500/20 px-2 py-1 text-xs font-medium text-green-600">
+          <GitBranch className="w-3 h-3" />
+          clean
         </span>
       )}
     </div>
