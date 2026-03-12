@@ -109,6 +109,7 @@ export function NextTodoCard({
                 deleteLessonFetcher={deleteLessonFetcher}
                 allFlatLessons={allFlatLessons}
                 dependencyMap={dependencyMap}
+                hideAnchor
               />
             </SortableContext>
           </DndContext>

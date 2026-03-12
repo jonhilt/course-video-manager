@@ -53,6 +53,7 @@ export function SortableLessonItem({
   deleteLessonFetcher,
   allFlatLessons,
   dependencyMap,
+  hideAnchor,
 }: {
   lesson: Lesson;
   lessonIndex: number;
@@ -70,6 +71,7 @@ export function SortableLessonItem({
   deleteLessonFetcher: ReturnType<typeof useFetcher>;
   allFlatLessons: DependencyLessonItem[];
   dependencyMap: Record<string, string[]>;
+  hideAnchor?: boolean;
 }) {
   const {
     attributes,
@@ -202,7 +204,7 @@ export function SortableLessonItem({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <a id={lesson.id} />
+      {!hideAnchor && <a id={lesson.id} />}
       {lessonIndex > 0 && <Separator className="my-1" />}
       <div
         className={cn(
