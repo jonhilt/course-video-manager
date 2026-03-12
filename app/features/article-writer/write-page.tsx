@@ -32,6 +32,7 @@ import {
 import {
   replaceChooseScreenshotWithImage,
   updateChooseScreenshotClipIndex,
+  hasUnresolvedScreenshots,
 } from "./choose-screenshot-mutations";
 import { preprocessChooseScreenshotMarkdown } from "./choose-screenshot-markdown";
 import { ChooseScreenshot } from "./choose-screenshot";
@@ -42,6 +43,7 @@ import { useDocumentFlow } from "./use-document-flow";
 import { useVideoContextHandlers } from "./use-video-context-handlers";
 import { useToolbarProps } from "./use-toolbar-props";
 import { writePageReducer, createInitialState } from "./write-page-reducer";
+import { useDocumentPanelActions } from "./use-document-panel-actions";
 
 export interface WritePageProps {
   videoId: string;
@@ -245,6 +247,21 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
     },
     [documentRef, updateDocument]
   );
+
+  const {
+    writeToReadmeFetcher: docWriteToReadmeFetcher,
+    isUploadingImages,
+    handleUploadImages,
+    handleCopyAsMarkdown: handleDocCopyAsMarkdown,
+    handleCopyAsRichText: handleDocCopyAsRichText,
+    handleWriteToReadme: handleDocWriteToReadme,
+  } = useDocumentPanelActions({
+    videoId,
+    documentRef,
+    updateDocument,
+    lessonId,
+    setIsCopied: (v: boolean) => dispatch({ type: "set-is-copied", value: v }),
+  });
 
   const docExtraComponents = useMemo((): Options["components"] | undefined => {
     if (indexedClips.length === 0 || !isDocumentMode) return undefined;
@@ -567,6 +584,18 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
                 extraComponents={docExtraComponents}
                 preprocessMarkdown={docPreprocessMarkdown}
                 onDocumentChange={updateDocument}
+                isCopied={isCopied}
+                onCopyAsMarkdown={handleDocCopyAsMarkdown}
+                onCopyAsRichText={handleDocCopyAsRichText}
+                isStandalone={isStandalone}
+                hasExplainerOrProblem={hasExplainerOrProblem}
+                writeToReadmeFetcherState={docWriteToReadmeFetcher.state}
+                hasUnresolvedScreenshots={hasUnresolvedScreenshots(
+                  document ?? ""
+                )}
+                onWriteToReadme={handleDocWriteToReadme}
+                isUploadingImages={isUploadingImages}
+                onUploadImages={handleUploadImages}
               />
             </div>
           </>

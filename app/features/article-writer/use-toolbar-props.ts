@@ -80,6 +80,7 @@ export function useToolbarProps({
       violations,
       hasExplainerOrProblem,
       isStandalone,
+      isDocumentMode,
       lastAssistantMessageText,
       writeToReadmeFetcherState: writeToReadmeFetcher.state,
       hasUnresolvedScreenshots: hasUnresolvedScreenshots(

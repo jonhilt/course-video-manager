@@ -44,6 +44,7 @@ export interface WriteToolbarProps {
   violations: LintViolation[];
   hasExplainerOrProblem: boolean;
   isStandalone: boolean;
+  isDocumentMode: boolean;
   lastAssistantMessageText: string;
   writeToReadmeFetcherState: "idle" | "submitting" | "loading";
   hasUnresolvedScreenshots: boolean;
@@ -70,6 +71,7 @@ export function WriteToolbar(props: WriteToolbarProps) {
     violations,
     hasExplainerOrProblem,
     isStandalone,
+    isDocumentMode,
     lastAssistantMessageText,
     writeToReadmeFetcherState,
     onModeChange,
@@ -90,17 +92,19 @@ export function WriteToolbar(props: WriteToolbarProps) {
     <div className="mb-4 flex gap-2 items-center">
       <WriteModeDropdown mode={mode} onModeChange={onModeChange} />
       <ModelSelector model={model} onModelChange={onModelChange} />
-      <CopyButtons
-        mode={mode}
-        status={status}
-        isCopied={isCopied}
-        messagesLength={messagesLength}
-        lastAssistantMessageText={lastAssistantMessageText}
-        hasUnresolvedScreenshots={hasUnresolvedScreenshots}
-        onCopyToClipboard={onCopyToClipboard}
-        onCopyAsRichText={onCopyAsRichText}
-        onCopyConversationHistory={onCopyConversationHistory}
-      />
+      {!isDocumentMode && (
+        <CopyButtons
+          mode={mode}
+          status={status}
+          isCopied={isCopied}
+          messagesLength={messagesLength}
+          lastAssistantMessageText={lastAssistantMessageText}
+          hasUnresolvedScreenshots={hasUnresolvedScreenshots}
+          onCopyToClipboard={onCopyToClipboard}
+          onCopyAsRichText={onCopyAsRichText}
+          onCopyConversationHistory={onCopyConversationHistory}
+        />
+      )}
       {mode === "interview-prep" && messagesLength > 0 && (
         <Button
           variant="default"
@@ -176,7 +180,7 @@ export function WriteToolbar(props: WriteToolbarProps) {
           </Tooltip>
         </TooltipProvider>
       )}
-      {!isStandalone && (
+      {!isStandalone && !isDocumentMode && (
         <ReadmeDropdown
           hasExplainerOrProblem={hasExplainerOrProblem}
           status={status}

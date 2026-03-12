@@ -1,6 +1,30 @@
 import { lazy, memo, Suspense, useCallback, useRef, useState } from "react";
 import { AIResponse } from "components/ui/kibo-ui/ai/response";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  CopyIcon,
+  SaveIcon,
+  CheckIcon,
+  ImageIcon,
+  Loader2Icon,
+  FileTextIcon,
+  FileTypeIcon,
+  PlusIcon,
+  PencilIcon,
+  EyeIcon,
+} from "lucide-react";
 import type { Options } from "react-markdown";
 import type { OnMount } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
@@ -13,6 +37,16 @@ export interface DocumentPanelProps {
   extraComponents?: Options["components"];
   preprocessMarkdown?: (md: string) => string;
   onDocumentChange?: (content: string) => void;
+  isCopied?: boolean;
+  onCopyAsMarkdown?: () => void;
+  onCopyAsRichText?: () => void;
+  isStandalone?: boolean;
+  hasExplainerOrProblem?: boolean;
+  writeToReadmeFetcherState?: "idle" | "submitting" | "loading";
+  hasUnresolvedScreenshots?: boolean;
+  onWriteToReadme?: (mode: "write" | "append") => void;
+  isUploadingImages?: boolean;
+  onUploadImages?: () => void;
 }
 
 export const DocumentPanel = memo(function DocumentPanel({
@@ -21,6 +55,16 @@ export const DocumentPanel = memo(function DocumentPanel({
   extraComponents,
   preprocessMarkdown,
   onDocumentChange,
+  isCopied,
+  onCopyAsMarkdown,
+  onCopyAsRichText,
+  isStandalone,
+  hasExplainerOrProblem,
+  writeToReadmeFetcherState,
+  hasUnresolvedScreenshots,
+  onWriteToReadme,
+  isUploadingImages,
+  onUploadImages,
 }: DocumentPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const onDocumentChangeRef = useRef(onDocumentChange);
@@ -75,13 +119,143 @@ export const DocumentPanel = memo(function DocumentPanel({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex items-center justify-end px-4 py-2 border-b">
+      <div className="flex items-center gap-1 px-4 py-2 border-b">
+        {/* Copy dropdown */}
+        <DropdownMenu>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={!document || hasUnresolvedScreenshots}
+                  >
+                    {isCopied ? (
+                      <CheckIcon className="h-4 w-4" />
+                    ) : (
+                      <CopyIcon className="h-4 w-4" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isCopied ? "Copied" : "Copy document"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={onCopyAsMarkdown}>
+              <FileTextIcon className="h-4 w-4 mr-2" />
+              Copy as Markdown
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onCopyAsRichText}>
+              <FileTypeIcon className="h-4 w-4 mr-2" />
+              Copy as Rich Text
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Readme dropdown */}
+        {!isStandalone && onWriteToReadme && (
+          <DropdownMenu>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={
+                        !hasExplainerOrProblem ||
+                        !document ||
+                        hasUnresolvedScreenshots ||
+                        writeToReadmeFetcherState === "submitting" ||
+                        writeToReadmeFetcherState === "loading"
+                      }
+                    >
+                      {writeToReadmeFetcherState === "submitting" ||
+                      writeToReadmeFetcherState === "loading" ? (
+                        <Loader2Icon className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <SaveIcon className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {!hasExplainerOrProblem
+                      ? "No explainer or problem folder"
+                      : "Save to README"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <DropdownMenuContent>
+              <DropdownMenuItem onSelect={() => onWriteToReadme("write")}>
+                <SaveIcon className="h-4 w-4 mr-2" />
+                Write to README
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onWriteToReadme("append")}>
+                <PlusIcon className="h-4 w-4 mr-2" />
+                Append to README
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {/* Upload images to Cloudinary */}
+        {onUploadImages && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={onUploadImages}
+                  disabled={isUploadingImages || !document?.trim()}
+                >
+                  {isUploadingImages ? (
+                    <Loader2Icon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isUploadingImages
+                    ? "Uploading images..."
+                    : "Upload images to Cloudinary"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        <div className="flex-1" />
+
+        {/* Edit / Preview toggle */}
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setIsEditing(!isEditing)}
         >
-          {isEditing ? "Preview" : "Edit"}
+          {isEditing ? (
+            <>
+              <EyeIcon className="h-4 w-4 mr-1" />
+              Preview
+            </>
+          ) : (
+            <>
+              <PencilIcon className="h-4 w-4 mr-1" />
+              Edit
+            </>
+          )}
         </Button>
       </div>
       {isEditing ? (
