@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, memo, Suspense, useState } from "react";
 import { AIResponse } from "components/ui/kibo-ui/ai/response";
 import { Button } from "@/components/ui/button";
 import type { Options } from "react-markdown";
@@ -13,7 +13,7 @@ export interface DocumentPanelProps {
   onDocumentChange?: (content: string) => void;
 }
 
-export function DocumentPanel({
+export const DocumentPanel = memo(function DocumentPanel({
   document,
   fullPath,
   extraComponents,
@@ -80,4 +80,4 @@ export function DocumentPanel({
       )}
     </div>
   );
-}
+});

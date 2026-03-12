@@ -8,14 +8,12 @@ import type {
 } from "@/features/article-writer/types";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { marked } from "marked";
 import {
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type FormEvent,
   type HTMLAttributes,
 } from "react";
 import { useFetcher, useRevalidator } from "react-router";
@@ -33,10 +31,8 @@ import {
   MEMORY_ENABLED_STORAGE_KEY,
   loadMessagesFromStorage,
   saveMessagesToStorage,
-  formatConversationAsQA,
 } from "./write-utils";
 import {
-  hasUnresolvedScreenshots,
   replaceChooseScreenshotWithImage,
   updateChooseScreenshotClipIndex,
 } from "./choose-screenshot-mutations";
@@ -46,6 +42,8 @@ import { WriteChat } from "./write-chat";
 import { WriteModals } from "./write-modals";
 import { DocumentPanel } from "./document-panel";
 import { useDocumentFlow } from "./use-document-flow";
+import { useVideoContextHandlers } from "./use-video-context-handlers";
+import { useToolbarProps } from "./use-toolbar-props";
 
 export interface WritePageProps {
   videoId: string;
@@ -95,7 +93,6 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
     repoId,
     memory: initialMemory,
   } = loaderData;
-  const [text, setText] = useState<string>("");
   const [mode, setMode] = useState<Mode>(() => {
     if (typeof localStorage !== "undefined") {
       const saved = localStorage.getItem(MODE_STORAGE_KEY);
@@ -347,7 +344,7 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
     if (isDocumentMode) clearDocument();
   };
 
-  const getBodyPayload = () => {
+  const getBodyPayload = useCallback(() => {
     const transcriptEnabled =
       clipSections.length > 0 ? enabledSections.size > 0 : includeTranscript;
     const base = {
@@ -360,7 +357,20 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
       memory: memoryEnabled && memory ? memory : undefined,
     };
     return isDocumentMode ? { ...base, document } : { ...base, mode };
-  };
+  }, [
+    clipSections.length,
+    enabledSections,
+    includeTranscript,
+    enabledFiles,
+    model,
+    includeCourseStructure,
+    courseStructure,
+    memoryEnabled,
+    memory,
+    isDocumentMode,
+    document,
+    mode,
+  ]);
 
   const writeToReadmeFetcher = useFetcher();
   const deleteLinkFetcher = useFetcher();
@@ -396,64 +406,50 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
   } = useBannedPhrases();
   const [isAddLinkModalOpen, setIsAddLinkModalOpen] = useState(false);
 
-  const lastAssistantMessage = messages
-    .slice()
-    .reverse()
-    .find((m) => m.role === "assistant");
-  const lastAssistantMessageText = lastAssistantMessage
-    ? partsToText(lastAssistantMessage.parts)
-    : "";
-
-  const setCopied = () => {
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-  };
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(lastAssistantMessageText);
-      setCopied();
-    } catch (error) {
-      console.error("Failed to copy to clipboard:", error);
-    }
-  };
-
-  const copyAsRichText = async () => {
-    try {
-      const html = await marked.parse(lastAssistantMessageText);
-      const blob = new Blob([html], { type: "text/html" });
-      const textBlob = new Blob([lastAssistantMessageText], {
-        type: "text/plain",
-      });
-      await navigator.clipboard.write([
-        new ClipboardItem({ "text/html": blob, "text/plain": textBlob }),
-      ]);
-      setCopied();
-    } catch (error) {
-      console.error("Failed to copy as rich text:", error);
-    }
-  };
-
-  const copyConversationHistory = async () => {
-    try {
-      await navigator.clipboard.writeText(formatConversationAsQA(messages));
-      setCopied();
-    } catch (error) {
-      console.error("Failed to copy conversation history:", error);
-    }
-  };
+  const {
+    handleCopyTranscript,
+    handleIncludeCourseStructureChange,
+    handleFileClick,
+    handleOpenFolderClick,
+    handleAddFromClipboardClick,
+    handleDeleteFile,
+    handleDeleteLink,
+    handleAddLinkClick,
+    handleMemoryEnabledChange,
+  } = useVideoContextHandlers({
+    videoId,
+    transcript,
+    isStandalone,
+    openFolderFetcher,
+    deleteLinkFetcher,
+    setIncludeCourseStructure,
+    setPreviewFilePath,
+    setIsPreviewModalOpen,
+    setIsPasteModalOpen,
+    setIsLessonPasteModalOpen,
+    setFileToDelete,
+    setIsDeleteModalOpen,
+    setIsAddLinkModalOpen,
+    setMemoryEnabled,
+  });
 
   const { violations, composeFixMessage } = useLint(
-    lastAssistantMessageText,
+    partsToText(
+      messages
+        .slice()
+        .reverse()
+        .find((m) => m.role === "assistant")?.parts ?? []
+    ),
     mode,
     bannedPhrases
   );
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    sendMessage({ text: text.trim() || "Go" }, { body: getBodyPayload() });
-    setText("");
-  };
+  const handleSubmit = useCallback(
+    (text: string) => {
+      sendMessage({ text }, { body: getBodyPayload() });
+    },
+    [sendMessage, getBodyPayload]
+  );
 
   const handleGoLive = () => {
     setMode("interview");
@@ -503,60 +499,57 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
     if (!open) revalidator.revalidate();
   };
 
-  const toolbarProps = {
+  const toolbarProps = useToolbarProps({
+    messages,
     mode,
     model,
     status,
     isCopied,
-    messagesLength: messages.length,
+    setIsCopied,
     violations,
     hasExplainerOrProblem,
     isStandalone,
-    lastAssistantMessageText,
-    writeToReadmeFetcherState: writeToReadmeFetcher.state,
-    hasUnresolvedScreenshots: hasUnresolvedScreenshots(
-      isDocumentMode && document ? document : lastAssistantMessageText
-    ),
+    isDocumentMode,
+    document,
+    writeToReadmeFetcher,
+    lessonId,
+    composeFixMessage,
+    sendMessage,
+    getBodyPayload,
+    regenerate,
     onModeChange: handleModeChange,
     onModelChange: handleModelChange,
-    onCopyToClipboard: copyToClipboard,
-    onCopyAsRichText: copyAsRichText,
-    onCopyConversationHistory: copyConversationHistory,
     onGoLive: handleGoLive,
-    onFixLintViolations: () => {
-      const fixMessage = composeFixMessage();
-      if (fixMessage)
-        sendMessage({ text: fixMessage }, { body: getBodyPayload() });
-    },
-    onOpenBannedPhrases: () => setIsBannedPhrasesModalOpen(true),
-    onRegenerate: () => regenerate({ body: getBodyPayload() }),
     onClearChat: handleClearChat,
-    onWriteToReadme: (writeMode: "write" | "append") => {
-      writeToReadmeFetcher.submit(
-        { lessonId, content: lastAssistantMessageText, mode: writeMode },
-        {
-          method: "POST",
-          action: "/api/write-readme",
-          encType: "application/json",
-        }
-      );
-    },
-  };
+    onOpenBannedPhrases: () => setIsBannedPhrasesModalOpen(true),
+  });
 
-  const chatProps = {
-    messages,
-    setMessages,
-    error,
-    fullPath,
-    text,
-    onTextChange: setText,
-    onSubmit: handleSubmit,
-    status,
-    indexedClips,
-    mode,
-    videoId,
-    toolbarProps,
-  };
+  const chatProps = useMemo(
+    () => ({
+      messages,
+      setMessages,
+      error,
+      fullPath,
+      onSubmit: handleSubmit,
+      status,
+      indexedClips,
+      mode,
+      videoId,
+      toolbarProps,
+    }),
+    [
+      messages,
+      setMessages,
+      error,
+      fullPath,
+      handleSubmit,
+      status,
+      indexedClips,
+      mode,
+      videoId,
+      toolbarProps,
+    ]
+  );
 
   return (
     <>
@@ -564,7 +557,7 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
         <VideoContextPanel
           videoSrc={`/api/videos/${videoId}/stream`}
           transcriptWordCount={transcriptWordCount}
-          onCopyTranscript={() => navigator.clipboard.writeText(transcript)}
+          onCopyTranscript={handleCopyTranscript}
           clipSections={clipSections}
           enabledSections={enabledSections}
           onEnabledSectionsChange={setEnabledSections}
@@ -572,56 +565,23 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
           onIncludeTranscriptChange={setIncludeTranscript}
           courseStructure={courseStructure}
           includeCourseStructure={includeCourseStructure}
-          onIncludeCourseStructureChange={(checked) => {
-            setIncludeCourseStructure(checked);
-            if (typeof localStorage !== "undefined") {
-              localStorage.setItem(
-                COURSE_STRUCTURE_STORAGE_KEY,
-                String(checked)
-              );
-            }
-          }}
+          onIncludeCourseStructureChange={handleIncludeCourseStructureChange}
           files={files}
           isStandalone={isStandalone}
           enabledFiles={enabledFiles}
           onEnabledFilesChange={setEnabledFiles}
-          onFileClick={(filePath) => {
-            setPreviewFilePath(filePath);
-            setIsPreviewModalOpen(true);
-          }}
-          onOpenFolderClick={() => {
-            openFolderFetcher.submit(null, {
-              method: "post",
-              action: `/api/videos/${videoId}/open-folder`,
-            });
-          }}
-          onAddFromClipboardClick={
-            isStandalone
-              ? () => setIsPasteModalOpen(true)
-              : () => setIsLessonPasteModalOpen(true)
-          }
+          onFileClick={handleFileClick}
+          onOpenFolderClick={handleOpenFolderClick}
+          onAddFromClipboardClick={handleAddFromClipboardClick}
           onEditFile={handleEditFile}
-          onDeleteFile={(filename) => {
-            setFileToDelete(filename);
-            setIsDeleteModalOpen(true);
-          }}
+          onDeleteFile={handleDeleteFile}
           links={links}
-          onAddLinkClick={() => setIsAddLinkModalOpen(true)}
-          onDeleteLink={(linkId) => {
-            deleteLinkFetcher.submit(null, {
-              method: "post",
-              action: `/api/links/${linkId}/delete`,
-            });
-          }}
+          onAddLinkClick={handleAddLinkClick}
+          onDeleteLink={handleDeleteLink}
           memory={repoId ? memory : undefined}
           onMemoryChange={repoId ? setMemory : undefined}
           memoryEnabled={memoryEnabled}
-          onMemoryEnabledChange={(enabled) => {
-            setMemoryEnabled(enabled);
-            if (typeof localStorage !== "undefined") {
-              localStorage.setItem(MEMORY_ENABLED_STORAGE_KEY, String(enabled));
-            }
-          }}
+          onMemoryEnabledChange={handleMemoryEnabledChange}
         />
         {isDocumentMode ? (
           <>

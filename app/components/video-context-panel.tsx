@@ -16,7 +16,7 @@ import {
   PlusIcon,
   FolderOpenIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { memo, useState } from "react";
 
 export type FileMetadata = {
   path: string;
@@ -90,7 +90,7 @@ export type VideoContextPanelProps = {
   onMemoryEnabledChange?: (enabled: boolean) => void;
 };
 
-export function VideoContextPanel({
+export const VideoContextPanel = memo(function VideoContextPanel({
   videoSrc,
   transcriptWordCount,
   clipSections,
@@ -521,4 +521,4 @@ export function VideoContextPanel({
       </div>
     </div>
   );
-}
+});

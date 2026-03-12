@@ -14,8 +14,8 @@ import {
 import { AIMessage, AIMessageContent } from "components/ui/kibo-ui/ai/message";
 import { AIResponse } from "components/ui/kibo-ui/ai/response";
 import type { Options } from "react-markdown";
-import type { FormEvent, HTMLAttributes } from "react";
-import { useCallback, useMemo, useState } from "react";
+import type { HTMLAttributes } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { partsToText, saveMessagesToStorage } from "./write-utils";
 import type { WriteToolbarProps } from "./write-toolbar";
 import { WriteToolbar } from "./write-toolbar";
@@ -32,9 +32,7 @@ export interface WriteChatProps {
   setMessages: (messages: UIMessage[]) => void;
   error: Error | undefined;
   fullPath: string;
-  text: string;
-  onTextChange: (text: string) => void;
-  onSubmit: (e: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (text: string) => void;
   status: "streaming" | "submitted" | "ready" | "error";
   indexedClips: IndexedClip[];
   mode: Mode;
@@ -43,14 +41,12 @@ export interface WriteChatProps {
   toolbarProps: WriteToolbarProps;
 }
 
-export function WriteChat(props: WriteChatProps) {
+export const WriteChat = memo(function WriteChat(props: WriteChatProps) {
   const {
     messages,
     setMessages,
     error,
     fullPath,
-    text,
-    onTextChange,
     onSubmit,
     status,
     indexedClips,
@@ -59,6 +55,8 @@ export function WriteChat(props: WriteChatProps) {
     className,
     toolbarProps,
   } = props;
+
+  const [text, setText] = useState("");
 
   const mutateMessageText = useCallback(
     (messageId: string, mutator: (text: string) => string) => {
@@ -274,10 +272,16 @@ export function WriteChat(props: WriteChatProps) {
       <div className="border-t p-4 bg-background">
         <div className="max-w-[75ch] mx-auto">
           <WriteToolbar {...toolbarProps} />
-          <AIInput onSubmit={onSubmit}>
+          <AIInput
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSubmit(text.trim() || "Go");
+              setText("");
+            }}
+          >
             <AIInputTextarea
               value={text}
-              onChange={(e) => onTextChange(e.target.value)}
+              onChange={(e) => setText(e.target.value)}
               placeholder="What would you like to create?"
             />
             <AIInputToolbar>
@@ -288,4 +292,4 @@ export function WriteChat(props: WriteChatProps) {
       </div>
     </div>
   );
-}
+});
