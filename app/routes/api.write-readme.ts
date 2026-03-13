@@ -37,10 +37,7 @@ export const action = async (args: Route.ActionArgs) => {
       const folderPath = path.join(lessonFullPath, targetFolder);
       const folderExists = yield* fs.exists(folderPath);
       if (!folderExists) {
-        return Response.json(
-          { success: false, error: `No ${targetFolder} folder found` },
-          { status: 400 }
-        );
+        yield* fs.makeDirectory(folderPath, { recursive: true });
       }
       targetPath = path.join(folderPath, "readme.md");
     } else {

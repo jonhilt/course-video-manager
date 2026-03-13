@@ -45,7 +45,6 @@ export interface WriteToolbarProps {
   isCopied: boolean;
   messagesLength: number;
   violations: LintViolation[];
-  hasExplainerOrProblem: boolean;
   availableFolders: readonly SaveTargetFolder[];
   isStandalone: boolean;
   isDocumentMode: boolean;
@@ -76,7 +75,6 @@ export function WriteToolbar(props: WriteToolbarProps) {
     isCopied,
     messagesLength,
     violations,
-    hasExplainerOrProblem,
     availableFolders,
     isStandalone,
     isDocumentMode,
@@ -190,7 +188,6 @@ export function WriteToolbar(props: WriteToolbarProps) {
       )}
       {!isStandalone && !isDocumentMode && (
         <ReadmeDropdown
-          hasExplainerOrProblem={hasExplainerOrProblem}
           availableFolders={availableFolders}
           status={status}
           writeToReadmeFetcherState={writeToReadmeFetcherState}
@@ -394,7 +391,6 @@ function LintFixButton(props: {
 }
 
 function ReadmeDropdown(props: {
-  hasExplainerOrProblem: boolean;
   availableFolders: readonly SaveTargetFolder[];
   status: string;
   writeToReadmeFetcherState: "idle" | "submitting" | "loading";
@@ -406,7 +402,6 @@ function ReadmeDropdown(props: {
   ) => void;
 }) {
   const {
-    hasExplainerOrProblem,
     availableFolders,
     status,
     writeToReadmeFetcherState,
@@ -426,7 +421,6 @@ function ReadmeDropdown(props: {
                   variant="outline"
                   size="sm"
                   disabled={
-                    !hasExplainerOrProblem ||
                     status === "streaming" ||
                     writeToReadmeFetcherState === "submitting" ||
                     writeToReadmeFetcherState === "loading" ||
@@ -451,11 +445,9 @@ function ReadmeDropdown(props: {
               </DropdownMenuTrigger>
             </span>
           </TooltipTrigger>
-          {!hasExplainerOrProblem && (
-            <TooltipContent>
-              <p>No explainer or problem folder</p>
-            </TooltipContent>
-          )}
+          <TooltipContent>
+            <p>Save to README</p>
+          </TooltipContent>
         </Tooltip>
       </TooltipProvider>
       <DropdownMenuContent align="end">

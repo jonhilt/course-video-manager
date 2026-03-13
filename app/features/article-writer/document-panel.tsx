@@ -52,7 +52,6 @@ export interface DocumentPanelProps {
   onCopyAsMarkdown?: () => void;
   onCopyAsRichText?: () => void;
   isStandalone?: boolean;
-  hasExplainerOrProblem?: boolean;
   availableFolders?: readonly ("explainer" | "problem" | "solution")[];
   writeToReadmeFetcherState?: "idle" | "submitting" | "loading";
   hasUnresolvedScreenshots?: boolean;
@@ -78,7 +77,6 @@ export const DocumentPanel = memo(function DocumentPanel({
   onCopyAsMarkdown,
   onCopyAsRichText,
   isStandalone,
-  hasExplainerOrProblem,
   availableFolders = [],
   writeToReadmeFetcherState,
   hasUnresolvedScreenshots,
@@ -243,7 +241,6 @@ export const DocumentPanel = memo(function DocumentPanel({
                       size="icon"
                       className="h-8 w-8"
                       disabled={
-                        !hasExplainerOrProblem ||
                         !document ||
                         hasUnresolvedScreenshots ||
                         writeToReadmeFetcherState === "submitting" ||
@@ -260,11 +257,7 @@ export const DocumentPanel = memo(function DocumentPanel({
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>
-                    {!hasExplainerOrProblem
-                      ? "No explainer or problem folder"
-                      : "Save to README"}
-                  </p>
+                  <p>Save to README</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

@@ -158,13 +158,7 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
   const isDocumentMode =
     mode === "article" || mode === "skill-building" || mode === "newsletter";
 
-  const hasExplainerOrProblem = files.some(
-    (f) => f.path.startsWith("explainer/") || f.path.startsWith("problem/")
-  );
-
-  const availableFolders = (
-    ["explainer", "problem", "solution"] as const
-  ).filter((folder) => files.some((f) => f.path.startsWith(`${folder}/`)));
+  const availableFolders = ["explainer", "problem", "solution"] as const;
 
   const [initialMessages] = useState(() =>
     loadMessagesFromStorage(videoId, mode)
@@ -519,7 +513,6 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
     isCopied,
     setIsCopied: (v: boolean) => dispatch({ type: "set-is-copied", value: v }),
     violations,
-    hasExplainerOrProblem,
     availableFolders,
     isStandalone,
     isDocumentMode,
@@ -626,7 +619,6 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
                 onCopyAsMarkdown={handleDocCopyAsMarkdown}
                 onCopyAsRichText={handleDocCopyAsRichText}
                 isStandalone={isStandalone}
-                hasExplainerOrProblem={hasExplainerOrProblem}
                 availableFolders={availableFolders}
                 writeToReadmeFetcherState={docWriteToReadmeFetcher.state}
                 hasUnresolvedScreenshots={hasUnresolvedScreenshots(
