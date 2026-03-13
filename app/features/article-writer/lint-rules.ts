@@ -14,8 +14,8 @@ export interface LintRule {
   modes: Mode[] | null;
   /** Regular expression pattern to detect violations */
   pattern: RegExp;
-  /** Instruction to include in fix message */
-  fixInstruction: string;
+  /** Instruction to include in fix message (static string or function that receives matched text) */
+  fixInstruction: string | ((matches: string[]) => string);
   /** If true, the pattern must be present (violation if missing). Default: false (violation if present) */
   required?: boolean;
 }
@@ -28,6 +28,8 @@ export interface LintViolation {
   rule: LintRule;
   /** Number of times the violation appears */
   count: number;
+  /** The actual matched text for each violation */
+  matches: string[];
 }
 
 /**
@@ -157,8 +159,13 @@ export const BASE_LINT_RULES: LintRule[] = [
       "A markdown heading must have at least 2 paragraphs after it before the next heading",
     modes: ["article", "skill-building"],
     pattern: /^#{1,6} .+\n\n(?:(?!#{1,6} |\n)[^\n]+\n)*\n(?=#{1,6} )/gm,
-    fixInstruction:
-      "There are markdown headings with only a single paragraph beneath them (orphaned paragraphs). Restructure the content to have fewer markdown headings overall, not more paragraphs to justify the headings. Merge sections where a heading only introduces one paragraph.",
+    fixInstruction: (matches: string[]) => {
+      const sections = matches.map((m) => {
+        const heading = m.split("\n")[0];
+        return `"${heading}"`;
+      });
+      return `The following heading${sections.length > 1 ? "s have" : " has"} only a single paragraph beneath ${sections.length > 1 ? "them" : "it"} (orphaned paragraph${sections.length > 1 ? "s" : ""}):\n${sections.join("\n")}\n\nFix ONLY ${sections.length > 1 ? "these specific sections" : "this specific section"} - do NOT make changes elsewhere in the document. Either merge the section into an adjacent section or remove the heading. Do not add more paragraphs to justify the heading.`;
+    },
   },
 ];
 

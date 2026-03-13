@@ -57,6 +57,7 @@ export function useLint(
           results.push({
             rule,
             count: 1,
+            matches: [],
           });
         }
       } else {
@@ -65,6 +66,7 @@ export function useLint(
           results.push({
             rule,
             count: matches.length,
+            matches: [...matches],
           });
         }
       }
@@ -78,7 +80,13 @@ export function useLint(
       if (violations.length === 0) return "";
 
       const instructions = violations
-        .map((v) => `- ${v.rule.fixInstruction}`)
+        .map((v) => {
+          const instruction =
+            typeof v.rule.fixInstruction === "function"
+              ? v.rule.fixInstruction(v.matches)
+              : v.rule.fixInstruction;
+          return `- ${instruction}`;
+        })
         .join("\n");
 
       return `Please fix the following issues in your response:\n${instructions}\n\nOutput the corrected version.`;
