@@ -129,7 +129,7 @@ function EditItem({
   const [open, setOpen] = useState(false);
   const editType = edit.type as keyof typeof editTypeConfig | undefined;
   const config =
-    (editType && editTypeConfig[editType]) ?? editTypeConfig.replace;
+    (editType && editTypeConfig[editType]) || editTypeConfig.replace;
   const Icon = config.icon;
 
   return (
@@ -163,9 +163,13 @@ function EditItem({
               isReverted && "line-through opacity-50"
             )}
           >
-            {edit.type === "replace" && edit.old_text
+            {edit.type === "replace" &&
+            typeof edit.old_text === "string" &&
+            edit.old_text
               ? truncate(edit.old_text.split("\n")[0] ?? "", 60)
-              : edit.type === "insert_after" && edit.anchor
+              : edit.type === "insert_after" &&
+                  typeof edit.anchor === "string" &&
+                  edit.anchor
                 ? `after "${truncate(edit.anchor.split("\n")[0] ?? "", 50)}"`
                 : "Full document"}
           </span>
@@ -198,27 +202,31 @@ function EditItem({
         <div
           className={cn("ml-5 mr-2 mb-2 space-y-2", isReverted && "opacity-40")}
         >
-          {edit.type === "replace" && edit.old_text && (
-            <div className="rounded-md border border-red-500/20 bg-red-500/5 p-2">
-              <div className="text-[10px] uppercase tracking-wide text-red-400 mb-1 font-medium">
-                Remove
+          {edit.type === "replace" &&
+            typeof edit.old_text === "string" &&
+            edit.old_text && (
+              <div className="rounded-md border border-red-500/20 bg-red-500/5 p-2">
+                <div className="text-[10px] uppercase tracking-wide text-red-400 mb-1 font-medium">
+                  Remove
+                </div>
+                <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words font-mono leading-relaxed">
+                  {truncate(edit.old_text, 500)}
+                </pre>
               </div>
-              <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words font-mono leading-relaxed">
-                {truncate(edit.old_text, 500)}
-              </pre>
-            </div>
-          )}
-          {edit.type === "insert_after" && edit.anchor && (
-            <div className="rounded-md border border-muted bg-muted/30 p-2">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 font-medium">
-                After
+            )}
+          {edit.type === "insert_after" &&
+            typeof edit.anchor === "string" &&
+            edit.anchor && (
+              <div className="rounded-md border border-muted bg-muted/30 p-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 font-medium">
+                  After
+                </div>
+                <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words font-mono leading-relaxed">
+                  {truncate(edit.anchor, 300)}
+                </pre>
               </div>
-              <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words font-mono leading-relaxed">
-                {truncate(edit.anchor, 300)}
-              </pre>
-            </div>
-          )}
-          {edit.new_text && (
+            )}
+          {typeof edit.new_text === "string" && edit.new_text && (
             <div className="rounded-md border border-green-500/20 bg-green-500/5 p-2">
               <div className="text-[10px] uppercase tracking-wide text-green-400 mb-1 font-medium">
                 {edit.type === "rewrite" ? "New content" : "Add"}
@@ -260,7 +268,7 @@ export const WriteDocumentDisplay = memo(function WriteDocumentDisplay({
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="ml-5 mr-2 mb-2">
-          {part.input?.content ? (
+          {typeof part.input?.content === "string" && part.input.content ? (
             <div className="rounded-md border border-muted bg-muted/30 p-2">
               <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words font-mono leading-relaxed max-h-48 overflow-y-auto">
                 {truncate(part.input.content, 800)}
