@@ -1,12 +1,8 @@
 "use client";
 
 import { DBFunctionsService } from "@/services/db-service.server";
-import { sortByOrder } from "@/lib/sort-by-order";
 import { runtimeLive } from "@/services/layer.server";
-import type {
-  SectionWithWordCount,
-  IndexedClip,
-} from "@/features/article-writer/types";
+import { buildTranscript } from "@/lib/transcript-builder";
 import { Array as EffectArray, Console, Effect } from "effect";
 import { data } from "react-router";
 import type { Route } from "./+types/videos.$videoId.write";
@@ -32,96 +28,12 @@ export const loader = async (args: Route.LoaderArgs) => {
 
     const lesson = video.lesson;
 
-    // Build transcript from clips and clip sections
-    type ClipItem = { type: "clip"; order: string; text: string | null };
-    type ClipSectionItem = {
-      type: "clip-section";
-      order: string;
-      name: string;
-    };
-
-    const clipItems: ClipItem[] = video.clips.map((clip) => ({
-      type: "clip" as const,
-      order: clip.order,
-      text: clip.text,
-    }));
-
-    const clipSectionItems: ClipSectionItem[] = video.clipSections.map(
-      (section) => ({
-        type: "clip-section" as const,
-        order: section.order,
-        name: section.name,
-      })
-    );
-
-    const sortedItems = sortByOrder([...clipItems, ...clipSectionItems]);
-
-    // Build indexed clips array for ChooseScreenshot component
-    let clipIndex = 0;
-    const indexedClips: IndexedClip[] = [];
-    for (const item of sortedItems) {
-      if (item.type === "clip") {
-        clipIndex++;
-        const clip = video.clips.find((c) => c.order === item.order);
-        if (clip) {
-          indexedClips.push({
-            index: clipIndex,
-            sourceStartTime: clip.sourceStartTime,
-            sourceEndTime: clip.sourceEndTime,
-            videoFilename: clip.videoFilename,
-            text: clip.text,
-          });
-        }
-      }
-    }
-
-    // Build formatted transcript with sections as H2 headers
-    // Annotate clips with sequential indices for AI screenshot placement
-    const transcriptParts: string[] = [];
-    let currentParagraph: string[] = [];
-    let transcriptClipIndex = 0;
-
-    for (const item of sortedItems) {
-      if (item.type === "clip-section") {
-        if (currentParagraph.length > 0) {
-          transcriptParts.push(currentParagraph.join(" "));
-          currentParagraph = [];
-        }
-        transcriptParts.push(`## ${item.name}`);
-      } else if (item.text) {
-        transcriptClipIndex++;
-        currentParagraph.push(`[${transcriptClipIndex}] ${item.text}`);
-      }
-    }
-
-    if (currentParagraph.length > 0) {
-      transcriptParts.push(currentParagraph.join(" "));
-    }
-
-    const transcript = transcriptParts.join("\n\n").trim();
-    const transcriptWordCount = transcript ? transcript.split(/\s+/).length : 0;
-
-    // Calculate word count per section
-    const sectionsWithWordCount: SectionWithWordCount[] = [];
-    let currentSectionIndex = -1;
-
-    for (const item of sortedItems) {
-      if (item.type === "clip-section") {
-        const section = video.clipSections.find((s) => s.order === item.order);
-        if (section) {
-          currentSectionIndex = sectionsWithWordCount.length;
-          sectionsWithWordCount.push({
-            id: section.id,
-            name: item.name,
-            order: item.order,
-            wordCount: 0,
-          });
-        }
-      } else if (item.text && currentSectionIndex >= 0) {
-        const wordCount = item.text.split(/\s+/).length;
-        sectionsWithWordCount[currentSectionIndex]!.wordCount += wordCount;
-      }
-    }
+    const {
+      indexedClips,
+      transcript,
+      wordCount: transcriptWordCount,
+      sections: sectionsWithWordCount,
+    } = buildTranscript(video.clips, video.clipSections);
 
     // For standalone videos (no lesson), fetch standalone video files
     if (!lesson) {
