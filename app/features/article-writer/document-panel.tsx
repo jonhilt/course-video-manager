@@ -34,6 +34,7 @@ import {
   PencilIcon,
   EyeIcon,
   AlertTriangleIcon,
+  ClipboardPasteIcon,
 } from "lucide-react";
 import type { LintViolation } from "./lint-rules";
 import type { Options } from "react-markdown";
@@ -183,10 +184,31 @@ export const DocumentPanel = memo(function DocumentPanel({
     });
   }, []);
 
+  const handlePasteFromClipboard = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.trim()) {
+        onDocumentChange?.(text);
+      }
+    } catch {
+      // Clipboard access denied or empty
+    }
+  }, [onDocumentChange]);
+
   if (!document) {
     return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-4">
         <p>No document yet. Send a message to generate one.</p>
+        {onDocumentChange && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handlePasteFromClipboard}
+          >
+            <ClipboardPasteIcon className="h-4 w-4 mr-2" />
+            Paste from Clipboard
+          </Button>
+        )}
       </div>
     );
   }
