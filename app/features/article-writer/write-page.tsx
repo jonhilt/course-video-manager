@@ -45,7 +45,7 @@ import { useVideoContextHandlers } from "./use-video-context-handlers";
 import { useToolbarProps } from "./use-toolbar-props";
 import { writePageReducer, createInitialState } from "./write-page-reducer";
 import { useDocumentPanelActions } from "./use-document-panel-actions";
-import { useSessionTimer, formatElapsed } from "./use-session-timer";
+import { SessionTimer } from "./use-session-timer";
 
 export interface WritePageProps {
   videoId: string;
@@ -154,8 +154,6 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
       }
     };
   }, [memory, repoId]);
-
-  const sessionElapsed = useSessionTimer([videoId, mode]);
 
   const isDocumentMode =
     mode === "article" || mode === "skill-building" || mode === "newsletter";
@@ -629,7 +627,7 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
                 violations={violations}
                 onFixLintViolations={toolbarProps.onFixLintViolations}
                 isStreaming={status === "streaming"}
-                sessionTimer={formatElapsed(sessionElapsed)}
+                sessionTimer={<SessionTimer videoId={videoId} mode={mode} />}
               />
             </div>
           </>

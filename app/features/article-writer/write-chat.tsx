@@ -141,7 +141,7 @@ export const WriteChat = memo(function WriteChat(props: WriteChatProps) {
   );
 
   const extraComponents = useMemo((): Options["components"] | undefined => {
-    if (indexedClips.length === 0 || mode !== "article") return undefined;
+    if (indexedClips.length === 0) return undefined;
     return {
       choosescreenshot: ((
         compProps: HTMLAttributes<HTMLElement> & Record<string, unknown>

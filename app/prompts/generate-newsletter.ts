@@ -1,6 +1,7 @@
 import { NEWSLETTER_GREETING_SIGIL } from "@/features/article-writer/lint-rules";
 import { getImageInstructions } from "./image-instructions";
 import { getLinkInstructions, type GlobalLink } from "./link-instructions";
+import { SCREENSHOT_INSTRUCTIONS } from "./screenshot-instructions";
 
 export const generateNewsletterPrompt = (opts: {
   code: {
@@ -70,6 +71,8 @@ The newsletter should:
 - Sign off with: "Matt"
 ${opts.aiHeroUrl ? `- Include a call-to-action linking readers to the full article at ${opts.aiHeroUrl}` : ""}
 ${getImageInstructions(opts.images)}
+
+${SCREENSHOT_INSTRUCTIONS}
 
 ${getLinkInstructions(opts.links)}
 </the-ask>

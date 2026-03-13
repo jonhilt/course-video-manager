@@ -1,4 +1,5 @@
 import { getImageInstructions } from "./image-instructions";
+import { SCREENSHOT_INSTRUCTIONS } from "./screenshot-instructions";
 import { STEPS_TO_COMPLETE } from "./steps-to-complete";
 import { CODE_SAMPLES, STYLE_GUIDE_BASE, TODO_COMMENTS } from "./style-guide";
 import SKILL_BUILDING_STEPS_TO_COMPLETE_SAMPLE from "./skill-building-steps-to-complete-sample.md?raw";
@@ -13,6 +14,8 @@ ${STYLE_GUIDE_BASE}
 ${CODE_SAMPLES}
 
 ${getImageInstructions(images)}
+
+${SCREENSHOT_INSTRUCTIONS}
 
 <rules>
 ${STEPS_TO_COMPLETE}

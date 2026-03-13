@@ -34,7 +34,6 @@ import {
   PencilIcon,
   EyeIcon,
   AlertTriangleIcon,
-  TimerIcon,
 } from "lucide-react";
 import type { LintViolation } from "./lint-rules";
 import type { Options } from "react-markdown";
@@ -66,7 +65,7 @@ export interface DocumentPanelProps {
   violations?: LintViolation[];
   onFixLintViolations?: () => void;
   isStreaming?: boolean;
-  sessionTimer?: string;
+  sessionTimer?: React.ReactNode;
 }
 
 export const DocumentPanel = memo(function DocumentPanel({
@@ -355,12 +354,7 @@ export const DocumentPanel = memo(function DocumentPanel({
         <div className="flex-1" />
 
         {/* Session timer */}
-        {sessionTimer && (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums mr-2">
-            <TimerIcon className="h-3 w-3" />
-            {sessionTimer}
-          </span>
-        )}
+        {sessionTimer}
 
         {/* Edit / Preview toggle */}
         <Button variant="ghost" size="sm" onClick={handleToggleEditing}>
