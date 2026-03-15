@@ -52,15 +52,15 @@ export function VersionSelectorModal({
                   onOpenChange(false);
                 }}
               >
-                <div className="flex flex-col items-start text-left">
-                  <span>
+                <div className="flex flex-col items-start text-left min-w-0 overflow-hidden">
+                  <span className="truncate w-full">
                     {version.name}{" "}
                     <span className="text-muted-foreground">
                       ({new Date(version.createdAt).toLocaleDateString()})
                     </span>
                   </span>
                   {version.description && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground line-clamp-2 text-wrap">
                       {version.description}
                     </span>
                   )}
