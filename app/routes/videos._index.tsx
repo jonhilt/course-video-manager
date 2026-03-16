@@ -21,6 +21,7 @@ import {
   Download,
   FileX,
   FolderOpen,
+  MoveRight,
   PencilIcon,
   Plus,
   Trash2,
@@ -193,6 +194,14 @@ export default function Component(props: Route.ComponentProps) {
                       >
                         <PencilIcon className="w-4 h-4" />
                         Rename
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onSelect={() => {
+                          navigate(`/videos/${video.id}/move-to-course`);
+                        }}
+                      >
+                        <MoveRight className="w-4 h-4" />
+                        Move to course
                       </ContextMenuItem>
                       <ContextMenuItem
                         onSelect={() => {
