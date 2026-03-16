@@ -20,6 +20,7 @@ import type { Plan } from "@/features/course-planner/types";
 import { cn, isLeftClick } from "@/lib/utils";
 import {
   Archive,
+  ArrowRightLeft,
   ClipboardList,
   Eye,
   FolderGit2,
@@ -220,6 +221,14 @@ export function AppSidebar({
                 </button>
               </ContextMenuTrigger>
               <ContextMenuContent>
+                <ContextMenuItem
+                  onSelect={() => {
+                    navigate(`/videos/${video.id}/move-to-course`);
+                  }}
+                >
+                  <ArrowRightLeft className="w-4 h-4" />
+                  Move to Course
+                </ContextMenuItem>
                 <ContextMenuItem
                   onSelect={() => {
                     setVideoToRename({ id: video.id, path: video.path });
