@@ -18,6 +18,7 @@ import { FileSystem } from "@effect/platform";
 import { Console, Effect } from "effect";
 import {
   Archive,
+  ArrowRightLeft,
   Download,
   FileX,
   FolderOpen,
@@ -215,6 +216,14 @@ export default function Component(props: Route.ComponentProps) {
                       >
                         <FolderOpen className="w-4 h-4" />
                         Reveal in File System
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onSelect={() => {
+                          navigate(`/videos/${video.id}/move-to-course`);
+                        }}
+                      >
+                        <ArrowRightLeft className="w-4 h-4" />
+                        Move to Course
                       </ContextMenuItem>
                       <ContextMenuItem
                         onSelect={() => {
