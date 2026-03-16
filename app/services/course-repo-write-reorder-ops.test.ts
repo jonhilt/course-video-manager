@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 let tempDir: string;
 
 const setupTempGitRepo = () => {
-  tempDir = fs.mkdtempSync(path.join(tmpdir(), "repo-write-test-"));
+  tempDir = fs.mkdtempSync(path.join(tmpdir(), "course-repo-write-test-"));
   execSync("git init", { cwd: tempDir });
   execSync('git config user.email "test@test.com"', { cwd: tempDir });
   execSync('git config user.name "Test"', { cwd: tempDir });

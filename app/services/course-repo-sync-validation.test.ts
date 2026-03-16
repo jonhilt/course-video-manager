@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseSectionPath } from "./section-path-service";
 
-describe("repo-sync-validation", () => {
+describe("course-repo-sync-validation", () => {
   describe("section path filtering", () => {
     it("should skip ghost sections (unparseable paths)", () => {
       expect(parseSectionPath("My Ghost Section")).toBeNull();

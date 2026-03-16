@@ -56,7 +56,7 @@ describe("getSectionAndLessonNumberFromPath", () => {
   );
 });
 
-describe("parseRepo", () => {
+describe("parseCourseRepo", () => {
   it.each([
     [["foo"], []],
     [
@@ -85,11 +85,11 @@ describe("parseRepo", () => {
       ],
     ],
     [["foo/bar/baz"], []],
-  ])("should parse a repo", async (files: string[], expected) => {
+  ])("should parse a course repo", async (files: string[], expected) => {
     const result = await Effect.gen(function* () {
-      const repoParserService = yield* CourseRepoParserService;
+      const courseRepoParserService = yield* CourseRepoParserService;
 
-      const repo = yield* repoParserService.parseRepo("");
+      const repo = yield* courseRepoParserService.parseRepo("");
 
       return repo;
     }).pipe(
