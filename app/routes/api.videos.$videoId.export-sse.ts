@@ -1,12 +1,7 @@
 import { Effect } from "effect";
-import { DBFunctionsService } from "@/services/db-service.server";
 import { runtimeLive } from "@/services/layer.server";
 import type { Route } from "./+types/api.videos.$videoId.export-sse";
-import {
-  VideoProcessingService,
-  type BeatType,
-} from "@/services/video-processing-service";
-import { FINAL_VIDEO_PADDING } from "@/features/video-editor/constants";
+import { CoursePublishService } from "@/services/course-publish-service";
 
 export const action = async (args: Route.ActionArgs) => {
   const { videoId } = args.params;
@@ -21,30 +16,10 @@ export const action = async (args: Route.ActionArgs) => {
       };
 
       const program = Effect.gen(function* () {
-        const db = yield* DBFunctionsService;
-        const videoProcessing = yield* VideoProcessingService;
+        const publishService = yield* CoursePublishService;
 
-        const video = yield* db.getVideoWithClipsById(videoId);
-        const clips = video.clips;
-
-        yield* videoProcessing.exportVideoClips({
-          videoId,
-          shortsDirectoryOutputName: undefined,
-          clips: clips.map((clip, index, array) => {
-            const isFinalClip = index === array.length - 1;
-            return {
-              inputVideo: clip.videoFilename,
-              startTime: clip.sourceStartTime,
-              duration:
-                clip.sourceEndTime -
-                clip.sourceStartTime +
-                (isFinalClip ? FINAL_VIDEO_PADDING : 0),
-              beatType: clip.beatType as BeatType,
-            };
-          }),
-          onStageChange: (stage) => {
-            sendEvent("stage", { stage });
-          },
+        yield* publishService.exportVideo(videoId, (stage) => {
+          sendEvent("stage", { stage });
         });
 
         sendEvent("complete", {});

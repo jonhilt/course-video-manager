@@ -1,5 +1,6 @@
+import { Effect } from "effect";
 import { runtimeLive } from "@/services/layer.server";
-import { batchExportProgram } from "@/services/batch-export.server";
+import { CoursePublishService } from "@/services/course-publish-service";
 import type { Route } from "./+types/api.courseVersions.$versionId.batch-export-sse";
 
 export const action = async (args: Route.ActionArgs) => {
@@ -14,8 +15,34 @@ export const action = async (args: Route.ActionArgs) => {
         );
       };
 
-      batchExportProgram(versionId, sendEvent)
-        .pipe(runtimeLive.runPromise)
+      const program = Effect.gen(function* () {
+        const publishService = yield* CoursePublishService;
+        yield* publishService.batchExport(versionId, sendEvent);
+      });
+
+      program
+        .pipe(
+          Effect.catchTag("NotFoundError", () =>
+            Effect.sync(() => {
+              sendEvent("error", {
+                videoId: null,
+                message: "Version not found",
+              });
+            })
+          ),
+          Effect.catchAll((e) =>
+            Effect.sync(() => {
+              sendEvent("error", {
+                videoId: null,
+                message:
+                  "message" in e && typeof e.message === "string"
+                    ? e.message
+                    : "Batch export failed unexpectedly",
+              });
+            })
+          ),
+          runtimeLive.runPromise
+        )
         .finally(() => {
           controller.close();
         });

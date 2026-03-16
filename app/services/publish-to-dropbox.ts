@@ -64,6 +64,7 @@ export const resolveSectionsWithVideos = (opts: {
   sectionsOnFileSystem: FileSystemSection[];
   sectionsInDb: DbSection[];
   finishedVideosDirectory: string;
+  videoPathOverrides?: Map<string, string>;
 }) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -93,10 +94,9 @@ export const resolveSectionsWithVideos = (opts: {
         const videos: ResolvedVideo[] = [];
 
         for (const video of lessonInDb.videos) {
-          const absolutePath = path.join(
-            opts.finishedVideosDirectory,
-            video.id + ".mp4"
-          );
+          const absolutePath =
+            opts.videoPathOverrides?.get(video.id) ??
+            path.join(opts.finishedVideosDirectory, video.id + ".mp4");
 
           if (yield* fs.exists(absolutePath)) {
             videos.push({

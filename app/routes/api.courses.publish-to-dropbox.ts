@@ -18,6 +18,11 @@ import path from "node:path";
 import { makeSemaphore } from "effect/Effect";
 import { generateChangelog } from "@/services/changelog-service";
 import { data } from "react-router";
+import {
+  computeExportHash,
+  resolveExportPath,
+  type ExportClip,
+} from "@/services/export-hash";
 
 const publishRepoSchema = Schema.Struct({
   repoId: Schema.String,
@@ -113,11 +118,40 @@ export const action = async ({ request }: Route.ActionArgs) => {
       }
     }
 
+    // Build content-addressed path overrides for video resolution
+    const videoPathOverrides = new Map<string, string>();
+    for (const section of repoWithSections.sections) {
+      for (const lesson of section.lessons) {
+        for (const video of lesson.videos) {
+          if (video.clips.length > 0) {
+            const clips: ExportClip[] = video.clips.map((c) => ({
+              videoFilename: c.videoFilename,
+              sourceStartTime: c.sourceStartTime,
+              sourceEndTime: c.sourceEndTime,
+              order: c.order,
+            }));
+            const hash = computeExportHash(clips);
+            if (hash) {
+              videoPathOverrides.set(
+                video.id,
+                resolveExportPath(
+                  FINISHED_VIDEOS_DIRECTORY,
+                  result.repoId,
+                  hash
+                )
+              );
+            }
+          }
+        }
+      }
+    }
+
     // Resolve videos - skip missing ones instead of failing
     const { sections, missingVideos } = yield* resolveSectionsWithVideos({
       sectionsOnFileSystem,
       sectionsInDb: repoWithSections.sections,
       finishedVideosDirectory: FINISHED_VIDEOS_DIRECTORY,
+      videoPathOverrides,
     });
 
     yield* Effect.logDebug("Validation complete");

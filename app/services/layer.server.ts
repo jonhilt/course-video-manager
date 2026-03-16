@@ -15,12 +15,13 @@ import { CourseRepoWriteService } from "./course-repo-write-service";
 import { CourseWriteService } from "./course-write-service";
 import { CourseRepoSyncValidationService } from "./course-repo-sync-validation";
 import { FFmpegCommandsService } from "./ffmpeg-commands";
+import { CoursePublishService } from "./course-publish-service";
 
 const CloudinaryMarkdownLayer = CloudinaryMarkdownService.Default.pipe(
   Layer.provide(CloudinaryService.Default)
 );
 
-export const layerLive = Layer.mergeAll(
+const coreLayer = Layer.mergeAll(
   CourseRepoParserService.Default,
   DatabaseDumpService.Default,
   VideoProcessingService.Default,
@@ -37,5 +38,11 @@ export const layerLive = Layer.mergeAll(
   FFmpegCommandsService.Default,
   NodeContext.layer
 ).pipe(Layer.provideMerge(DrizzleService.Default));
+
+const publishLayer = CoursePublishService.Default.pipe(
+  Layer.provide(coreLayer)
+);
+
+export const layerLive = Layer.merge(coreLayer, publishLayer);
 
 export const runtimeLive = ManagedRuntime.make(layerLive);

@@ -1,10 +1,8 @@
 import { DBFunctionsService } from "@/services/db-service.server";
 import { withDatabaseDump } from "@/services/dump-service";
 import { runtimeLive } from "@/services/layer.server";
-import { Config, Console, Effect, Schema } from "effect";
-import { FileSystem } from "@effect/platform";
+import { Console, Effect, Schema } from "effect";
 import type { Route } from "./+types/api.courses.$courseId.create-version";
-import path from "node:path";
 import { data } from "react-router";
 
 const createVersionSchema = Schema.Struct({
@@ -20,39 +18,15 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
     const result =
       yield* Schema.decodeUnknown(createVersionSchema)(formDataObject);
     const db = yield* DBFunctionsService;
-    const fs = yield* FileSystem.FileSystem;
-    const FINISHED_VIDEOS_DIRECTORY = yield* Config.string(
-      "FINISHED_VIDEOS_DIRECTORY"
-    );
 
-    const { version: newVersion, videoIdMappings } =
-      yield* db.copyVersionStructure({
-        sourceVersionId: result.sourceVersionId,
-        repoId: params.courseId,
-        newVersionName: result.name,
-      });
+    const { version: newVersion } = yield* db.copyVersionStructure({
+      sourceVersionId: result.sourceVersionId,
+      repoId: params.courseId,
+      newVersionName: result.name,
+    });
 
-    // Move video files from old version IDs to new version IDs
-    for (const mapping of videoIdMappings) {
-      const sourceVideoPath = path.join(
-        FINISHED_VIDEOS_DIRECTORY,
-        `${mapping.sourceVideoId}.mp4`
-      );
-      const newVideoPath = path.join(
-        FINISHED_VIDEOS_DIRECTORY,
-        `${mapping.newVideoId}.mp4`
-      );
-
-      // Check if source video file exists
-      const exists = yield* fs.exists(sourceVideoPath);
-      if (exists) {
-        // Rename/move the file to new video ID
-        yield* fs.rename(sourceVideoPath, newVideoPath);
-        yield* Console.log(
-          `Moved video file: ${mapping.sourceVideoId}.mp4 -> ${mapping.newVideoId}.mp4`
-        );
-      }
-    }
+    // No video file renaming needed — content-addressed naming means
+    // the same clips produce the same hash and resolve to the same file.
 
     return { id: newVersion.id, name: newVersion.name };
   }).pipe(
