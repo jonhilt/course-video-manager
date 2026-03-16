@@ -1,29 +1,56 @@
 # Ubiquitous Language
 
-| Term                  | Definition                                                                                                                   | Aliases to avoid                         |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| **Course**            | The primary domain entity: a structured collection of versions, sections, lessons, and videos, stored in the database        | Repo (as domain entity), Project         |
-| **CourseRepo**        | The local git repository on disk that backs a course, referenced by the course's `repoPath`                                  | Repo (ambiguous without "Course" prefix) |
-| **CourseVersion**     | A named snapshot of a course's section/lesson structure at a point in time                                                   | Version (too vague), Revision            |
-| **Section**           | A directory-backed grouping of lessons within a course version, ordered by fractional index                                  | Module, Chapter, Unit                    |
-| **Lesson**            | A single learning unit within a section, corresponding to a folder on disk                                                   | Exercise, Tutorial, Step                 |
-| **Ghost Lesson**      | A lesson that exists in the database but not yet on the file system (`fsStatus = "ghost"`)                                   | Planned lesson, Draft lesson             |
-| **Ghost Section**     | A section that exists in the database but not yet on the file system                                                         | Planned section                          |
-| **Video**             | A container of clips and clip sections that represents a single producible video output                                      | Recording                                |
-| **Standalone Video**  | A video with no lesson association (`lessonId = NULL`), used for reference or temporary content                              | Orphan video, Unlinked video             |
-| **Clip**              | A timestamped segment of source footage within a video, defined by start/end times and a source filename                     | Segment, Cut, Take                       |
-| **Effect Clip**       | A special clip for non-speech content (white noise, transitions) manually inserted into the timeline                         | Filler, Spacer                           |
-| **ClipSection**       | A named marker/divider within a video's timeline that visually groups related clips                                          | Clip group, Divider, Marker              |
-| **Optimistic Clip**   | A clip added to the frontend state during recording before it is persisted to the database                                   | Pending clip, Temporary clip             |
-| **Recording Session** | A time-bounded window during which clips are captured via OBS, grouping optimistic clips before persistence                  | Session, Take session                    |
-| **Insertion Point**   | The position in a video timeline where new clips or clip sections will be added (start, after-clip, after-clip-section, end) | Cursor, Drop target                      |
-| **Plan**              | An independent (non-file-backed) structured course outline, separate from the course hierarchy                               | Outline, Syllabus                        |
-| **PlanSection**       | A grouping within a plan                                                                                                     | -                                        |
-| **PlanLesson**        | A learning objective within a plan section                                                                                   | -                                        |
-| **Archive**           | Soft-deletion: hiding an entity from active views while retaining it in the database                                         | Delete, Remove                           |
-| **ARCHIVE Section**   | A special section directory whose name ends in `ARCHIVE`, filtered out of the default course view                            | -                                        |
-| **Fractional Index**  | A string-based ordering value that allows inserting items between existing items without reindexing siblings                 | Sort order, Position                     |
-| **Transcription**     | The process of populating a clip's `text` field from its audio, tracked by `transcribedAt`                                   | Caption, Subtitle                        |
+## Course structure
+
+| Term              | Definition                                                                                                            | Aliases to avoid                         |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| **Course**        | The primary domain entity: a structured collection of versions, sections, lessons, and videos, stored in the database | Repo (as domain entity), Project         |
+| **CourseRepo**    | The local git repository on disk that backs a course, referenced by the course's `repoPath`                           | Repo (ambiguous without "Course" prefix) |
+| **CourseVersion** | A named snapshot of a course's section/lesson structure at a point in time                                            | Version (too vague), Revision            |
+| **Section**       | A directory-backed grouping of lessons within a course version, ordered by fractional index                           | Module, Chapter, Unit                    |
+| **Lesson**        | A single learning unit within a section, corresponding to a folder on disk                                            | Exercise, Tutorial, Step                 |
+
+## Ghost entities
+
+| Term              | Definition                                                                                 | Aliases to avoid             |
+| ----------------- | ------------------------------------------------------------------------------------------ | ---------------------------- |
+| **Ghost Lesson**  | A lesson that exists in the database but not yet on the file system (`fsStatus = "ghost"`) | Planned lesson, Draft lesson |
+| **Ghost Section** | A section that exists in the database but not yet on the file system                       | Planned section              |
+
+## Video and clips
+
+| Term                 | Definition                                                                                               | Aliases to avoid             |
+| -------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| **Video**            | A container of clips and clip sections that represents a single producible video output                  | Recording                    |
+| **Standalone Video** | A video with no lesson association (`lessonId = NULL`), used for reference or temporary content          | Orphan video, Unlinked video |
+| **Clip**             | A timestamped segment of source footage within a video, defined by start/end times and a source filename | Segment, Cut, Take           |
+| **Effect Clip**      | A special clip for non-speech content (white noise, transitions) manually inserted into the timeline     | Filler, Spacer               |
+| **ClipSection**      | A named marker/divider within a video's timeline that visually groups related clips                      | Clip group, Divider, Marker  |
+| **Optimistic Clip**  | A clip added to the frontend state during recording before it is persisted to the database               | Pending clip, Temporary clip |
+
+## Recording
+
+| Term                  | Definition                                                                                                                   | Aliases to avoid      |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| **Recording Session** | A time-bounded window during which clips are captured via OBS, grouping optimistic clips before persistence                  | Session, Take session |
+| **Insertion Point**   | The position in a video timeline where new clips or clip sections will be added (start, after-clip, after-clip-section, end) | Cursor, Drop target   |
+| **Transcription**     | The process of populating a clip's `text` field from its audio, tracked by `transcribedAt`                                   | Caption, Subtitle     |
+
+## Planning
+
+| Term            | Definition                                                                                     | Aliases to avoid  |
+| --------------- | ---------------------------------------------------------------------------------------------- | ----------------- |
+| **Plan**        | An independent (non-file-backed) structured course outline, separate from the course hierarchy | Outline, Syllabus |
+| **PlanSection** | A grouping within a plan                                                                       | -                 |
+| **PlanLesson**  | A learning objective within a plan section                                                     | -                 |
+
+## Ordering and lifecycle
+
+| Term                 | Definition                                                                                                   | Aliases to avoid     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------- |
+| **Fractional Index** | A string-based ordering value that allows inserting items between existing items without reindexing siblings | Sort order, Position |
+| **Archive**          | Soft-deletion: hiding an entity from active views while retaining it in the database                         | Delete, Remove       |
+| **ARCHIVE Section**  | A special section directory whose name ends in `ARCHIVE`, filtered out of the default course view            | -                    |
 
 ## Relationships
 
