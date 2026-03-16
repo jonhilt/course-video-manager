@@ -1,4 +1,4 @@
-import { RepoParserService } from "@/services/repo-parser";
+import { CourseRepoParserService } from "@/services/course-repo-parser";
 import { resolveSectionsWithVideos } from "@/services/publish-to-dropbox";
 import type { Route } from "./+types/api.repos.add";
 import {
@@ -61,7 +61,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
       "FINISHED_VIDEOS_DIRECTORY"
     );
 
-    const repoParserService = yield* RepoParserService;
+    const repoParserService = yield* CourseRepoParserService;
     const db = yield* DBFunctionsService;
 
     // Get the latest version - only publish sections from the latest version
@@ -303,7 +303,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
     }),
     Effect.catchTags({
       ParseError: (_e) => Effect.die(data("Invalid request", { status: 400 })),
-      RepoDoesNotExistError: () =>
+      CourseRepoDoesNotExistError: () =>
         Effect.die(data("Repo path does not exist locally", { status: 404 })),
       DoesNotExistOnDbError: (e) =>
         Effect.die(

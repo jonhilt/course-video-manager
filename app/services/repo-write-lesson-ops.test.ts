@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { Effect } from "effect";
 import { NodeContext } from "@effect/platform-node";
-import { RepoWriteService } from "./repo-write-service";
+import { CourseRepoWriteService } from "./course-repo-write-service";
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
@@ -20,10 +20,10 @@ const setupTempGitRepo = () => {
   execSync("git add . && git commit -m 'init'", { cwd: tempDir });
 };
 
-const runEffect = <A, E>(effect: Effect.Effect<A, E, RepoWriteService>) =>
+const runEffect = <A, E>(effect: Effect.Effect<A, E, CourseRepoWriteService>) =>
   Effect.runPromise(
     effect.pipe(
-      Effect.provide(RepoWriteService.Default),
+      Effect.provide(CourseRepoWriteService.Default),
       Effect.provide(NodeContext.layer)
     )
   );
@@ -43,7 +43,7 @@ describe("createLessonDirectory", () => {
 
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
 
         yield* service.createLessonDirectory({
           repoPath: tempDir,
@@ -68,7 +68,7 @@ describe("createLessonDirectory", () => {
     // Section directory does NOT exist yet
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
 
         yield* service.createLessonDirectory({
           repoPath: tempDir,
@@ -92,7 +92,7 @@ describe("createLessonDirectory", () => {
   it("derives title correctly from multi-word slug", async () => {
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
 
         yield* service.createLessonDirectory({
           repoPath: tempDir,
@@ -137,7 +137,7 @@ describe("addLesson", () => {
 
     const result = await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
 
         return yield* service.addLesson({
           repoPath: tempDir,
@@ -166,7 +166,7 @@ describe("addLesson", () => {
 
     const result = await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
 
         return yield* service.addLesson({
           repoPath: tempDir,
@@ -200,7 +200,7 @@ describe("addLesson", () => {
 
     const result = await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
 
         return yield* service.addLesson({
           repoPath: tempDir,
@@ -227,7 +227,7 @@ describe("addLesson", () => {
 
     const result = await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
 
         return yield* service.addLesson({
           repoPath: tempDir,
@@ -245,7 +245,7 @@ describe("addLesson", () => {
   it("handles non-existent section directory gracefully", async () => {
     const result = await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
 
         return yield* service.addLesson({
           repoPath: tempDir,

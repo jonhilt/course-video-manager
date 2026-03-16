@@ -13,7 +13,7 @@ import { DBFunctionsService } from "@/services/db-service.server";
 import { withDatabaseDump } from "@/services/dump-service";
 import { runtimeLive } from "@/services/layer.server";
 import { toSlug } from "@/services/lesson-path-service";
-import { RepoWriteService } from "@/services/repo-write-service";
+import { CourseRepoWriteService } from "@/services/course-repo-write-service";
 import { parseSectionPath } from "@/services/section-path-service";
 import { getStandaloneVideoFilePath } from "@/services/standalone-video-files";
 import { FileSystem } from "@effect/platform";
@@ -110,7 +110,7 @@ export const action = async (args: Route.ActionArgs) => {
   return Effect.gen(function* () {
     const db = yield* DBFunctionsService;
     const fs = yield* FileSystem.FileSystem;
-    const repoWrite = yield* RepoWriteService;
+    const repoWrite = yield* CourseRepoWriteService;
 
     const { sectionId, lessonId, newLessonName } =
       yield* Schema.decodeUnknown(moveToCourseSchema)(formDataObject);

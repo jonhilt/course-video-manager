@@ -22,7 +22,7 @@ export const action = async (args: Route.ActionArgs) => {
   }).pipe(
     withDatabaseDump,
     Effect.tapErrorCause((e) => Console.dir(e, { depth: null })),
-    Effect.catchTag("RepoSyncError", (e) => {
+    Effect.catchTag("CourseRepoSyncError", (e) => {
       return Effect.die(data(e.message, { status: 409 }));
     }),
     Effect.catchTag("ParseError", () => {

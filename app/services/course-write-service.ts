@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { DBFunctionsService } from "./db-service.server";
-import { RepoWriteService } from "./repo-write-service";
+import { CourseRepoWriteService } from "./course-repo-write-service";
 import {
   toSlug,
   computeInsertionPlan,
@@ -16,26 +16,26 @@ import {
 import { createSectionOps } from "./course-write-service.helpers";
 import { CourseWriteError } from "./course-write-service.types";
 import {
-  RepoSyncValidationService,
-  RepoSyncError,
-} from "./repo-sync-validation";
+  CourseRepoSyncValidationService,
+  CourseRepoSyncError,
+} from "./course-repo-sync-validation";
 
 export { CourseWriteError } from "./course-write-service.types";
-export { RepoSyncError } from "./repo-sync-validation";
+export { CourseRepoSyncError } from "./course-repo-sync-validation";
 
 export class CourseWriteService extends Effect.Service<CourseWriteService>()(
   "CourseWriteService",
   {
     effect: Effect.gen(function* () {
       const db = yield* DBFunctionsService;
-      const repoWrite = yield* RepoWriteService;
-      const syncService = yield* RepoSyncValidationService;
+      const repoWrite = yield* CourseRepoWriteService;
+      const syncService = yield* CourseRepoSyncValidationService;
 
       const runValidation = syncService.validate().pipe(
         Effect.catchAll((e) => {
-          if (e._tag === "RepoSyncError") return Effect.fail(e);
+          if (e._tag === "CourseRepoSyncError") return Effect.fail(e);
           return Effect.fail(
-            new RepoSyncError({
+            new CourseRepoSyncError({
               cause: e,
               message: `Sync validation encountered an error: ${String(e)}`,
             })
@@ -45,7 +45,7 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
 
       const withSyncValidation = <A, E>(
         effect: Effect.Effect<A, E>
-      ): Effect.Effect<A, E | RepoSyncError> =>
+      ): Effect.Effect<A, E | CourseRepoSyncError> =>
         Effect.gen(function* () {
           yield* runValidation;
           const result = yield* effect;
@@ -56,14 +56,7 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
       const { renumberSections, reorderSections, renameSection } =
         createSectionOps(db, repoWrite);
 
-      /**
-       * Materializes a ghost lesson to disk.
-       *
-       * Fetches the ghost lesson and its section hierarchy, computes the
-       * insertion position among real lessons, renames shifted lessons on
-       * disk, creates the new lesson directory, and updates all affected
-       * DB records.
-       */
+      /** Materializes a ghost lesson to disk. */
       const materializeGhost = Effect.fn("materializeGhost")(function* (
         lessonId: string
       ) {
@@ -183,10 +176,7 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         return { success: true, path: plan.newLessonDirName };
       });
 
-      /**
-       * Creates a ghost section in the database (no filesystem operations).
-       * Stores the raw title as the section path.
-       */
+      /** Creates a ghost section in the database (no filesystem operations). */
       const addGhostSection = Effect.fn("addGhostSection")(function* (
         repoVersionId: string,
         title: string,
@@ -241,10 +231,7 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         return { success: true, lessonId: newLesson!.id };
       });
 
-      /**
-       * Deletes a lesson. If real, removes the directory from disk first.
-       * Then deletes the DB record.
-       */
+      /** Deletes a lesson. If real, removes the directory from disk first. */
       const deleteLesson = Effect.fn("deleteLesson")(function* (
         lessonId: string
       ) {
@@ -266,11 +253,7 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         return { success: true };
       });
 
-      /**
-       * Converts a real lesson to a ghost.
-       * Deletes the directory from disk, renumbers remaining real lessons
-       * to close the numbering gap, and marks the lesson as ghost in DB.
-       */
+      /** Converts a real lesson to a ghost. */
       const convertToGhost = Effect.fn("convertToGhost")(function* (
         lessonId: string
       ) {
@@ -353,11 +336,7 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         return { success: true };
       });
 
-      /**
-       * Renames a lesson's slug (preserves lesson number).
-       * If the slug hasn't changed, this is a no-op.
-       * For ghost lessons (unparseable paths), updates the DB path directly.
-       */
+      /** Renames a lesson's slug (preserves lesson number). */
       const renameLesson = Effect.fn("renameLesson")(function* (
         lessonId: string,
         newSlug: string
@@ -408,12 +387,7 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         return { success: true, path: newPath };
       });
 
-      /**
-       * Reorders lessons within a section.
-       * Renames real lesson directories on disk to match the new order,
-       * updates DB paths/lessonNumbers for renamed real lessons,
-       * and updates the order field for all lessons (ghost + real).
-       */
+      /** Reorders lessons within a section. */
       const reorderLessons = Effect.fn("reorderLessons")(function* (
         sectionId: string,
         newOrderIds: readonly string[]
@@ -469,12 +443,7 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         return { success: true, renames };
       });
 
-      /**
-       * Moves a lesson to a different section.
-       * If real: moves directory via git mv, renumbers source section
-       * to close the gap, and assigns the correct lesson number in
-       * the target section. If ghost: DB-only update.
-       */
+      /** Moves a lesson to a different section. */
       const moveToSection = Effect.fn("moveToSection")(function* (
         lessonId: string,
         targetSectionId: string
@@ -572,10 +541,7 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         return { success: true };
       });
 
-      /**
-       * Deletes a ghost section and all its ghost lessons.
-       * Fails if the section contains any real lessons.
-       */
+      /** Deletes a ghost section and all its ghost lessons. */
       const deleteSection = Effect.fn("deleteSection")(function* (
         sectionId: string
       ) {
@@ -635,8 +601,8 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
     }),
     dependencies: [
       DBFunctionsService.Default,
-      RepoWriteService.Default,
-      RepoSyncValidationService.Default,
+      CourseRepoWriteService.Default,
+      CourseRepoSyncValidationService.Default,
     ],
   }
 ) {}

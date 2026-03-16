@@ -464,14 +464,14 @@ describe("CourseWriteService", () => {
         cwd: tempDir,
       });
 
-      // Attempting a rename should fail with RepoSyncError
+      // Attempting a rename should fail with CourseRepoSyncError
       const result = await run(
         Effect.gen(function* () {
           const service = yield* CourseWriteService;
           return yield* service.renameSection(section.id, "new-name");
         }).pipe(
           Effect.map(() => "succeeded" as const),
-          Effect.catchTag("RepoSyncError", () =>
+          Effect.catchTag("CourseRepoSyncError", () =>
             Effect.succeed("sync-error" as const)
           )
         )

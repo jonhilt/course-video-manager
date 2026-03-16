@@ -5,13 +5,15 @@ import path from "node:path";
 import { DBFunctionsService } from "./db-service.server";
 import { parseSectionPath } from "./section-path-service";
 
-export class RepoSyncError extends Data.TaggedError("RepoSyncError")<{
+export class CourseRepoSyncError extends Data.TaggedError(
+  "CourseRepoSyncError"
+)<{
   cause: unknown;
   message: string;
 }> {}
 
-export class RepoSyncValidationService extends Effect.Service<RepoSyncValidationService>()(
-  "RepoSyncValidationService",
+export class CourseRepoSyncValidationService extends Effect.Service<CourseRepoSyncValidationService>()(
+  "CourseRepoSyncValidationService",
   {
     effect: Effect.gen(function* () {
       const db = yield* DBFunctionsService;
@@ -123,7 +125,7 @@ export class RepoSyncValidationService extends Effect.Service<RepoSyncValidation
         }
 
         if (mismatches.length > 0) {
-          return yield* new RepoSyncError({
+          return yield* new CourseRepoSyncError({
             cause: null,
             message: `Repo out of sync with filesystem:\n${mismatches.join("\n")}`,
           });

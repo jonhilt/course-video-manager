@@ -1,4 +1,4 @@
-import { RepoParserService } from "@/services/repo-parser";
+import { CourseRepoParserService } from "@/services/course-repo-parser";
 import { resolveSectionsWithVideos } from "@/services/publish-to-dropbox";
 import type { Route } from "./+types/api.repos.add";
 import {
@@ -67,7 +67,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
           "FINISHED_VIDEOS_DIRECTORY"
         );
 
-        const repoParserService = yield* RepoParserService;
+        const repoParserService = yield* CourseRepoParserService;
         const db = yield* DBFunctionsService;
 
         const latestVersion = yield* db.getLatestCourseVersion(result.repoId);

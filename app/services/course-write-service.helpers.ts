@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import type { DBFunctionsService } from "./db-service.server";
-import type { RepoWriteService } from "./repo-write-service";
+import type { CourseRepoWriteService } from "./course-repo-write-service";
 import { parseLessonPath, buildLessonPath } from "./lesson-path-service";
 import {
   parseSectionPath,
@@ -11,7 +11,7 @@ import { CourseWriteError } from "./course-write-service.types";
 
 export function createSectionOps(
   db: DBFunctionsService,
-  repoWrite: RepoWriteService
+  repoWrite: CourseRepoWriteService
 ) {
   /**
    * Renumbers all sections for a repo version to ensure consistent

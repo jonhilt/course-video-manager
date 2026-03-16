@@ -6,13 +6,15 @@ import path from "node:path";
 import { buildLessonPath, parseLessonPath } from "./lesson-path-service";
 import { titleFromSlug } from "./section-path-service";
 
-export class RepoWriteError extends Data.TaggedError("RepoWriteError")<{
+export class CourseRepoWriteError extends Data.TaggedError(
+  "CourseRepoWriteError"
+)<{
   cause: unknown;
   message: string;
 }> {}
 
-export class RepoWriteService extends Effect.Service<RepoWriteService>()(
-  "RepoWriteService",
+export class CourseRepoWriteService extends Effect.Service<CourseRepoWriteService>()(
+  "CourseRepoWriteService",
   {
     effect: Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
@@ -57,7 +59,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
                 cwd: opts.repoPath,
               }),
             catch: (cause) =>
-              new RepoWriteError({
+              new CourseRepoWriteError({
                 cause,
                 message: `git add failed: ${opts.sectionPath}/${opts.lessonDirName}`,
               }),
@@ -130,7 +132,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
       }) {
         const parsed = parseLessonPath(opts.oldLessonDirName);
         if (!parsed) {
-          return yield* new RepoWriteError({
+          return yield* new CourseRepoWriteError({
             cause: null,
             message: `Cannot parse lesson path: ${opts.oldLessonDirName}`,
           });
@@ -164,7 +166,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
               cwd: opts.repoPath,
             }),
           catch: (cause) =>
-            new RepoWriteError({
+            new CourseRepoWriteError({
               cause,
               message: `git mv failed: ${opts.oldLessonDirName} → ${newLessonDirName}`,
             }),
@@ -206,7 +208,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
                   cwd: opts.repoPath,
                 }),
               catch: () =>
-                new RepoWriteError({
+                new CourseRepoWriteError({
                   cause: null,
                   message: `cleanup git rm failed: ${entry}`,
                 }),
@@ -235,7 +237,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
                 completedPass1.push(i);
               },
               catch: (cause) =>
-                new RepoWriteError({
+                new CourseRepoWriteError({
                   cause,
                   message: `git mv failed (pass 1): ${rename.oldPath} → ${tempName}`,
                 }),
@@ -260,13 +262,13 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
                       cwd: opts.repoPath,
                     }),
                   catch: () =>
-                    new RepoWriteError({
+                    new CourseRepoWriteError({
                       cause: null,
                       message: `rollback git mv failed: ${tempName} → ${rename.oldPath}`,
                     }),
                 }).pipe(Effect.catchAll(() => Effect.void));
               }
-              return yield* new RepoWriteError({
+              return yield* new CourseRepoWriteError({
                 cause: error,
                 message: error.message,
               });
@@ -287,7 +289,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
                 cwd: opts.repoPath,
               }),
             catch: (cause) =>
-              new RepoWriteError({
+              new CourseRepoWriteError({
                 cause,
                 message: `git mv failed (pass 2): ${tempName} → ${rename.newPath}`,
               }),
@@ -324,7 +326,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
                   cwd: opts.repoPath,
                 }),
               catch: () =>
-                new RepoWriteError({
+                new CourseRepoWriteError({
                   cause: null,
                   message: `cleanup git rm failed: ${entry}`,
                 }),
@@ -353,7 +355,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
                 completedPass1.push(i);
               },
               catch: (cause) =>
-                new RepoWriteError({
+                new CourseRepoWriteError({
                   cause,
                   message: `git mv failed (pass 1): ${rename.oldPath} → ${tempName}`,
                 }),
@@ -378,13 +380,13 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
                       cwd: opts.repoPath,
                     }),
                   catch: () =>
-                    new RepoWriteError({
+                    new CourseRepoWriteError({
                       cause: null,
                       message: `rollback git mv failed: ${tempName} → ${rename.oldPath}`,
                     }),
                 }).pipe(Effect.catchAll(() => Effect.void));
               }
-              return yield* new RepoWriteError({
+              return yield* new CourseRepoWriteError({
                 cause: error,
                 message: error.message,
               });
@@ -405,7 +407,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
                 cwd: opts.repoPath,
               }),
             catch: (cause) =>
-              new RepoWriteError({
+              new CourseRepoWriteError({
                 cause,
                 message: `git mv failed (pass 2): ${tempName} → ${rename.newPath}`,
               }),
@@ -442,7 +444,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
             return true;
           },
           catch: () =>
-            new RepoWriteError({
+            new CourseRepoWriteError({
               cause: null,
               message: "git rm failed",
             }),
@@ -482,7 +484,7 @@ export class RepoWriteService extends Effect.Service<RepoWriteService>()(
                 cwd: opts.repoPath,
               }),
             catch: (cause) =>
-              new RepoWriteError({
+              new CourseRepoWriteError({
                 cause,
                 message: `git mv failed: ${opts.sourceSectionPath}/${opts.oldLessonDirName} → ${opts.targetSectionPath}/${opts.newLessonDirName}`,
               }),

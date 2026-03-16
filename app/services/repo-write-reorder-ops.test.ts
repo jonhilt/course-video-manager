@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { Effect } from "effect";
 import { NodeContext } from "@effect/platform-node";
-import { RepoWriteService } from "./repo-write-service";
+import { CourseRepoWriteService } from "./course-repo-write-service";
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
@@ -20,10 +20,10 @@ const setupTempGitRepo = () => {
   execSync("git add . && git commit -m 'init'", { cwd: tempDir });
 };
 
-const runEffect = <A, E>(effect: Effect.Effect<A, E, RepoWriteService>) =>
+const runEffect = <A, E>(effect: Effect.Effect<A, E, CourseRepoWriteService>) =>
   Effect.runPromise(
     effect.pipe(
-      Effect.provide(RepoWriteService.Default),
+      Effect.provide(CourseRepoWriteService.Default),
       Effect.provide(NodeContext.layer)
     )
   );
@@ -59,7 +59,7 @@ describe("renameLessons (batch)", () => {
 
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
         yield* service.renameLessons({
           repoPath: tempDir,
           sectionPath: "01-intro",
@@ -88,7 +88,7 @@ describe("renameLessons (batch)", () => {
 
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
         yield* service.renameLessons({
           repoPath: tempDir,
           sectionPath: "01-intro",
@@ -106,7 +106,7 @@ describe("renameLessons (batch)", () => {
 
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
         yield* service.renameLessons({
           repoPath: tempDir,
           sectionPath: "01-intro",
@@ -137,7 +137,7 @@ describe("renameLessons (batch)", () => {
 
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
         yield* service.renameLessons({
           repoPath: tempDir,
           sectionPath: "01-intro",
@@ -168,7 +168,7 @@ describe("renameLessons (batch)", () => {
 
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
         yield* service.renameLessons({
           repoPath: tempDir,
           sectionPath: "01-intro",
@@ -193,7 +193,7 @@ describe("renameLessons (batch)", () => {
 
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
         yield* service.renameLessons({
           repoPath: tempDir,
           sectionPath: "01-intro",
@@ -221,7 +221,7 @@ describe("renameLessons (batch)", () => {
     // Simulate insert at position 0: all lessons shift down by 1
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
         yield* service.renameLessons({
           repoPath: tempDir,
           sectionPath: "01-intro",
@@ -257,7 +257,7 @@ describe("renameLessons (batch)", () => {
     // Only lesson 2 and 3 swap; lesson 1 stays
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
         yield* service.renameLessons({
           repoPath: tempDir,
           sectionPath: "01-intro",
@@ -294,7 +294,7 @@ describe("renameLessons (batch)", () => {
 
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
         yield* service.renameLessons({
           repoPath: tempDir,
           sectionPath: "01-intro",
@@ -322,7 +322,7 @@ describe("renameLessons (batch)", () => {
     // but should NOT leave temp files from earlier successful entries
     const result = runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
         yield* service.renameLessons({
           repoPath: tempDir,
           sectionPath: "01-intro",
@@ -361,7 +361,7 @@ describe("renameLessons (batch)", () => {
 
     await runEffect(
       Effect.gen(function* () {
-        const service = yield* RepoWriteService;
+        const service = yield* CourseRepoWriteService;
         yield* service.renameLessons({
           repoPath: tempDir,
           sectionPath: "01-intro",

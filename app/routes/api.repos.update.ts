@@ -5,7 +5,7 @@ import type { Route } from "./+types/api.repos.update";
 import {
   getSectionAndLessonNumberFromPath,
   notFound,
-} from "@/services/repo-parser";
+} from "@/services/course-repo-parser";
 import { withDatabaseDump } from "@/services/dump-service";
 import { data } from "react-router";
 

@@ -1,4 +1,4 @@
-import { RepoParserService } from "@/services/repo-parser";
+import { CourseRepoParserService } from "@/services/course-repo-parser";
 import type { Route } from "./+types/api.repos.add";
 import { Console, Effect, Schema } from "effect";
 import { runtimeLive } from "@/services/layer.server";
@@ -18,7 +18,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
   return await Effect.gen(function* () {
     const result = yield* Schema.decodeUnknown(addRepoSchema)(formDataObject);
 
-    const repoParserService = yield* RepoParserService;
+    const repoParserService = yield* CourseRepoParserService;
 
     const db = yield* DBFunctionsService;
 
@@ -57,7 +57,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
     Effect.catchTag("ParseError", () => {
       return Effect.die(data("Invalid request", { status: 400 }));
     }),
-    Effect.catchTag("RepoDoesNotExistError", () => {
+    Effect.catchTag("CourseRepoDoesNotExistError", () => {
       return Effect.die(
         data("Repo path does not exist locally", { status: 404 })
       );

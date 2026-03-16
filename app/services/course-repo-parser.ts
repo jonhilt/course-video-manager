@@ -3,7 +3,9 @@ import { FileSystem } from "@effect/platform";
 import path from "node:path";
 import { NodeFileSystem } from "@effect/platform-node";
 
-class RepoDoesNotExistError extends Data.TaggedError("RepoDoesNotExistError")<{
+class CourseRepoDoesNotExistError extends Data.TaggedError(
+  "CourseRepoDoesNotExistError"
+)<{
   repoPath: string;
 }> {}
 
@@ -93,8 +95,8 @@ type Section = {
   }[];
 };
 
-export class RepoParserService extends Effect.Service<RepoParserService>()(
-  "RepoParserService",
+export class CourseRepoParserService extends Effect.Service<CourseRepoParserService>()(
+  "CourseRepoParserService",
   {
     effect: Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
@@ -104,7 +106,7 @@ export class RepoParserService extends Effect.Service<RepoParserService>()(
           const exists = yield* fs.exists(repoPath);
 
           if (!exists) {
-            return yield* new RepoDoesNotExistError({ repoPath });
+            return yield* new CourseRepoDoesNotExistError({ repoPath });
           }
 
           const directories = yield* fs.readDirectory(repoPath, {

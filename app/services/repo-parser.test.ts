@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   getSectionAndLessonNumberFromPath,
   notFound,
-  RepoParserService,
-} from "./repo-parser";
+  CourseRepoParserService,
+} from "./course-repo-parser";
 import { Effect } from "effect";
 import { FileSystem } from "@effect/platform";
 
@@ -87,13 +87,13 @@ describe("parseRepo", () => {
     [["foo/bar/baz"], []],
   ])("should parse a repo", async (files: string[], expected) => {
     const result = await Effect.gen(function* () {
-      const repoParserService = yield* RepoParserService;
+      const repoParserService = yield* CourseRepoParserService;
 
       const repo = yield* repoParserService.parseRepo("");
 
       return repo;
     }).pipe(
-      Effect.provide(RepoParserService.DefaultWithoutDependencies),
+      Effect.provide(CourseRepoParserService.DefaultWithoutDependencies),
       Effect.provide(
         FileSystem.layerNoop({
           readDirectory: () => Effect.succeed(files),
