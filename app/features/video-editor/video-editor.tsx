@@ -566,7 +566,7 @@ export const VideoEditor = (props: {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row p-6 gap-6 gap-y-10">
+    <div className="flex flex-col lg:flex-row h-full p-6 gap-6">
       {/* Video Player Section - Shows first on mobile, second on desktop */}
       <VideoEditorContext.Provider value={contextValue}>
         <VideoPlayerPanel />

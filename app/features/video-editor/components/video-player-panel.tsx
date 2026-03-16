@@ -263,9 +263,8 @@ export const VideoPlayerPanel = () => {
 
   return (
     <>
-      <div className="lg:flex-1 relative order-1 lg:order-2">
-        <div className="sticky top-6">
-          <div className="">
+      <div className="lg:flex-1 relative order-1 lg:order-2 overflow-y-auto h-full">
+        <div className="">
             <div className="mb-4">
               <h1 className="text-2xl font-bold mb-1 flex items-center">
                 {videoPath}
@@ -483,7 +482,6 @@ export const VideoPlayerPanel = () => {
               {activeTab === "links" && <VideoPlayerLinksTab />}
             </div>
           </div>
-        </div>
       </div>
 
       <AddVideoModal
