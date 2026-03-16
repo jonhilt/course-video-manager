@@ -30,6 +30,6 @@ else
   echo "Creating sandbox '$SANDBOX_NAME'..."
   docker sandbox run \
     -t "$IMAGE" \
-    claude "$REPO_ROOT" -- \
+    claude . -- \
     --print "Setup complete. Reply with only: Sandbox initialized successfully."
 fi

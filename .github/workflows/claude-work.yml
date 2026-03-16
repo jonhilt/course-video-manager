@@ -1,0 +1,142 @@
+name: Claude Code Work
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: "Branch name for this work"
+        required: true
+        type: string
+      issue_numbers:
+        description: "JSON array of issue numbers to work on"
+        required: true
+        type: string
+      prompt:
+        description: "Task prompt for Claude"
+        required: true
+        type: string
+
+jobs:
+  claude-work:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Create work branch
+        env:
+          BRANCH_NAME: ${{ inputs.branch_name }}
+        run: git checkout -b "$BRANCH_NAME"
+
+      - name: Fetch issue context
+        env:
+          GH_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+          ISSUE_NUMBERS: ${{ inputs.issue_numbers }}
+        run: |
+          ISSUE_CONTEXT=""
+          for num in $(echo "$ISSUE_NUMBERS" | jq -r '.[]'); do
+            ISSUE_JSON=$(gh issue view "$num" --json number,title,body,comments)
+            ISSUE_CONTEXT="${ISSUE_CONTEXT}${ISSUE_JSON}"$'\n\n'
+          done
+          echo "$ISSUE_CONTEXT" > /tmp/issue-context.txt
+
+      - name: Fetch recent RALPH commits
+        run: |
+          git log --grep="RALPH" -n 10 --format="%H%n%ad%n%B---" --date=short > /tmp/ralph-commits.txt 2>/dev/null || echo "No RALPH commits found" > /tmp/ralph-commits.txt
+
+      - name: Run Claude Code
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+          TASK_PROMPT: ${{ inputs.prompt }}
+        run: |
+          ISSUE_CONTEXT=$(cat /tmp/issue-context.txt)
+          RALPH_COMMITS=$(cat /tmp/ralph-commits.txt)
+          WORKER_PROMPT=$(cat scripts/worker-prompt.md)
+
+          claude -p \
+            --dangerously-skip-permissions \
+            "## Your Task
+
+          ${TASK_PROMPT}
+
+          ## Issue Context
+
+          ${ISSUE_CONTEXT}
+
+          ## Previous RALPH Commits
+
+          ${RALPH_COMMITS}
+
+          ${WORKER_PROMPT}"
+
+      - name: Push branch
+        env:
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          TASK_PROMPT: ${{ inputs.prompt }}
+        run: |
+          git config user.name "claude-code[bot]"
+          git config user.email "claude-code[bot]@users.noreply.github.com"
+          if ! git diff --quiet HEAD origin/main 2>/dev/null; then
+            git push origin "$BRANCH_NAME"
+            echo "has_changes=true" >> "$GITHUB_ENV"
+          else
+            git add -A
+            if ! git diff --cached --quiet; then
+              git commit -m "RALPH: ${TASK_PROMPT}"
+              git push origin "$BRANCH_NAME"
+              echo "has_changes=true" >> "$GITHUB_ENV"
+            else
+              echo "No changes to push"
+              echo "has_changes=false" >> "$GITHUB_ENV"
+            fi
+          fi
+
+      - name: Open PR (if Claude didn't)
+        if: env.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ inputs.branch_name }}
+          TASK_PROMPT: ${{ inputs.prompt }}
+          ISSUE_NUMBERS: ${{ inputs.issue_numbers }}
+        run: |
+          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --json number -q '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$EXISTING_PR" ]; then
+            echo "PR #${EXISTING_PR} already exists for this branch"
+            exit 0
+          fi
+
+          ISSUE_REFS=""
+          for num in $(echo "$ISSUE_NUMBERS" | jq -r '.[]'); do
+            ISSUE_REFS="${ISSUE_REFS}- Related to #${num}"$'\n'
+          done
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "RALPH: ${TASK_PROMPT}" \
+            --body "## RALPH Automated Work
+
+          ${ISSUE_REFS}
+
+          ---
+          *Opened automatically by RALPH via GitHub Actions.*"
