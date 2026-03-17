@@ -47,6 +47,15 @@ sync_to_sandbox() {
   rm -f "$bundle_host"
 
   if docker exec "$CONTAINER_NAME" test -d "$SANDBOX_REPO_DIR/.git"; then
+    # Discard any leftover changes from previous sessions
+    docker exec -w "$SANDBOX_REPO_DIR" "$CONTAINER_NAME" \
+      git checkout -f "$BRANCH" 2>/dev/null || true
+    docker exec -w "$SANDBOX_REPO_DIR" "$CONTAINER_NAME" \
+      git reset --hard HEAD
+    docker exec -w "$SANDBOX_REPO_DIR" "$CONTAINER_NAME" \
+      git clean -fdx -e node_modules
+
+    # Now sync to match local
     docker exec -w "$SANDBOX_REPO_DIR" "$CONTAINER_NAME" \
       git fetch /tmp/repo.bundle "${BRANCH}:refs/ralph/sync" --force
     docker exec -w "$SANDBOX_REPO_DIR" "$CONTAINER_NAME" \
@@ -71,6 +80,24 @@ sync_to_sandbox() {
   fi
 
   docker exec -u root "$CONTAINER_NAME" rm -f /tmp/repo.bundle
+
+  # Verify sync succeeded
+  local local_head sandbox_head
+  local_head=$(git rev-parse HEAD)
+  sandbox_head=$(docker exec -w "$SANDBOX_REPO_DIR" "$CONTAINER_NAME" git rev-parse HEAD 2>/dev/null)
+
+  if [ "$local_head" != "$sandbox_head" ]; then
+    echo "ERROR: Sandbox HEAD ($sandbox_head) does not match local HEAD ($local_head)"
+    exit 1
+  fi
+
+  # Verify working tree is clean
+  local dirty
+  dirty=$(docker exec -w "$SANDBOX_REPO_DIR" "$CONTAINER_NAME" git status --porcelain 2>/dev/null)
+  if [ -n "$dirty" ]; then
+    echo "WARNING: Sandbox has uncommitted changes after sync:"
+    echo "$dirty"
+  fi
 }
 
 # --- Get sandbox HEAD ---
@@ -116,7 +143,7 @@ sync_commits_from_sandbox() {
   local patch_count=0
   for patch_file in "$patch_dir"/*.patch; do
     [ -f "$patch_file" ] || continue
-    git am "$patch_file"
+    git am --3way "$patch_file"
     patch_count=$((patch_count + 1))
   done
 
