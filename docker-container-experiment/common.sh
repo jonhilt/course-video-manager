@@ -140,6 +140,9 @@ sync_commits_from_sandbox() {
 
   docker cp "${CONTAINER_NAME}:/tmp/patches/." "$patch_dir/"
 
+  # Abort any leftover git am session
+  git am --abort 2>/dev/null || true
+
   local patch_count=0
   for patch_file in "$patch_dir"/*.patch; do
     [ -f "$patch_file" ] || continue
