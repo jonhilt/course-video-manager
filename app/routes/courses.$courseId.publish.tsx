@@ -14,6 +14,7 @@ import {
   Download,
   Loader2,
   AlertCircle,
+  ChevronRight,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import Markdown from "react-markdown";
@@ -44,41 +45,20 @@ export const loader = async (args: Route.LoaderArgs) => {
     );
     const changelog = generateChangelog(changelogVersions);
 
+    // Get previous published version name (allVersions is sorted newest first)
+    const previousVersion = allVersions.length > 1 ? allVersions[1] : null;
+
     // Get unexported videos
     const { unexportedVideoIds } = yield* publishService.validatePublishability(
       latestVersion.id
     );
 
-    // Get video details for unexported videos
-    const version = yield* db.getVersionWithSections(latestVersion.id);
-    const unexportedVideos: Array<{
-      id: string;
-      path: string;
-      sectionPath: string;
-      lessonPath: string;
-    }> = [];
-
-    for (const section of version.sections) {
-      for (const lesson of section.lessons) {
-        if (lesson.fsStatus === "ghost") continue;
-        for (const video of lesson.videos) {
-          if (unexportedVideoIds.includes(video.id)) {
-            unexportedVideos.push({
-              id: video.id,
-              path: video.path,
-              sectionPath: section.path,
-              lessonPath: lesson.path,
-            });
-          }
-        }
-      }
-    }
-
     return {
       course,
       latestVersion,
+      previousVersionName: previousVersion?.name ?? null,
       changelog,
-      unexportedVideos,
+      unexportedVideoCount: unexportedVideoIds.length,
     };
   }).pipe(
     Effect.tapErrorCause((e) => Console.dir(e, { depth: null })),
@@ -112,7 +92,13 @@ const STAGE_LABELS: Record<PublishStage, string> = {
 };
 
 export default function Component(props: Route.ComponentProps) {
-  const { course, changelog, unexportedVideos } = props.loaderData;
+  const {
+    course,
+    latestVersion,
+    previousVersionName,
+    changelog,
+    unexportedVideoCount,
+  } = props.loaderData;
   const navigate = useNavigate();
   const revalidator = useRevalidator();
 
@@ -120,72 +106,67 @@ export default function Component(props: Route.ComponentProps) {
   const [description, setDescription] = useState("");
   const [publishStage, setPublishStage] = useState<PublishStage>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [exportingVideoIds, setExportingVideoIds] = useState<Set<string>>(
-    new Set()
-  );
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  useFocusRevalidate({ enabled: publishStage === "idle" });
+  useFocusRevalidate({ enabled: publishStage === "idle" && !isExporting });
 
-  const hasUnexportedVideos = unexportedVideos.length > 0;
+  const hasUnexportedVideos = unexportedVideoCount > 0;
   const canPublish =
     name.trim().length > 0 && !hasUnexportedVideos && publishStage === "idle";
 
-  const handleExportVideo = useCallback(
-    async (videoId: string) => {
-      setExportingVideoIds((prev) => new Set(prev).add(videoId));
+  const handleExportAll = useCallback(async () => {
+    setIsExporting(true);
+    setExportError(null);
 
-      try {
-        const response = await fetch(`/api/videos/${videoId}/export-sse`, {
+    try {
+      const response = await fetch(
+        `/api/courseVersions/${latestVersion.id}/batch-export-sse`,
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        });
-
-        if (!response.ok || !response.body) {
-          throw new Error("Failed to start export");
         }
+      );
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
+      if (!response.ok || !response.body) {
+        throw new Error("Failed to start batch export");
+      }
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-          let eventType = "";
-          for (const line of lines) {
-            if (line.startsWith("event: ")) {
-              eventType = line.slice(7);
-            } else if (line.startsWith("data: ") && eventType) {
-              const eventData = JSON.parse(line.slice(6));
-              if (eventType === "error") {
-                throw new Error(eventData.message);
-              }
-              eventType = "";
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        let eventType = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventType = line.slice(7);
+          } else if (line.startsWith("data: ") && eventType) {
+            const eventData = JSON.parse(line.slice(6));
+            if (eventType === "error") {
+              throw new Error(eventData.message);
             }
+            eventType = "";
           }
         }
-
-        // Revalidate to refresh the unexported videos list
-        revalidator.revalidate();
-      } catch (e) {
-        console.error("Export failed:", e);
-      } finally {
-        setExportingVideoIds((prev) => {
-          const next = new Set(prev);
-          next.delete(videoId);
-          return next;
-        });
       }
-    },
-    [revalidator]
-  );
+
+      revalidator.revalidate();
+    } catch (e) {
+      console.error("Batch export failed:", e);
+      setExportError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setIsExporting(false);
+    }
+  }, [latestVersion.id, revalidator]);
 
   const handlePublish = useCallback(async () => {
     setPublishStage("validating");
@@ -278,7 +259,13 @@ export default function Component(props: Route.ComponentProps) {
           </Link>
         </div>
 
-        <h1 className="text-2xl font-bold mb-6">Publish {course.name}</h1>
+        <h1 className="text-2xl font-bold mb-2">Publish {course.name}</h1>
+        {previousVersionName && (
+          <p className="text-sm text-muted-foreground mb-6">
+            {previousVersionName} <ChevronRight className="inline w-3 h-3" />{" "}
+            {name.trim() || <span className="italic">New Version</span>}
+          </p>
+        )}
 
         {/* Publish Form */}
         <div className="space-y-4 mb-8">
@@ -308,46 +295,35 @@ export default function Component(props: Route.ComponentProps) {
         {/* Unexported Videos */}
         {hasUnexportedVideos && (
           <div className="mb-8 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
-              <h2 className="text-lg font-semibold text-amber-500">
-                {unexportedVideos.length} Unexported Video
-                {unexportedVideos.length !== 1 ? "s" : ""}
-              </h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-amber-500" />
+                <span className="text-sm font-medium text-amber-500">
+                  {unexportedVideoCount} unexported video
+                  {unexportedVideoCount !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleExportAll}
+                disabled={isExporting}
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3 h-3 mr-1" />
+                    Export All
+                  </>
+                )}
+              </Button>
             </div>
-            <p className="text-sm text-muted-foreground mb-3">
-              All videos with clips must be exported before publishing.
-            </p>
-            <div className="space-y-2">
-              {unexportedVideos.map((video) => (
-                <div
-                  key={video.id}
-                  className="flex items-center justify-between rounded-md border border-border bg-background p-3"
-                >
-                  <span className="text-sm font-mono">
-                    {video.sectionPath}/{video.lessonPath}/{video.path}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleExportVideo(video.id)}
-                    disabled={exportingVideoIds.has(video.id)}
-                  >
-                    {exportingVideoIds.has(video.id) ? (
-                      <>
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        Exporting...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-3 h-3 mr-1" />
-                        Export
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ))}
-            </div>
+            {exportError && (
+              <p className="text-sm text-destructive mt-2">{exportError}</p>
+            )}
           </div>
         )}
 
