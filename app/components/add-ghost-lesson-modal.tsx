@@ -22,33 +22,43 @@ export function AddGhostLessonModal(props: {
   position?: "before" | "after" | null;
   courseFilePath?: string | null;
 }) {
-  const internalFetcher = useFetcher();
+  const internalFetcher = useFetcher<{ error?: string }>();
   const fetcher = props.fetcher ?? internalFetcher;
   const [title, setTitle] = useState("");
   const [filePath, setFilePath] = useState("");
   const [isReal, setIsReal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const wasSubmitting = useRef(false);
 
-  // Reset isReal when modal opens/closes
+  // Reset isReal and error when modal opens/closes
   useEffect(() => {
     if (!props.open) {
       setIsReal(false);
     }
+    if (props.open) {
+      setError(null);
+    }
   }, [props.open]);
 
-  // Close modal when fetcher completes successfully
+  // Close modal when fetcher completes successfully, or show error
   useEffect(() => {
     if (fetcher.state === "submitting" || fetcher.state === "loading") {
       wasSubmitting.current = true;
     }
     if (wasSubmitting.current && fetcher.state === "idle") {
       wasSubmitting.current = false;
+      const errorMsg = (fetcher.data as { error?: string } | undefined)?.error;
+      if (errorMsg) {
+        setError(errorMsg);
+        return;
+      }
       setTitle("");
       setFilePath("");
       setIsReal(false);
+      setError(null);
       props.onOpenChange(false);
     }
-  }, [fetcher.state, props.onOpenChange]);
+  }, [fetcher.state, props.onOpenChange, fetcher.data]);
   const isGhostCourse = isReal && !props.courseFilePath;
   const isValid =
     title.trim().length > 0 && (!isGhostCourse || filePath.trim().length > 0);
@@ -85,6 +95,7 @@ export function AddGhostLessonModal(props: {
           onSubmit={(e) => {
             e.preventDefault();
             if (!isValid) return;
+            setError(null);
             const formData = new FormData(e.currentTarget);
             formData.set("title", capitalizeTitle(title.trim()));
             if (isGhostCourse) {
@@ -152,6 +163,9 @@ export function AddGhostLessonModal(props: {
                 a file path to the course.
               </p>
             </div>
+          )}
+          {error && (
+            <p className="text-sm text-destructive">{error}</p>
           )}
           <div className="flex justify-end space-x-2">
             <Button

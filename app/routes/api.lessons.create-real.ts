@@ -45,16 +45,16 @@ export const action = async (args: Route.ActionArgs) => {
     withDatabaseDump,
     Effect.tapErrorCause((e) => Console.dir(e, { depth: null })),
     Effect.catchTag("ParseError", () => {
-      return Effect.die(data("Invalid request", { status: 400 }));
+      return Effect.succeed(data({ error: "Invalid request" }, { status: 400 }));
     }),
     Effect.catchTag("NotFoundError", () => {
-      return Effect.die(data("Section not found", { status: 404 }));
+      return Effect.succeed(data({ error: "Section not found" }, { status: 404 }));
     }),
     Effect.catchTag("CourseWriteError", (e) => {
-      return Effect.die(data(e.message, { status: 400 }));
+      return Effect.succeed(data({ error: e.message }, { status: 400 }));
     }),
     Effect.catchAll(() => {
-      return Effect.die(data("Internal server error", { status: 500 }));
+      return Effect.succeed(data({ error: "Internal server error" }, { status: 500 }));
     }),
     runtimeLive.runPromise
   );
