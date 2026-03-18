@@ -18,6 +18,7 @@ import {
   CheckIcon,
   ChevronDown,
   CodeIcon,
+  Combine,
   CopyIcon,
   DownloadIcon,
   FilmIcon,
@@ -27,7 +28,7 @@ import {
   Plus,
   ScrollTextIcon,
 } from "lucide-react";
-import { type FetcherWithComponents } from "react-router";
+import { type FetcherWithComponents, useNavigate } from "react-router";
 
 /**
  * Actions dropdown menu for video editor
@@ -69,6 +70,8 @@ export const ActionsDropdown = (props: {
   /** Callback to copy log path to clipboard */
   copyLogPathToClipboard: () => void;
 }) => {
+  const navigate = useNavigate();
+
   return (
     <DropdownMenu>
       <Tooltip>
@@ -231,6 +234,20 @@ export const ActionsDropdown = (props: {
             </DropdownMenuItem>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
+
+        <DropdownMenuItem
+          onSelect={() => {
+            navigate(`/videos/concatenate?initial=${props.videoId}`);
+          }}
+        >
+          <Combine className="w-4 h-4 mr-2" />
+          <div className="flex flex-col">
+            <span className="font-medium">Create Concatenated Video</span>
+            <span className="text-xs text-muted-foreground">
+              Combine this video with others
+            </span>
+          </div>
+        </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 

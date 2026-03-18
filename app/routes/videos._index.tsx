@@ -22,6 +22,7 @@ import {
   FileX,
   FolderOpen,
   PencilIcon,
+  Combine,
   Plus,
   Trash2,
   VideoIcon,
@@ -210,6 +211,14 @@ export default function Component(props: Route.ComponentProps) {
                       </ContextMenuItem>
                       <ContextMenuItem
                         onSelect={() => {
+                          navigate(`/videos/concatenate?initial=${video.id}`);
+                        }}
+                      >
+                        <Combine className="w-4 h-4" />
+                        Create Concatenated Video
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onSelect={() => {
                           revealVideoFetcher.submit(
                             {},
                             {
@@ -333,6 +342,14 @@ export default function Component(props: Route.ComponentProps) {
                         >
                           <Download className="w-4 h-4" />
                           Export
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          onSelect={() => {
+                            navigate(`/videos/concatenate?initial=${video.id}`);
+                          }}
+                        >
+                          <Combine className="w-4 h-4" />
+                          Create Concatenated Video
                         </ContextMenuItem>
                         <ContextMenuItem
                           onSelect={() => {

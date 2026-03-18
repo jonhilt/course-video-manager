@@ -9,6 +9,7 @@ import { formatSecondsToTimeCode } from "@/services/utils";
 import { courseViewReducer } from "@/features/course-view/course-view-reducer";
 import {
   ArrowRightLeft,
+  Combine,
   Download,
   FileVideo,
   FileX,
@@ -96,6 +97,14 @@ export function VideoItem({
         >
           <Download className="w-4 h-4" />
           Export
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={() => {
+            navigate(`/videos/concatenate?initial=${video.id}`);
+          }}
+        >
+          <Combine className="w-4 h-4" />
+          Create Concatenated Video
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
