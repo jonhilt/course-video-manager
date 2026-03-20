@@ -3,8 +3,12 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { CreateSectionModal } from "@/components/create-section-modal";
 import { VideoModal } from "@/components/video-player";
-import { useCourseViewReducer } from "@/hooks/use-course-view-reducer";
+import {
+  useCourseEditor,
+  editorSectionsToLoaderSections,
+} from "@/hooks/use-course-editor";
 import { useFocusRevalidate } from "@/hooks/use-focus-revalidate";
+import type { courseViewReducer } from "@/features/course-view/course-view-reducer";
 import { Button } from "@/components/ui/button";
 import { DBFunctionsService } from "@/services/db-service.server";
 import {
@@ -20,20 +24,14 @@ import {
   KeyboardSensor,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from "@dnd-kit/core";
-import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Console, Effect } from "effect";
 import { getGitStatusAsync } from "@/services/git-status-service";
 import { Plus } from "lucide-react";
-import { Suspense, useCallback, useContext, useMemo, useState } from "react";
+import { Suspense, useContext, useMemo, useState } from "react";
 import { data, useFetcher, useNavigate, useSearchParams } from "react-router";
 import type { Route } from "./+types/_index";
-import { toast } from "sonner";
-import {
-  findNewOrderViolations,
-  findNewSectionOrderViolations,
-} from "@/utils/dependency-violations";
 import { UploadContext } from "@/features/upload-manager/upload-context";
 import { ActionsDropdown } from "@/features/course-view/actions-menu";
 import { SectionGrid } from "@/features/course-view/section-grid";
@@ -45,6 +43,13 @@ import {
   RouteModals,
 } from "@/features/course-view/course-view-components";
 import { NextTodoCard } from "@/features/course-view/next-todo-card";
+import {
+  createLessonDragHandler,
+  createSectionDragHandler,
+  computeFsStatusCounts,
+  computeFlatLessons,
+  computeDependencyMap,
+} from "@/features/course-view/course-editor-helpers";
 
 export const meta: Route.MetaFunction = ({ data }) => {
   const selectedCourse = data?.selectedCourse;
@@ -224,7 +229,41 @@ export default function Component(props: Route.ComponentProps) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const selectedCourseId = searchParams.get("courseId");
-  const { state: viewState, dispatch } = useCourseViewReducer();
+  const loaderData = props.loaderData;
+  const courses = loaderData.courses;
+  const currentCourse = loaderData.selectedCourse;
+
+  // Course editor reducer owns entity state + UI state
+  const { state: viewState, dispatch } = useCourseEditor(
+    currentCourse?.sections ?? []
+  );
+
+  // Adapter: convert reducer-owned sections back to loader Section[] shape
+  // for existing components that haven't been migrated yet
+  const displaySections = useMemo(
+    () => editorSectionsToLoaderSections(viewState.sections),
+    [viewState.sections]
+  );
+
+  // Build a course object with reducer-owned sections for existing components
+  const courseWithEditorSections = useMemo(
+    () =>
+      currentCourse
+        ? { ...currentCourse, sections: displaySections }
+        : undefined,
+    [currentCourse, displaySections]
+  );
+
+  // Cast dispatch for backward compatibility with components that expect
+  // courseViewReducer.Action. Safe because action shapes are structurally
+  // identical at runtime — only the branded ID types differ nominally.
+  const legacyDispatch = dispatch as unknown as (
+    action: courseViewReducer.Action
+  ) => void;
+
+  // Wrap viewState for RouteModals which expects courseViewReducer.State
+  const legacyViewState = viewState as unknown as courseViewReducer.State;
+
   const {
     isAddCourseModalOpen,
     isCreateSectionModalOpen,
@@ -252,17 +291,20 @@ export default function Component(props: Route.ComponentProps) {
 
   useFocusRevalidate({ enabled: !!selectedCourseId, intervalMs: 5000 });
 
+  // Fetchers still needed for video operations and non-entity mutations
   const deleteVideoFetcher = useFetcher();
   const deleteVideoFileFetcher = useFetcher();
   const deleteLessonFetcher = useFetcher();
   const revealVideoFetcher = useFetcher();
   const archiveCourseFetcher = useFetcher();
   const gitPushFetcher = useFetcher();
+  const moveLessonFetcher = useFetcher();
+
+  // Fetchers still used by existing components during incremental migration
   const reorderLessonFetcher = useFetcher();
   const reorderSectionFetcher = useFetcher();
   const addGhostFetcher = useFetcher();
   const createSectionFetcher = useFetcher();
-  const moveLessonFetcher = useFetcher();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -273,164 +315,35 @@ export default function Component(props: Route.ComponentProps) {
     })
   );
 
-  const handleLessonDragEnd = useCallback(
-    (
-      sectionId: string,
-      lessons: {
-        id: string;
-        title?: string | null;
-        path: string;
-        dependencies?: string[] | null;
-      }[]
-    ) =>
-      (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-
-        const fromIndex = lessons.findIndex((l) => l.id === active.id);
-        const toIndex = lessons.findIndex((l) => l.id === over.id);
-        if (fromIndex === -1 || toIndex === -1) return;
-
-        const newOrder = arrayMove(lessons, fromIndex, toIndex);
-
-        const newViolations = findNewOrderViolations(lessons, newOrder);
-        if (newViolations.length > 0) {
-          const details = newViolations
-            .map((v) => `${v.lessonLabel} → ${v.depLabel}`)
-            .join(", ");
-          toast.warning("Dependency violation introduced", {
-            description: details,
-          });
-        }
-
-        reorderLessonFetcher.submit(
-          {
-            sectionId,
-            lessonIds: JSON.stringify(newOrder.map((l) => l.id)),
-          },
-          { method: "post", action: "/api/lessons/reorder" }
-        );
-      },
-    [reorderLessonFetcher]
+  const handleLessonDragEnd = useMemo(
+    () => createLessonDragHandler(dispatch),
+    [dispatch]
   );
 
-  const handleSectionDragEnd = useCallback(
-    (
-      sections: {
-        id: string;
-        lessons: {
-          id: string;
-          title?: string | null;
-          path: string;
-          dependencies?: string[] | null;
-        }[];
-      }[],
-      repoVersionId: string
-    ) =>
-      (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (!over || active.id === over.id) return;
-
-        const fromIndex = sections.findIndex((s) => s.id === active.id);
-        const toIndex = sections.findIndex((s) => s.id === over.id);
-        if (fromIndex === -1 || toIndex === -1) return;
-
-        const newOrder = arrayMove(sections, fromIndex, toIndex);
-
-        const newViolations = findNewSectionOrderViolations(sections, newOrder);
-        if (newViolations.length > 0) {
-          const details = newViolations
-            .map((v) => `${v.lessonLabel} → ${v.depLabel}`)
-            .join(", ");
-          toast.warning("Dependency violation introduced", {
-            description: details,
-          });
-        }
-
-        reorderSectionFetcher.submit(
-          {
-            repoVersionId,
-            sectionIds: JSON.stringify(newOrder.map((s) => s.id)),
-          },
-          { method: "post", action: "/api/sections/reorder" }
-        );
-      },
-    [reorderSectionFetcher]
+  const handleSectionDragEnd = useMemo(
+    () => createSectionDragHandler(dispatch),
+    [dispatch]
   );
-
-  const loaderData = props.loaderData;
-  const courses = loaderData.courses;
-  const currentCourse = loaderData.selectedCourse;
 
   const allFlatLessons = useMemo(
-    () =>
-      (currentCourse?.sections ?? []).flatMap((section, sectionIdx) =>
-        section.lessons.map((lesson, lessonIdx) => ({
-          id: lesson.id,
-          number: `${sectionIdx + 1}.${lessonIdx + 1}`,
-          title:
-            lesson.fsStatus === "ghost"
-              ? lesson.title || lesson.path
-              : lesson.path,
-          sectionId: section.id,
-          sectionTitle: section.path,
-          sectionNumber: sectionIdx + 1,
-        }))
-      ),
-    [currentCourse?.sections]
+    () => computeFlatLessons(displaySections),
+    [displaySections]
   );
 
-  const dependencyMap = useMemo(() => {
-    const map: Record<string, string[]> = {};
-    for (const section of currentCourse?.sections ?? []) {
-      for (const lesson of section.lessons) {
-        if (lesson.dependencies && lesson.dependencies.length > 0) {
-          map[lesson.id] = lesson.dependencies;
-        }
-      }
-    }
-    return map;
-  }, [currentCourse?.sections]);
+  const dependencyMap = useMemo(
+    () => computeDependencyMap(displaySections),
+    [displaySections]
+  );
 
-  const fsStatusCounts = useMemo(() => {
-    const counts = { ghost: 0, real: 0, todo: 0 };
-    for (const section of currentCourse?.sections ?? []) {
-      for (const lesson of section.lessons) {
-        const passesPriority =
-          priorityFilter.length === 0 ||
-          priorityFilter.includes(lesson.priority ?? 2);
-        const passesIcon =
-          iconFilter.length === 0 ||
-          iconFilter.includes(lesson.icon ?? "watch");
-        if (!passesPriority || !passesIcon) continue;
-
-        if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          const matchesPath = lesson.path.toLowerCase().includes(q);
-          const matchesTitle = lesson.title?.toLowerCase().includes(q);
-          const matchesDesc = lesson.description?.toLowerCase().includes(q);
-          const matchesVideo = lesson.videos.some((v) =>
-            v.path.toLowerCase().includes(q)
-          );
-          if (!matchesPath && !matchesTitle && !matchesDesc && !matchesVideo)
-            continue;
-        }
-
-        const status = lesson.fsStatus ?? "real";
-        if (status === "ghost") {
-          counts.ghost++;
-        } else {
-          counts.real++;
-          const isTodo =
-            lesson.videos.length === 0 ||
-            (lesson.videos.some((v) => v.clipCount === 0) &&
-              !lesson.videos.every((v) => v.clipCount > 1));
-          if (isTodo) counts.todo++;
-        }
-      }
-    }
-    return counts;
-  }, [currentCourse?.sections, priorityFilter, iconFilter, searchQuery]);
+  const fsStatusCounts = useMemo(
+    () =>
+      computeFsStatusCounts(displaySections, {
+        priorityFilter,
+        iconFilter,
+        searchQuery,
+      }),
+    [displaySections, priorityFilter, iconFilter, searchQuery]
+  );
 
   const handleBatchExport = () => {
     if (!loaderData.selectedVersion) return;
@@ -458,12 +371,12 @@ export default function Component(props: Route.ComponentProps) {
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-6">
-          {currentCourse ? (
+          {courseWithEditorSections ? (
             <>
               {/* Title + version + actions */}
               <div className="flex items-center gap-2 mb-2">
                 <h1 className="text-2xl font-bold flex items-center gap-2">
-                  {currentCourse.name}
+                  {courseWithEditorSections.name}
                   {loaderData.selectedVersion &&
                     loaderData.versions.length > 1 && (
                       <button
@@ -480,9 +393,9 @@ export default function Component(props: Route.ComponentProps) {
                     )}
                 </h1>
                 <ActionsDropdown
-                  currentCourse={currentCourse}
+                  currentCourse={courseWithEditorSections}
                   data={loaderData}
-                  dispatch={dispatch}
+                  dispatch={legacyDispatch}
                   archiveCourseFetcher={archiveCourseFetcher}
                   gitPushFetcher={gitPushFetcher}
                   handleBatchExport={handleBatchExport}
@@ -504,15 +417,19 @@ export default function Component(props: Route.ComponentProps) {
                 {loaderData.isLatestVersion && (
                   <div className="mb-14">
                     <NextTodoCard
-                      sections={currentCourse.sections}
+                      sections={displaySections}
                       data={loaderData}
                       navigate={navigate}
-                      addVideoToLessonId={addVideoToLessonId}
-                      editLessonId={editLessonId}
-                      convertToGhostLessonId={convertToGhostLessonId}
-                      deleteLessonId={deleteLessonId}
-                      createOnDiskLessonId={createOnDiskLessonId}
-                      dispatch={dispatch}
+                      addVideoToLessonId={addVideoToLessonId as string | null}
+                      editLessonId={editLessonId as string | null}
+                      convertToGhostLessonId={
+                        convertToGhostLessonId as string | null
+                      }
+                      deleteLessonId={deleteLessonId as string | null}
+                      createOnDiskLessonId={
+                        createOnDiskLessonId as string | null
+                      }
+                      dispatch={legacyDispatch}
                       startExportUpload={startExportUpload}
                       revealVideoFetcher={revealVideoFetcher}
                       deleteVideoFileFetcher={deleteVideoFileFetcher}
@@ -534,13 +451,13 @@ export default function Component(props: Route.ComponentProps) {
                     fsStatusFilter={fsStatusFilter}
                     fsStatusCounts={fsStatusCounts}
                     searchQuery={searchQuery}
-                    dispatch={dispatch}
-                    isRealCourse={currentCourse?.filePath != null}
+                    dispatch={legacyDispatch}
+                    isRealCourse={courseWithEditorSections?.filePath != null}
                   />
                 </div>
 
                 <SectionGrid
-                  currentCourse={currentCourse}
+                  currentCourse={courseWithEditorSections}
                   data={loaderData}
                   sensors={sensors}
                   handleSectionDragEnd={handleSectionDragEnd}
@@ -555,17 +472,23 @@ export default function Component(props: Route.ComponentProps) {
                   iconFilter={iconFilter}
                   fsStatusFilter={fsStatusFilter}
                   searchQuery={searchQuery}
-                  addGhostLessonSectionId={addGhostLessonSectionId}
-                  insertAdjacentLessonId={insertAdjacentLessonId}
+                  addGhostLessonSectionId={
+                    addGhostLessonSectionId as string | null
+                  }
+                  insertAdjacentLessonId={
+                    insertAdjacentLessonId as string | null
+                  }
                   insertPosition={insertPosition}
-                  editSectionId={editSectionId}
-                  addVideoToLessonId={addVideoToLessonId}
-                  editLessonId={editLessonId}
-                  convertToGhostLessonId={convertToGhostLessonId}
-                  deleteLessonId={deleteLessonId}
-                  createOnDiskLessonId={createOnDiskLessonId}
-                  deleteSectionId={deleteSectionId}
-                  dispatch={dispatch}
+                  editSectionId={editSectionId as string | null}
+                  addVideoToLessonId={addVideoToLessonId as string | null}
+                  editLessonId={editLessonId as string | null}
+                  convertToGhostLessonId={
+                    convertToGhostLessonId as string | null
+                  }
+                  deleteLessonId={deleteLessonId as string | null}
+                  createOnDiskLessonId={createOnDiskLessonId as string | null}
+                  deleteSectionId={deleteSectionId as string | null}
+                  dispatch={legacyDispatch}
                   navigate={navigate}
                   startExportUpload={startExportUpload}
                   revealVideoFetcher={revealVideoFetcher}
@@ -595,12 +518,18 @@ export default function Component(props: Route.ComponentProps) {
               {loaderData.selectedVersion && loaderData.isLatestVersion && (
                 <CreateSectionModal
                   repoVersionId={loaderData.selectedVersion.id}
-                  maxOrder={currentCourse.sections.length}
+                  maxOrder={displaySections.length}
                   open={isCreateSectionModalOpen}
                   onOpenChange={(open) =>
                     dispatch({ type: "set-create-section-modal-open", open })
                   }
-                  fetcher={createSectionFetcher}
+                  onCreateSection={(title) => {
+                    dispatch({
+                      type: "add-section",
+                      title,
+                      repoVersionId: loaderData.selectedVersion!.id,
+                    });
+                  }}
                 />
               )}
             </>
@@ -608,7 +537,7 @@ export default function Component(props: Route.ComponentProps) {
             <NoCourseView
               courses={courses}
               standaloneVideos={loaderData.standaloneVideos}
-              dispatch={dispatch}
+              dispatch={legacyDispatch}
               navigate={navigate}
             />
           )}
@@ -625,11 +554,11 @@ export default function Component(props: Route.ComponentProps) {
       />
 
       <RouteModals
-        currentCourse={currentCourse}
+        currentCourse={courseWithEditorSections}
         data={loaderData}
         selectedCourseId={selectedCourseId}
-        viewState={viewState}
-        dispatch={dispatch}
+        viewState={legacyViewState}
+        dispatch={legacyDispatch}
         navigate={navigate}
         moveLessonFetcher={moveLessonFetcher}
       />

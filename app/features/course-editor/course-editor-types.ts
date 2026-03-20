@@ -13,11 +13,10 @@ export type DatabaseId = Brand<string, "DatabaseId">;
 
 export type EditorVideo = {
   id: string;
-  filename: string | null;
   path: string;
-  duration: number | null;
-  hasTranscript: boolean;
   clipCount: number;
+  totalDuration: number;
+  firstClipId: string | null;
 };
 
 export type EditorLesson = {
