@@ -29,7 +29,7 @@ const createLesson = (overrides: Partial<EditorLesson> = {}): EditorLesson => ({
   fsStatus: "on-disk",
   description: "",
   icon: null,
-  priority: 1,
+  priority: 2,
   dependencies: null,
   order: 1,
   videos: [],

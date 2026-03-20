@@ -85,7 +85,7 @@ export function handleLessonCase(
         fsStatus: action.type === "add-ghost-lesson" ? "ghost" : "on-disk",
         description: "",
         icon: null,
-        priority: 1,
+        priority: 2,
         dependencies: null,
         order: 0,
         videos: [],
