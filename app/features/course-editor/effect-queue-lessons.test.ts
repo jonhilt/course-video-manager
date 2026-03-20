@@ -38,6 +38,35 @@ const createMockService = (): CourseEditorService => ({
     .mockResolvedValue({ success: true, path: "on-disk-path" }),
 });
 
+describe("EffectQueue — section effects", () => {
+  it("should dispatch section-created with the user title as path, not the database UUID", async () => {
+    const service = {
+      ...createMockService(),
+      createSection: vi
+        .fn()
+        .mockResolvedValue({ success: true, sectionId: "db-uuid-abc123" }),
+    };
+    const dispatch = vi.fn();
+    const queue = new EffectQueue(service, dispatch);
+
+    queue.enqueue({
+      type: "create-section",
+      frontendId: fid("s-1"),
+      repoVersionId: "v1",
+      title: "Advanced Patterns",
+      maxOrder: 0,
+    });
+
+    await vi.waitFor(() => expect(dispatch).toHaveBeenCalled());
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "section-created",
+      frontendId: fid("s-1"),
+      databaseId: "db-uuid-abc123",
+      path: "Advanced Patterns",
+    });
+  });
+});
+
 describe("EffectQueue — lesson effects", () => {
   it("should resolve section FrontendId for add-ghost-lesson after create-section", async () => {
     const service = createMockService();

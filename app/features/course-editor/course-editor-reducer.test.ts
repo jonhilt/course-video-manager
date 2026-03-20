@@ -441,7 +441,7 @@ describe("EffectQueue", () => {
       type: "section-created",
       frontendId: fid("frontend-1"),
       databaseId: "db-section-new",
-      path: "db-section-new",
+      path: "My Section",
     });
 
     const idMap = queue.getIdMap();

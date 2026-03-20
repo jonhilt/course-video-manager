@@ -64,7 +64,7 @@ export class EffectQueue {
           type: "section-created",
           frontendId: effect.frontendId,
           databaseId: result.sectionId as DatabaseId,
-          path: result.sectionId, // Server returns actual path via sectionId
+          path: effect.title.trim() || "untitled",
         });
         break;
       }
