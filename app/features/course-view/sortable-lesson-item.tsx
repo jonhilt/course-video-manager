@@ -58,6 +58,7 @@ export function SortableLessonItem({
   allFlatLessons,
   dependencyMap,
   hideAnchor,
+  isGhostCourse,
 }: {
   lesson: Lesson;
   lessonIndex: number;
@@ -77,6 +78,7 @@ export function SortableLessonItem({
   allFlatLessons: DependencyLessonItem[];
   dependencyMap: Record<string, string[]>;
   hideAnchor?: boolean;
+  isGhostCourse?: boolean;
 }) {
   const {
     attributes,
@@ -96,7 +98,6 @@ export function SortableLessonItem({
   const lessonFsMaps = use(data.lessonFsMaps);
   const isReadOnly = !data.isLatestVersion;
   const isGhost = lesson.fsStatus === "ghost";
-  const isGhostCourse = !data.selectedCourse?.filePath;
 
   const currentDescription = lesson.description ?? "";
   const [editingDesc, setEditingDesc] = useState(false);

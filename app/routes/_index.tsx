@@ -245,7 +245,8 @@ function ComponentInner(props: Route.ComponentProps) {
 
   // Course editor reducer owns entity state + UI state
   const { state: viewState, dispatch } = useCourseEditor(
-    currentCourse?.sections ?? []
+    currentCourse?.sections ?? [],
+    { courseFilePath: currentCourse?.filePath }
   );
 
   // Adapter: convert reducer-owned sections back to loader Section[] shape
@@ -460,6 +461,7 @@ function ComponentInner(props: Route.ComponentProps) {
                 <SectionGrid
                   currentCourse={courseWithEditorSections}
                   data={loaderData}
+                  isGhostCourse={!viewState.courseFilePath}
                   sensors={sensors}
                   handleSectionDragEnd={handleSectionDragEnd}
                   handleLessonDragEnd={handleLessonDragEnd}

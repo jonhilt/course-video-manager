@@ -288,6 +288,13 @@ export class EffectQueue {
           type: "lesson-created-on-disk",
           frontendId: effect.frontendId,
           path: result.path,
+          ...(result.sectionId && {
+            sectionId: result.sectionId,
+            sectionPath: result.sectionPath,
+          }),
+          ...(result.courseFilePath && {
+            courseFilePath: result.courseFilePath,
+          }),
         });
         break;
       }

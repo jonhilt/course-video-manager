@@ -82,7 +82,7 @@ export function handleLessonCase(
         sectionId: section.databaseId ?? section.frontendId,
         path: slug,
         title: action.title,
-        fsStatus: action.type === "add-ghost-lesson" ? "ghost" : "on-disk",
+        fsStatus: action.type === "add-ghost-lesson" ? "ghost" : "real",
         description: "",
         icon: null,
         priority: 2,
@@ -369,7 +369,7 @@ export function handleLessonCase(
         ...state,
         sections: updateLesson(state, action.frontendId, (l) => ({
           ...l,
-          fsStatus: "on-disk",
+          fsStatus: "real",
         })),
       };
     }
@@ -394,14 +394,30 @@ export function handleLessonCase(
         })),
       };
 
-    case "lesson-created-on-disk":
+    case "lesson-created-on-disk": {
+      let sections = updateLesson(state, action.frontendId, (l) => ({
+        ...l,
+        path: action.path,
+        fsStatus: "real",
+      }));
+      // Update section path if the section was materialized
+      if (action.sectionId && action.sectionPath) {
+        sections = sections.map((s) =>
+          (s.databaseId as string) === action.sectionId ||
+          (s.frontendId as string) === action.sectionId
+            ? { ...s, path: action.sectionPath! }
+            : s
+        );
+      }
       return {
         ...state,
-        sections: updateLesson(state, action.frontendId, (l) => ({
-          ...l,
-          path: action.path,
-        })),
+        sections,
+        // Update courseFilePath if newly assigned
+        ...(action.courseFilePath && {
+          courseFilePath: action.courseFilePath,
+        }),
       };
+    }
 
     case "lesson-title-updated":
     case "lesson-description-updated":

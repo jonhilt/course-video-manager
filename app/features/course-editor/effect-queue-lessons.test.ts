@@ -16,13 +16,11 @@ const createMockService = (): CourseEditorService => ({
   addGhostLesson: vi
     .fn()
     .mockResolvedValue({ success: true, lessonId: "db-lesson-new" }),
-  createRealLesson: vi
-    .fn()
-    .mockResolvedValue({
-      success: true,
-      lessonId: "db-lesson-new",
-      path: "new-lesson",
-    }),
+  createRealLesson: vi.fn().mockResolvedValue({
+    success: true,
+    lessonId: "db-lesson-new",
+    path: "new-lesson",
+  }),
   updateLessonName: vi
     .fn()
     .mockResolvedValue({ success: true, path: "renamed-lesson" }),
@@ -269,6 +267,38 @@ describe("EffectQueue — lesson effects", () => {
       type: "lesson-created-on-disk",
       frontendId: fid("l-1"),
       path: "on-disk-path",
+    });
+  });
+
+  it("should pass sectionPath and courseFilePath from create-on-disk response", async () => {
+    const service = {
+      ...createMockService(),
+      createOnDisk: vi.fn().mockResolvedValue({
+        success: true,
+        path: "01-01-lesson",
+        sectionId: "db-s-1",
+        sectionPath: "01-intro",
+        courseFilePath: "/repo/path",
+      }),
+    };
+    const dispatch = vi.fn();
+    const queue = new EffectQueue(service, dispatch);
+
+    queue.enqueue({
+      type: "create-on-disk",
+      frontendId: fid("l-1"),
+      lessonId: did("db-l-1"),
+      repoPath: "/repo/path",
+    });
+
+    await vi.waitFor(() => expect(dispatch).toHaveBeenCalled());
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "lesson-created-on-disk",
+      frontendId: fid("l-1"),
+      path: "01-01-lesson",
+      sectionId: "db-s-1",
+      sectionPath: "01-intro",
+      courseFilePath: "/repo/path",
     });
   });
 });

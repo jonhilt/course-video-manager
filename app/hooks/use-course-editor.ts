@@ -109,7 +109,10 @@ export function editorSectionsToLoaderSections(
 // Hook
 // ============================================================================
 
-export function useCourseEditor(loaderSections: Section[]) {
+export function useCourseEditor(
+  loaderSections: Section[],
+  opts?: { courseFilePath?: string | null }
+) {
   // Stable service ref — created once per hook lifecycle
   const serviceRef = useRef(createHttpCourseEditorService());
 
@@ -129,8 +132,10 @@ export function useCourseEditor(loaderSections: Section[]) {
   // Transform loader data to editor entity types
   const initialState = useMemo(() => {
     const editorSections = transformSections(loaderSections);
-    return createInitialCourseEditorState(editorSections);
-  }, [loaderSections]);
+    return createInitialCourseEditorState(editorSections, {
+      courseFilePath: opts?.courseFilePath,
+    });
+  }, [loaderSections, opts?.courseFilePath]);
 
   // Build effect handlers map — all 17 types forward to the queue.
   // Each handler receives the typed effect and enqueues it for sequential

@@ -337,8 +337,30 @@ describe("CourseEditorService — lessons", () => {
       const result = await svc().createOnDisk(l.lessonId);
 
       expect(result).toMatchObject({ success: true, path: expect.any(String) });
+      // Should not include sectionPath/courseFilePath when no cascade happened
+      expect(result).not.toHaveProperty("sectionId");
+      expect(result).not.toHaveProperty("courseFilePath");
       const lesson = await getLessonById(l.lessonId);
       expect(lesson!.fsStatus).toBe("real");
+    });
+
+    it("returns sectionPath when ghost section is materialized", async () => {
+      const { version } = await createCourseWithVersion("/tmp/test-repo");
+      // Ghost section (no numeric prefix = parseSectionPath returns null)
+      const [section] = await db()
+        .insert(schema.sections)
+        .values({
+          repoVersionId: version.id,
+          path: "Introduction",
+          order: 0,
+        })
+        .returning();
+
+      const l = await svc().addGhostLesson(section!.id, "First Lesson");
+      const result = await svc().createOnDisk(l.lessonId);
+
+      expect(result.sectionId).toBe(section!.id);
+      expect(result.sectionPath).toMatch(/^\d+-introduction$/);
     });
 
     it("rejects materializing a non-ghost lesson", async () => {

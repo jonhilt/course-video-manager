@@ -280,7 +280,15 @@ export function createMaterializeOps<E1>(
       yield* renumberSections(repoVersionId, repoPath);
     }
 
-    return { success: true, path: plan.newLessonDirName };
+    return {
+      success: true,
+      path: plan.newLessonDirName,
+      ...(sectionMaterialized && {
+        sectionId: lesson.sectionId,
+        sectionPath: sectionPath,
+      }),
+      ...(opts?.repoPath && { courseFilePath: opts.repoPath }),
+    };
   });
 
   /** Materialization Cascade: assigns filePath to a ghost course, then creates a real lesson. */

@@ -37,6 +37,7 @@ export namespace courseEditorReducer {
 
   export type State = {
     sections: EditorSection[];
+    courseFilePath: string | null;
     isAddCourseModalOpen: boolean;
     isCreateSectionModalOpen: boolean;
     isVersionSelectorModalOpen: boolean;
@@ -148,6 +149,9 @@ export namespace courseEditorReducer {
         type: "lesson-created-on-disk";
         frontendId: FrontendId;
         path: string;
+        sectionId?: string;
+        sectionPath?: string;
+        courseFilePath?: string;
       }
     | { type: "set-add-course-modal-open"; open: boolean }
     | { type: "set-create-section-modal-open"; open: boolean }
@@ -317,10 +321,12 @@ function generateFrontendId(): FrontendId {
 // ============================================================================
 
 export function createInitialCourseEditorState(
-  sections: EditorSection[] = []
+  sections: EditorSection[] = [],
+  opts?: { courseFilePath?: string | null }
 ): courseEditorReducer.State {
   return {
     sections,
+    courseFilePath: opts?.courseFilePath ?? null,
     isAddCourseModalOpen: false,
     isCreateSectionModalOpen: false,
     isVersionSelectorModalOpen: false,

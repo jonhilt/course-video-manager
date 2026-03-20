@@ -68,9 +68,11 @@ export function SectionGrid({
   revealVideoFetcher,
   deleteVideoFileFetcher,
   deleteVideoFetcher,
+  isGhostCourse,
 }: {
   currentCourse: NonNullable<LoaderData["selectedCourse"]>;
   data: LoaderData;
+  isGhostCourse: boolean;
   sensors: ReturnType<typeof useSensors>;
   handleSectionDragEnd: (
     sections: {
@@ -313,6 +315,7 @@ export function SectionGrid({
                                       }
                                       deleteVideoFetcher={deleteVideoFetcher}
                                       dependencyMap={dependencyMap}
+                                      isGhostCourse={isGhostCourse}
                                     />
                                   ))}
                                 </SortableContext>

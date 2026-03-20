@@ -188,7 +188,13 @@ export interface CourseEditorService {
   createOnDisk(
     lessonId: string,
     opts?: { repoPath?: string }
-  ): Promise<{ success: true; path: string }>;
+  ): Promise<{
+    success: true;
+    path: string;
+    sectionId?: string;
+    sectionPath?: string;
+    courseFilePath?: string;
+  }>;
 }
 
 // ============================================================================
@@ -339,7 +345,13 @@ export function createCourseEditorService(
         type: "create-on-disk",
         lessonId,
         ...(opts?.repoPath && { repoPath: opts.repoPath }),
-      }) as Promise<{ success: true; path: string }>;
+      }) as Promise<{
+        success: true;
+        path: string;
+        sectionId?: string;
+        sectionPath?: string;
+        courseFilePath?: string;
+      }>;
     },
   };
 }

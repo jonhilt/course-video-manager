@@ -26,7 +26,7 @@ const createLesson = (overrides: Partial<EditorLesson> = {}): EditorLesson => ({
   sectionId: "section-1",
   path: "test-lesson",
   title: "Test Lesson",
-  fsStatus: "on-disk",
+  fsStatus: "real",
   description: "",
   icon: null,
   priority: 2,
@@ -141,7 +141,7 @@ describe("courseEditorReducer — lesson operations", () => {
   });
 
   describe("create-real-lesson", () => {
-    it("should add an optimistic on-disk lesson", () => {
+    it("should add an optimistic real lesson", () => {
       const section = createSection();
       const tester = createTester([section]);
       const state = tester
@@ -152,7 +152,7 @@ describe("courseEditorReducer — lesson operations", () => {
         })
         .getState();
       expect(state.sections[0]!.lessons).toHaveLength(1);
-      expect(state.sections[0]!.lessons[0]!.fsStatus).toBe("on-disk");
+      expect(state.sections[0]!.lessons[0]!.fsStatus).toBe("real");
       expect(state.sections[0]!.lessons[0]!.databaseId).toBeNull();
     });
   });
@@ -308,7 +308,7 @@ describe("courseEditorReducer — lesson operations", () => {
 
   describe("convert-to-ghost / create-on-disk", () => {
     it("should set fsStatus to ghost", () => {
-      const lesson = createLesson({ fsStatus: "on-disk" });
+      const lesson = createLesson({ fsStatus: "real" });
       const section = createSection({ lessons: [lesson] });
       const state = createTester([section])
         .send({ type: "convert-to-ghost", frontendId: lesson.frontendId })
@@ -316,13 +316,84 @@ describe("courseEditorReducer — lesson operations", () => {
       expect(state.sections[0]!.lessons[0]!.fsStatus).toBe("ghost");
     });
 
-    it("should set fsStatus to on-disk", () => {
+    it("should set fsStatus to real optimistically", () => {
       const lesson = createLesson({ fsStatus: "ghost" });
       const section = createSection({ lessons: [lesson] });
       const state = createTester([section])
         .send({ type: "create-on-disk", frontendId: lesson.frontendId })
         .getState();
-      expect(state.sections[0]!.lessons[0]!.fsStatus).toBe("on-disk");
+      expect(state.sections[0]!.lessons[0]!.fsStatus).toBe("real");
+    });
+  });
+
+  describe("lesson-created-on-disk reconciliation", () => {
+    it("should update lesson path and fsStatus", () => {
+      const lesson = createLesson({ fsStatus: "ghost", path: "old-path" });
+      const section = createSection({ lessons: [lesson] });
+      const state = createTester([section])
+        .send({
+          type: "lesson-created-on-disk",
+          frontendId: lesson.frontendId,
+          path: "01-01-new-path",
+        })
+        .getState();
+      expect(state.sections[0]!.lessons[0]!.path).toBe("01-01-new-path");
+      expect(state.sections[0]!.lessons[0]!.fsStatus).toBe("real");
+    });
+
+    it("should update section path when section was materialized", () => {
+      const lesson = createLesson({ fsStatus: "ghost" });
+      const section = createSection({
+        lessons: [lesson],
+        path: "Introduction",
+      });
+      const state = createTester([section])
+        .send({
+          type: "lesson-created-on-disk",
+          frontendId: lesson.frontendId,
+          path: "01-01-lesson",
+          sectionId: section.databaseId as string,
+          sectionPath: "01-introduction",
+        })
+        .getState();
+      expect(state.sections[0]!.path).toBe("01-introduction");
+    });
+
+    it("should update courseFilePath when course was materialized", () => {
+      const lesson = createLesson({ fsStatus: "ghost" });
+      const section = createSection({ lessons: [lesson] });
+      const tester = new ReducerTester(
+        courseEditorReducer,
+        createInitialCourseEditorState([section], { courseFilePath: null })
+      );
+      const state = tester
+        .send({
+          type: "lesson-created-on-disk",
+          frontendId: lesson.frontendId,
+          path: "01-01-lesson",
+          courseFilePath: "/path/to/repo",
+        })
+        .getState();
+      expect(state.courseFilePath).toBe("/path/to/repo");
+    });
+
+    it("should not overwrite courseFilePath when not provided", () => {
+      const lesson = createLesson({ fsStatus: "ghost" });
+      const section = createSection({ lessons: [lesson] });
+      const tester = new ReducerTester(
+        courseEditorReducer,
+        createInitialCourseEditorState([section], {
+          courseFilePath: "/existing/path",
+        })
+      );
+      const state = tester
+        .send({
+          type: "lesson-created-on-disk",
+          frontendId: lesson.frontendId,
+          path: "01-01-lesson",
+        })
+        .getState();
+      expect(state.courseFilePath).toBe("/existing/path");
     });
   });
 
