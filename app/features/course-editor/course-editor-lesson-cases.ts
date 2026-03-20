@@ -346,16 +346,37 @@ export function handleLessonCase(
         .map((fid) => lessonMap.get(fid))
         .filter((l): l is EditorLesson => l != null)
         .map((l, i) => ({ ...l, order: i + 1 }));
+
+      // Renumber real lesson paths to match new order (mirrors backend computeRenumberingPlan)
+      const realLessons = reorderedLessons.filter((l) => l.fsStatus === "real");
+      let sectionNumber = 1;
+      for (const l of realLessons) {
+        const parsed = parseLessonPath(l.path);
+        if (parsed?.sectionNumber != null) {
+          sectionNumber = parsed.sectionNumber;
+          break;
+        }
+      }
+      let realIndex = 0;
+      const renumberedLessons = reorderedLessons.map((l) => {
+        if (l.fsStatus !== "real") return l;
+        realIndex++;
+        const parsed = parseLessonPath(l.path);
+        if (!parsed) return l;
+        const newPath = buildLessonPath(sectionNumber, realIndex, parsed.slug);
+        return newPath !== l.path ? { ...l, path: newPath } : l;
+      });
+
       exec({
         type: "reorder-lessons",
         sectionId: section.databaseId ?? section.frontendId,
-        lessonIds: reorderedLessons.map((l) => l.databaseId ?? l.frontendId),
+        lessonIds: renumberedLessons.map((l) => l.databaseId ?? l.frontendId),
       });
       return {
         ...state,
         sections: state.sections.map((s) =>
           s.frontendId === action.sectionFrontendId
-            ? { ...s, lessons: reorderedLessons }
+            ? { ...s, lessons: renumberedLessons }
             : s
         ),
       };
