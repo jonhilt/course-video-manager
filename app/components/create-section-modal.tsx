@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { capitalizeTitle } from "@/utils/capitalize-title";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
 export function CreateSectionModal(props: {
@@ -19,16 +19,27 @@ export function CreateSectionModal(props: {
   onOpenChange: (open: boolean) => void;
   fetcher?: ReturnType<typeof useFetcher>;
 }) {
-  const internalFetcher = useFetcher();
+  const internalFetcher = useFetcher<{ error?: string }>();
   const fetcher = props.fetcher ?? internalFetcher;
   const [title, setTitle] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const isValid = title.trim().length > 0;
+
+  // If the server returns an error after optimistic close, reopen the modal
+  useEffect(() => {
+    const errorMsg = (fetcher.data as { error?: string } | undefined)?.error;
+    if (errorMsg && fetcher.state === "idle") {
+      setError(errorMsg);
+      props.onOpenChange(true);
+    }
+  }, [fetcher.data, fetcher.state, props.onOpenChange]);
 
   return (
     <Dialog
       open={props.open}
       onOpenChange={(open) => {
         if (!open) setTitle("");
+        if (open) setError(null);
         props.onOpenChange(open);
       }}
     >
@@ -40,15 +51,17 @@ export function CreateSectionModal(props: {
           method="post"
           action="/api/sections/create"
           className="space-y-4 py-4"
-          onSubmit={async (e) => {
+          onSubmit={(e) => {
             e.preventDefault();
             if (!isValid) return;
+            setError(null);
             const formData = new FormData(e.currentTarget);
             formData.set("title", capitalizeTitle(title.trim()));
-            await fetcher.submit(formData, {
+            fetcher.submit(formData, {
               method: "post",
               action: "/api/sections/create",
             });
+            // Optimistically close modal immediately
             setTitle("");
             props.onOpenChange(false);
           }}
@@ -70,6 +83,7 @@ export function CreateSectionModal(props: {
               autoFocus
             />
           </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex justify-end space-x-2">
             <Button
               variant="outline"

@@ -184,18 +184,22 @@ export function SectionGrid({
   const pendingSectionCreate = createSectionFetcher.formData;
   if (pendingSectionCreate) {
     const sectionTitle = pendingSectionCreate.get("title") as string;
-    displaySections = [
-      ...displaySections,
-      {
-        id: `optimistic-section-${sectionTitle}`,
-        path: sectionTitle,
-        order: displaySections.length,
-        lessons: [],
-        repoVersionId: data.selectedVersion!.id,
-        createdAt: new Date(),
-        previousVersionSectionId: null,
-      } as Section,
-    ];
+    // Dedup: skip optimistic entry if a real section with the same title already exists
+    const alreadyExists = displaySections.some((s) => s.path === sectionTitle);
+    if (!alreadyExists) {
+      displaySections = [
+        ...displaySections,
+        {
+          id: `optimistic-section-${sectionTitle}`,
+          path: sectionTitle,
+          order: displaySections.length,
+          lessons: [],
+          repoVersionId: data.selectedVersion!.id,
+          createdAt: new Date(),
+          previousVersionSectionId: null,
+        } as Section,
+      ];
+    }
   }
 
   // Build flat lessons list for dependency selector
