@@ -9,6 +9,10 @@ import {
   parseLessonPath,
   buildLessonPath,
 } from "@/services/lesson-path-service";
+import {
+  parseSectionPath,
+  buildSectionPath,
+} from "@/services/section-path-service";
 
 // ============================================================================
 // Helpers
@@ -23,6 +27,33 @@ function toSlug(title: string): string {
 
 function generateFrontendId(): FrontendId {
   return crypto.randomUUID() as FrontendId;
+}
+
+/**
+ * If the given section is a ghost (its path doesn't parse as NN-slug),
+ * compute the optimistic materialized section path.
+ * Returns null if the section is already real.
+ */
+function computeOptimisticSectionMaterialization(
+  allSections: EditorSection[],
+  section: EditorSection
+): { sectionNumber: number; sectionPath: string } | null {
+  const parsed = parseSectionPath(section.path);
+  if (parsed) return null; // already real
+
+  const positionIndex = allSections.findIndex(
+    (s) => s.frontendId === section.frontendId
+  );
+  let realBefore = 0;
+  for (let i = 0; i < positionIndex; i++) {
+    if (parseSectionPath(allSections[i]!.path)) realBefore++;
+  }
+  const sectionNumber = realBefore + 1;
+  const sectionSlug = toSlug(section.path) || "untitled";
+  return {
+    sectionNumber,
+    sectionPath: buildSectionPath(sectionNumber, sectionSlug),
+  };
 }
 
 export function findLesson(
@@ -80,11 +111,35 @@ export function handleLessonCase(
       const slug = toSlug(action.title.trim()) || "untitled";
       const sectionId = section.databaseId ?? section.frontendId;
 
+      // For real lessons in ghost sections, optimistically compute section path
+      const sectionMat =
+        action.type === "create-real-lesson"
+          ? computeOptimisticSectionMaterialization(state.sections, section)
+          : null;
+
+      // Compute lesson path: use numeric prefix if section is/will-be real
+      let lessonPath = slug;
+      if (action.type === "create-real-lesson") {
+        const sectionNumber = sectionMat
+          ? sectionMat.sectionNumber
+          : parseSectionPath(section.path)?.sectionNumber;
+        if (sectionNumber != null) {
+          const realLessonCount = section.lessons.filter(
+            (l) => l.fsStatus === "real"
+          ).length;
+          lessonPath = buildLessonPath(
+            sectionNumber,
+            realLessonCount + 1,
+            slug
+          );
+        }
+      }
+
       const newLesson: EditorLesson = {
         frontendId,
         databaseId: null,
         sectionId: section.databaseId ?? section.frontendId,
-        path: slug,
+        path: lessonPath,
         title: action.title,
         fsStatus: action.type === "add-ghost-lesson" ? "ghost" : "real",
         description: "",
@@ -135,7 +190,11 @@ export function handleLessonCase(
         ...state,
         sections: state.sections.map((s) =>
           s.frontendId === action.sectionFrontendId
-            ? { ...s, lessons: newLessons }
+            ? {
+                ...s,
+                ...(sectionMat && { path: sectionMat.sectionPath }),
+                lessons: newLessons,
+              }
             : s
         ),
       };
@@ -366,21 +425,35 @@ export function handleLessonCase(
     }
 
     case "create-on-disk": {
-      const { lesson } = findLesson(state, action.frontendId);
-      if (!lesson) return state;
+      const { lesson, section } = findLesson(state, action.frontendId);
+      if (!lesson || !section) return state;
       exec({
         type: "create-on-disk",
         frontendId: action.frontendId,
         lessonId: lesson.databaseId ?? lesson.frontendId,
         ...(action.repoPath && { repoPath: action.repoPath }),
       });
-      return {
-        ...state,
-        sections: updateLesson(state, action.frontendId, (l) => ({
-          ...l,
-          fsStatus: "real",
-        })),
-      };
+
+      // Optimistically compute section path if ghost
+      const sectionMat = computeOptimisticSectionMaterialization(
+        state.sections,
+        section
+      );
+
+      let sections = updateLesson(state, action.frontendId, (l) => ({
+        ...l,
+        fsStatus: "real",
+      }));
+
+      if (sectionMat) {
+        sections = sections.map((s) =>
+          s.frontendId === section.frontendId
+            ? { ...s, path: sectionMat.sectionPath }
+            : s
+        );
+      }
+
+      return { ...state, sections };
     }
 
     // Lesson reconciliation actions

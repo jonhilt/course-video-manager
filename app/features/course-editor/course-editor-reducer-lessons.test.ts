@@ -363,6 +363,110 @@ describe("courseEditorReducer — lesson operations", () => {
     });
   });
 
+  describe("optimistic ghost section materialization", () => {
+    it("create-real-lesson should compute section path optimistically for ghost section", () => {
+      const section = createSection({
+        path: "Introduction",
+        databaseId: did("db-s-1"),
+        lessons: [],
+      });
+      const tester = createTester([section]);
+      const state = tester
+        .send({
+          type: "create-real-lesson",
+          sectionFrontendId: section.frontendId,
+          title: "My First Lesson",
+        })
+        .getState();
+      // Ghost section "Introduction" → "01-introduction"
+      expect(state.sections[0]!.path).toBe("01-introduction");
+      // Lesson path should include section number prefix
+      expect(state.sections[0]!.lessons[0]!.path).toBe("01.01-my-first-lesson");
+    });
+
+    it("create-real-lesson should compute correct section number when real sections exist before", () => {
+      const s1 = createSection({ path: "01-basics", order: 1 });
+      const ghostSection = createSection({
+        path: "Advanced Topics",
+        order: 2,
+        databaseId: did("db-s-2"),
+        lessons: [],
+      });
+      const tester = createTester([s1, ghostSection]);
+      const state = tester
+        .send({
+          type: "create-real-lesson",
+          sectionFrontendId: ghostSection.frontendId,
+          title: "Lesson A",
+        })
+        .getState();
+      // One real section before → section number 2
+      expect(state.sections[1]!.path).toBe("02-advanced-topics");
+      expect(state.sections[1]!.lessons[0]!.path).toBe("02.01-lesson-a");
+    });
+
+    it("create-real-lesson should not change path for already-real section", () => {
+      const section = createSection({
+        path: "01-intro",
+        lessons: [],
+      });
+      const tester = createTester([section]);
+      const state = tester
+        .send({
+          type: "create-real-lesson",
+          sectionFrontendId: section.frontendId,
+          title: "Lesson",
+        })
+        .getState();
+      expect(state.sections[0]!.path).toBe("01-intro");
+      // Lesson path should use existing section number
+      expect(state.sections[0]!.lessons[0]!.path).toBe("01.01-lesson");
+    });
+
+    it("create-on-disk should compute section path optimistically for ghost section", () => {
+      const lesson = createLesson({ fsStatus: "ghost", path: "my-lesson" });
+      const section = createSection({
+        path: "Getting Started",
+        lessons: [lesson],
+      });
+      const tester = createTester([section]);
+      const state = tester
+        .send({ type: "create-on-disk", frontendId: lesson.frontendId })
+        .getState();
+      expect(state.sections[0]!.path).toBe("01-getting-started");
+    });
+
+    it("create-on-disk should not change path for already-real section", () => {
+      const lesson = createLesson({ fsStatus: "ghost", path: "my-lesson" });
+      const section = createSection({
+        path: "01-intro",
+        lessons: [lesson],
+      });
+      const tester = createTester([section]);
+      const state = tester
+        .send({ type: "create-on-disk", frontendId: lesson.frontendId })
+        .getState();
+      expect(state.sections[0]!.path).toBe("01-intro");
+    });
+
+    it("add-ghost-lesson should NOT change section path for ghost section", () => {
+      const section = createSection({
+        path: "My Ghost Section",
+        lessons: [],
+      });
+      const tester = createTester([section]);
+      const state = tester
+        .send({
+          type: "add-ghost-lesson",
+          sectionFrontendId: section.frontendId,
+          title: "A Ghost",
+        })
+        .getState();
+      // Ghost lessons don't trigger section materialization
+      expect(state.sections[0]!.path).toBe("My Ghost Section");
+    });
+  });
+
   describe("convert-to-ghost / create-on-disk", () => {
     it("should set fsStatus to ghost", () => {
       const lesson = createLesson({ fsStatus: "real" });
