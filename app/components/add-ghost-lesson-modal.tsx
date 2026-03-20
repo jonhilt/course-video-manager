@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { capitalizeTitle } from "@/utils/capitalize-title";
 import { Loader2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 
 export function AddGhostLessonModal(props: {
@@ -28,7 +28,6 @@ export function AddGhostLessonModal(props: {
   const [filePath, setFilePath] = useState("");
   const [isReal, setIsReal] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const wasSubmitting = useRef(false);
 
   // Reset isReal and error when modal opens/closes
   useEffect(() => {
@@ -40,25 +39,14 @@ export function AddGhostLessonModal(props: {
     }
   }, [props.open]);
 
-  // Close modal when fetcher completes successfully, or show error
+  // If the server returns an error after optimistic close, reopen the modal
   useEffect(() => {
-    if (fetcher.state === "submitting" || fetcher.state === "loading") {
-      wasSubmitting.current = true;
+    const errorMsg = (fetcher.data as { error?: string } | undefined)?.error;
+    if (errorMsg && fetcher.state === "idle") {
+      setError(errorMsg);
+      props.onOpenChange(true);
     }
-    if (wasSubmitting.current && fetcher.state === "idle") {
-      wasSubmitting.current = false;
-      const errorMsg = (fetcher.data as { error?: string } | undefined)?.error;
-      if (errorMsg) {
-        setError(errorMsg);
-        return;
-      }
-      setTitle("");
-      setFilePath("");
-      setIsReal(false);
-      setError(null);
-      props.onOpenChange(false);
-    }
-  }, [fetcher.state, props.onOpenChange, fetcher.data]);
+  }, [fetcher.data, fetcher.state, props.onOpenChange]);
   const isGhostCourse = isReal && !props.courseFilePath;
   const isValid =
     title.trim().length > 0 && (!isGhostCourse || filePath.trim().length > 0);
@@ -106,6 +94,12 @@ export function AddGhostLessonModal(props: {
               method: "post",
               action: actionUrl,
             });
+            // Optimistically close modal immediately
+            setTitle("");
+            setFilePath("");
+            setIsReal(false);
+            setError(null);
+            props.onOpenChange(false);
           }}
         >
           <input type="hidden" name="sectionId" value={props.sectionId} />
