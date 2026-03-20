@@ -130,6 +130,7 @@ export function SectionGrid({
   deleteVideoFileFetcher: Fetcher;
   deleteVideoFetcher: Fetcher;
 }) {
+  const deleteSectionFetcher = useFetcher();
   const COLLAPSED_SECTIONS_KEY = "collapsed-sections";
 
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
@@ -424,12 +425,19 @@ export function SectionGrid({
                             <ContextMenuSeparator />
                             <ContextMenuItem
                               className="text-destructive focus:text-destructive"
-                              onSelect={() =>
-                                dispatch({
-                                  type: "set-delete-section-id",
-                                  sectionId: section.id,
-                                })
-                              }
+                              onSelect={() => {
+                                if (lessons.length === 0) {
+                                  deleteSectionFetcher.submit(null, {
+                                    method: "post",
+                                    action: `/api/sections/${section.id}/delete`,
+                                  });
+                                } else {
+                                  dispatch({
+                                    type: "set-delete-section-id",
+                                    sectionId: section.id,
+                                  });
+                                }
+                              }}
                             >
                               <Trash2 className="w-4 h-4" />
                               Delete Section
