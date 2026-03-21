@@ -10,6 +10,7 @@ import {
   createCourseWithVersion,
   getLessons,
   getLessonById,
+  getSections,
   createSectionWithLessons,
   editorService as es,
   testDb,
@@ -281,6 +282,119 @@ describe("CourseEditorService — lessons", () => {
       const target = await getLessons(s2.sectionId);
       expect(target).toHaveLength(1);
       expect(target[0]!.title).toBe("My Lesson");
+    });
+
+    it("materializes ghost target section when moving a real lesson", async () => {
+      const { version } = await createCourseWithVersion("/tmp/test-repo");
+      const { lessons } = await createSectionWithLessons(
+        version.id,
+        "01-basics",
+        0,
+        [
+          {
+            path: "01.01-alpha",
+            title: "Alpha",
+            fsStatus: "real",
+            order: 0,
+          },
+          {
+            path: "01.02-beta",
+            title: "Beta",
+            fsStatus: "real",
+            order: 1,
+          },
+        ]
+      );
+      // Ghost target section
+      const { section: s2 } = await createSectionWithLessons(
+        version.id,
+        "Advanced Topics",
+        1,
+        []
+      );
+
+      await svc().moveLessonToSection(lessons[0]!.id, s2.id);
+
+      // Target section should be materialized
+      const sections = await getSections(version.id);
+      const targetSec = sections.find((s) => s.id === s2.id);
+      expect(targetSec!.path).toMatch(/^\d+-advanced-topics$/);
+
+      // Lesson should be moved with new path
+      const targetLessons = await getLessons(s2.id);
+      expect(targetLessons).toHaveLength(1);
+      expect(targetLessons[0]!.path).toMatch(/^\d+\.\d+-alpha$/);
+    });
+
+    it("reverts source section to ghost when last real lesson moves out", async () => {
+      const { version } = await createCourseWithVersion("/tmp/test-repo");
+      const { section: s1, lessons } = await createSectionWithLessons(
+        version.id,
+        "01-basics",
+        0,
+        [
+          {
+            path: "01.01-only",
+            title: "Only Lesson",
+            fsStatus: "real",
+            order: 0,
+          },
+        ]
+      );
+      const { section: s2 } = await createSectionWithLessons(
+        version.id,
+        "02-advanced",
+        1,
+        []
+      );
+
+      await svc().moveLessonToSection(lessons[0]!.id, s2.id);
+
+      // Source section should revert to ghost title
+      const sections = await getSections(version.id);
+      const sourceSec = sections.find((s) => s.id === s1.id);
+      expect(sourceSec!.path).toBe("Basics");
+    });
+
+    it("does NOT revert source section when other real lessons remain", async () => {
+      const { version } = await createCourseWithVersion("/tmp/test-repo");
+      const { section: s1, lessons } = await createSectionWithLessons(
+        version.id,
+        "01-basics",
+        0,
+        [
+          {
+            path: "01.01-alpha",
+            title: "Alpha",
+            fsStatus: "real",
+            order: 0,
+          },
+          {
+            path: "01.02-beta",
+            title: "Beta",
+            fsStatus: "real",
+            order: 1,
+          },
+        ]
+      );
+      const { section: s2 } = await createSectionWithLessons(
+        version.id,
+        "02-advanced",
+        1,
+        []
+      );
+
+      await svc().moveLessonToSection(lessons[0]!.id, s2.id);
+
+      // Source section should stay real
+      const sections = await getSections(version.id);
+      const sourceSec = sections.find((s) => s.id === s1.id);
+      expect(sourceSec!.path).toBe("01-basics");
+
+      // Remaining lesson should be renumbered
+      const sourceLessons = await getLessons(s1.id);
+      const realLessons = sourceLessons.filter((l) => l.fsStatus === "real");
+      expect(realLessons[0]!.path).toBe("01.01-beta");
     });
   });
 

@@ -422,23 +422,7 @@ describe("courseEditorReducer — lesson operations", () => {
     });
   });
 
-  describe("move-lesson-to-section", () => {
-    it("should remove from source and add to target", () => {
-      const lesson = createLesson({ path: "moving" });
-      const s1 = createSection({ lessons: [lesson] });
-      const s2 = createSection({ lessons: [] });
-      const state = createTester([s1, s2])
-        .send({
-          type: "move-lesson-to-section",
-          lessonFrontendId: lesson.frontendId,
-          targetSectionFrontendId: s2.frontendId,
-        })
-        .getState();
-      expect(state.sections[0]!.lessons).toHaveLength(0);
-      expect(state.sections[1]!.lessons).toHaveLength(1);
-      expect(state.sections[1]!.lessons[0]!.path).toBe("moving");
-    });
-  });
+  // move-lesson-to-section tests are in course-editor-reducer-move.test.ts
 
   describe("optimistic ghost section materialization", () => {
     it("create-real-lesson should compute section path optimistically for ghost section", () => {

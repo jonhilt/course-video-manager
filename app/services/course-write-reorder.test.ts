@@ -438,17 +438,17 @@ describe("CourseWriteService", () => {
         })
       );
 
-      // Moved to target section as first lesson
+      // Source section reverts to ghost (last real lesson moved out),
+      // so 02-advanced renumbers to 01-advanced, lesson path follows
       expect(
-        fs.existsSync(path.join(tempDir, "02-advanced", "02.01-only-lesson"))
+        fs.existsSync(path.join(tempDir, "01-advanced", "01.01-only-lesson"))
       ).toBe(true);
-      expect(
-        fs.existsSync(path.join(tempDir, "01-intro", "01.01-only-lesson"))
-      ).toBe(false);
+      // Source section directory deleted
+      expect(fs.existsSync(path.join(tempDir, "01-intro"))).toBe(false);
 
       const movedLesson = await getLesson(real1.id);
       expect(movedLesson.sectionId).toBe(section2.id);
-      expect(movedLesson.path).toBe("02.01-only-lesson");
+      expect(movedLesson.path).toBe("01.01-only-lesson");
     });
   });
 });

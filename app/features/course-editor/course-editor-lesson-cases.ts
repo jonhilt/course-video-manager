@@ -399,24 +399,91 @@ export function handleLessonCase(
         lessonId: lesson.databaseId ?? lesson.frontendId,
         targetSectionId,
       });
+
+      const isRealLesson = lesson.fsStatus === "real";
+
+      // If moving a real lesson to a ghost section, materialize target
+      const targetMat = isRealLesson
+        ? computeOptimisticSectionMaterialization(state.sections, targetSection)
+        : null;
+
+      // Compute moved lesson's new path with target section number
+      let movedLessonPath = lesson.path;
+      if (isRealLesson) {
+        const targetSectionNumber = targetMat
+          ? targetMat.sectionNumber
+          : parseSectionPath(targetSection.path)?.sectionNumber;
+        if (targetSectionNumber != null) {
+          const lessonParsed = parseLessonPath(lesson.path);
+          const slug = lessonParsed?.slug ?? lesson.path;
+          const targetRealCount = targetSection.lessons.filter(
+            (l) => l.fsStatus === "real"
+          ).length;
+          movedLessonPath = buildLessonPath(
+            targetSectionNumber,
+            targetRealCount + 1,
+            slug
+          );
+        }
+      }
+
+      // Check if source section should become ghost (last real lesson leaving)
+      const sourceRealAfter = sourceSection.lessons.filter(
+        (l) => l.fsStatus === "real" && l.frontendId !== action.lessonFrontendId
+      );
+      const sourceParsed = parseSectionPath(sourceSection.path);
+      const sourceBecomesGhost =
+        isRealLesson && sourceRealAfter.length === 0 && sourceParsed != null;
+
+      // Renumber remaining source real lesson paths
+      const sourceSectionNumber = sourceParsed?.sectionNumber ?? 1;
+
       return {
         ...state,
         sections: state.sections.map((s) => {
           if (s.frontendId === sourceSection.frontendId) {
+            let remainingLessons = s.lessons
+              .filter((l) => l.frontendId !== action.lessonFrontendId)
+              .map((l, i) => ({ ...l, order: i + 1 }));
+
+            // Renumber remaining real lesson paths in source section
+            if (isRealLesson) {
+              let realIdx = 0;
+              remainingLessons = remainingLessons.map((l) => {
+                if (l.fsStatus !== "real") return l;
+                realIdx++;
+                const parsed = parseLessonPath(l.path);
+                if (!parsed) return l;
+                const newPath = buildLessonPath(
+                  sourceSectionNumber,
+                  realIdx,
+                  parsed.slug
+                );
+                return newPath !== l.path ? { ...l, path: newPath } : l;
+              });
+            }
+
             return {
               ...s,
-              lessons: s.lessons
-                .filter((l) => l.frontendId !== action.lessonFrontendId)
-                .map((l, i) => ({ ...l, order: i + 1 })),
+              // Revert source section to ghost title if no real lessons remain
+              ...(sourceBecomesGhost && {
+                path: sourceParsed!.slug
+                  .split("-")
+                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                  .join(" "),
+              }),
+              lessons: remainingLessons,
             };
           }
           if (s.frontendId === action.targetSectionFrontendId) {
             return {
               ...s,
+              ...(targetMat && { path: targetMat.sectionPath }),
               lessons: [
                 ...s.lessons,
                 {
                   ...lesson,
+                  path: movedLessonPath,
                   sectionId: targetSectionId,
                   order: s.lessons.length + 1,
                 },

@@ -420,13 +420,32 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
         // Real lesson: filesystem move + renumber both sections
         const repoPath = lesson.section.repoVersion.repo.filePath!;
         const sourceSectionPath = lesson.section.path;
+        const repoVersionId = lesson.section.repoVersionId;
         const targetSection =
           yield* db.getSectionWithHierarchyById(targetSectionId);
-        const targetSectionPath = targetSection.path;
+        let targetSectionPath = targetSection.path;
 
         const sourceParsed = parseSectionPath(sourceSectionPath);
-        const targetParsed = parseSectionPath(targetSectionPath);
         const sourceSectionNumber = sourceParsed?.sectionNumber ?? 1;
+
+        // If target section is ghost, materialize it
+        let targetParsed = parseSectionPath(targetSectionPath);
+        let targetSectionMaterialized = false;
+        if (!targetParsed) {
+          const allSections =
+            yield* db.getSectionsByRepoVersionId(repoVersionId);
+          const posIdx = allSections.findIndex((s) => s.id === targetSectionId);
+          let realBefore = 0;
+          for (let i = 0; i < posIdx; i++) {
+            if (parseSectionPath(allSections[i]!.path)) realBefore++;
+          }
+          const sectionNumber = realBefore + 1;
+          const sectionSlug = toSlug(targetSectionPath) || "untitled";
+          targetSectionPath = `${String(sectionNumber).padStart(2, "0")}-${sectionSlug}`;
+          yield* db.updateSectionPath(targetSectionId, targetSectionPath);
+          targetParsed = parseSectionPath(targetSectionPath);
+          targetSectionMaterialized = true;
+        }
         const targetSectionNumber = targetParsed?.sectionNumber ?? 1;
 
         // Compute new path in target section
@@ -491,6 +510,24 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
               yield* db.updateLesson(rename.id, { path: rename.newPath });
             }
           }
+        }
+
+        // If no real lessons remain in source, revert it to ghost
+        if (sourceRealLessons.length === 0 && sourceParsed) {
+          yield* repoWrite.deleteSectionDir({
+            repoPath,
+            sectionPath: sourceSectionPath,
+          });
+          const title = titleFromSlug(sourceParsed.slug);
+          yield* db.updateSectionPath(lesson.sectionId, title);
+        }
+
+        // Renumber sections if any were materialized or dematerialized
+        if (
+          targetSectionMaterialized ||
+          (sourceRealLessons.length === 0 && sourceParsed)
+        ) {
+          yield* renumberSections(repoVersionId, repoPath);
         }
 
         yield* runValidation;
