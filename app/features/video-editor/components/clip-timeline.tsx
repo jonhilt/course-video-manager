@@ -58,7 +58,7 @@ export const ClipTimeline = () => {
   );
   return (
     <div className="lg:flex-1 flex gap-2 h-full order-2 lg:order-1 overflow-y-auto">
-      <div className="grid gap-4 w-full p-2">
+      <div className="grid gap-4 w-full p-2 content-start">
         {clips.length === 0 && sessions.length === 0 && (
           <>
             <PreRecordingChecklist />

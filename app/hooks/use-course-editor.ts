@@ -75,7 +75,7 @@ export function editorSectionsToLoaderSections(
         createdAt: new Date(),
         previousVersionSectionId: null,
         lessons: s.lessons.map((l) => ({
-          id: l.frontendId as string,
+          id: (l.databaseId ?? l.frontendId) as string,
           path: l.path,
           title: l.title,
           fsStatus: l.fsStatus,

@@ -111,10 +111,40 @@ describe("editorSectionsToLoaderSections", () => {
     expect(result[0]!.id).toBe("section-1"); // frontendId becomes id
     expect(result[0]!.path).toBe("test-section");
     expect(result[0]!.lessons).toHaveLength(1);
-    expect(result[0]!.lessons[0]!.id).toBe("lesson-1"); // frontendId becomes id
+    expect(result[0]!.lessons[0]!.id).toBe("db-lesson-1"); // databaseId takes precedence over frontendId
     expect(result[0]!.lessons[0]!.title).toBe("Test Lesson");
     expect(result[0]!.lessons[0]!.videos).toHaveLength(1);
     expect(result[0]!.lessons[0]!.videos[0]!.clipCount).toBe(3);
+  });
+
+  it("lesson id uses databaseId when available (fix for video upload on new lesson)", () => {
+    const section = createEditorSection({
+      lessons: [
+        createEditorLesson({
+          frontendId: fid("frontend-temp-uuid"),
+          databaseId: did("db-real-uuid"),
+        }),
+      ],
+    });
+
+    const result = editorSectionsToLoaderSections([section]);
+
+    expect(result[0]!.lessons[0]!.id).toBe("db-real-uuid");
+  });
+
+  it("lesson id falls back to frontendId when databaseId is null (lesson not yet saved)", () => {
+    const section = createEditorSection({
+      lessons: [
+        createEditorLesson({
+          frontendId: fid("frontend-temp-uuid"),
+          databaseId: null as unknown as DatabaseId,
+        }),
+      ],
+    });
+
+    const result = editorSectionsToLoaderSections([section]);
+
+    expect(result[0]!.lessons[0]!.id).toBe("frontend-temp-uuid");
   });
 
   it("should handle empty sections", () => {
