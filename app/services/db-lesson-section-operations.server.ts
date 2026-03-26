@@ -4,7 +4,7 @@ import {
   NotFoundError,
   UnknownDBServiceError,
 } from "@/services/db-service-errors";
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 const makeDbCall = <T>(fn: () => Promise<T>) => {
@@ -289,6 +289,60 @@ export const createLessonSectionOperations = (db: DrizzleDB) => {
     );
   });
 
+  /**
+   * Updates the order of multiple lessons in a single SQL query using a
+   * CASE WHEN expression. Much faster than N sequential updateLessonOrder
+   * calls — critical for ghost courses where reordering has no filesystem ops
+   * and DB round trips are the only work being done.
+   */
+  const batchUpdateLessonOrders = Effect.fn("batchUpdateLessonOrders")(
+    function* (updates: { id: string; order: number }[]) {
+      if (updates.length === 0) return;
+      const ids = updates.map((u) => u.id);
+      // Cast to float8 to match the doublePrecision column type — without the
+      // cast, Drizzle sends numeric params as text and Postgres rejects them.
+      const orderExpr = sql`case ${sql.join(
+        updates.map(
+          ({ id, order }) =>
+            sql`when ${lessons.id} = ${id} then ${order}::float8`
+        ),
+        sql` `
+      )} end`;
+      return yield* makeDbCall(() =>
+        db
+          .update(lessons)
+          .set({ order: orderExpr })
+          .where(inArray(lessons.id, ids))
+      );
+    }
+  );
+
+  /**
+   * Updates the order of multiple sections in a single SQL query using a
+   * CASE WHEN expression. Equivalent to batchUpdateLessonOrders but for
+   * sections.
+   */
+  const batchUpdateSectionOrders = Effect.fn("batchUpdateSectionOrders")(
+    function* (updates: { id: string; order: number }[]) {
+      if (updates.length === 0) return;
+      const ids = updates.map((u) => u.id);
+      // Cast to float8 to match the doublePrecision column type.
+      const orderExpr = sql`case ${sql.join(
+        updates.map(
+          ({ id, order }) =>
+            sql`when ${sections.id} = ${id} then ${order}::float8`
+        ),
+        sql` `
+      )} end`;
+      return yield* makeDbCall(() =>
+        db
+          .update(sections)
+          .set({ order: orderExpr })
+          .where(inArray(sections.id, ids))
+      );
+    }
+  );
+
   return {
     getLessonById,
     getLessonsBySectionId,
@@ -306,5 +360,7 @@ export const createLessonSectionOperations = (db: DrizzleDB) => {
     getSectionsByIds,
     getSectionsByRepoVersionId,
     updateLessonOrder,
+    batchUpdateLessonOrders,
+    batchUpdateSectionOrders,
   };
 };

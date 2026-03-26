@@ -109,6 +109,8 @@ export class DBFunctionsService extends Effect.Service<DBFunctionsService>()(
         getSectionsByIds,
         getSectionsByRepoVersionId,
         updateLessonOrder,
+        batchUpdateLessonOrders,
+        batchUpdateSectionOrders,
       } = createLessonSectionOperations(db);
 
       const {
@@ -187,6 +189,8 @@ export class DBFunctionsService extends Effect.Service<DBFunctionsService>()(
         getSectionsByIds,
         getSectionsByRepoVersionId,
         updateLessonOrder,
+        batchUpdateLessonOrders,
+        batchUpdateSectionOrders,
         getNextVideoId,
         getPreviousVideoId,
         getNextLessonWithoutVideo,

@@ -103,12 +103,10 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
           );
           if (adjIdx !== -1) {
             const idx = opts.position === "after" ? adjIdx + 1 : adjIdx;
-            for (let i = idx; i < lessons.length; i++) {
-              yield* db.updateLessonOrder(
-                lessons[i]!.id,
-                lessons[i]!.order + 1
-              );
-            }
+            const shiftUpdates = lessons
+              .slice(idx)
+              .map((l) => ({ id: l.id, order: l.order + 1 }));
+            yield* db.batchUpdateLessonOrders(shiftUpdates);
             insertOrder = lessons[idx] ? lessons[idx]!.order : maxOrder + 1;
           }
         }
@@ -390,10 +388,10 @@ export class CourseWriteService extends Effect.Service<CourseWriteService>()(
           }
         }
 
-        // Update order for ALL lessons (ghost + real) based on position
-        for (let i = 0; i < newOrderIds.length; i++) {
-          yield* db.updateLessonOrder(newOrderIds[i]!, i);
-        }
+        // Update order for ALL lessons (ghost + real) in a single query
+        yield* db.batchUpdateLessonOrders(
+          newOrderIds.map((id, i) => ({ id, order: i }))
+        );
 
         return { success: true, renames };
       });

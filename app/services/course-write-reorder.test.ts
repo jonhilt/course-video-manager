@@ -320,6 +320,44 @@ describe("CourseWriteService", () => {
     });
   });
 
+  describe("reorderLessons (ghost-only section)", () => {
+    it("reorders all-ghost lessons: all order values updated correctly", async () => {
+      const { run, createSection, createGhostLesson, getLesson } =
+        await setup();
+
+      const section = await createSection("01-intro", 1);
+      const g1 = await createGhostLesson(section.id, "Alpha", "alpha", 0);
+      const g2 = await createGhostLesson(section.id, "Beta", "beta", 1);
+      const g3 = await createGhostLesson(section.id, "Gamma", "gamma", 2);
+      const g4 = await createGhostLesson(section.id, "Delta", "delta", 3);
+
+      // Reverse the order
+      await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.reorderLessons(section.id, [
+            g4.id,
+            g3.id,
+            g2.id,
+            g1.id,
+          ]);
+        })
+      );
+
+      const updatedG1 = await getLesson(g1.id);
+      expect(updatedG1.order).toBe(3);
+
+      const updatedG2 = await getLesson(g2.id);
+      expect(updatedG2.order).toBe(2);
+
+      const updatedG3 = await getLesson(g3.id);
+      expect(updatedG3.order).toBe(1);
+
+      const updatedG4 = await getLesson(g4.id);
+      expect(updatedG4.order).toBe(0);
+    });
+  });
+
   describe("moveToSection", () => {
     it("moves a real lesson: directory moved, source renumbered, DB updated", async () => {
       const { run, createSection, createRealLesson, getLesson } = await setup();

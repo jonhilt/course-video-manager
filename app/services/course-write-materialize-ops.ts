@@ -95,9 +95,10 @@ export function createMaterializeOps<E1>(
         const adjIdx = lessons.findIndex((l) => l.id === opts.adjacentLessonId);
         if (adjIdx !== -1) {
           const idx = opts.position === "after" ? adjIdx + 1 : adjIdx;
-          for (let i = idx; i < lessons.length; i++) {
-            yield* db.updateLessonOrder(lessons[i]!.id, lessons[i]!.order + 1);
-          }
+          const shiftUpdates = lessons
+            .slice(idx)
+            .map((l) => ({ id: l.id, order: l.order + 1 }));
+          yield* db.batchUpdateLessonOrders(shiftUpdates);
           insertOrder = lessons[idx] ? lessons[idx]!.order : maxOrder + 1;
         }
       }

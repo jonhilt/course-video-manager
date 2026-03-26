@@ -295,10 +295,10 @@ export function createSectionOps(
       }
     }
 
-    // Update the order field for each section based on its position
-    for (let i = 0; i < sectionIds.length; i++) {
-      yield* db.updateSectionOrder(sectionIds[i]!, i);
-    }
+    // Update the order field for each section in a single query
+    yield* db.batchUpdateSectionOrders(
+      sectionIds.map((id, i) => ({ id, order: i }))
+    );
 
     return { success: true };
   });
