@@ -395,4 +395,28 @@ describe("getSessionPanels", () => {
     expect(panels[0]!.pendingClips).toHaveLength(0);
     expect(panels[0]!.archivedClips).toHaveLength(0);
   });
+
+  it("includes polling sessions with no clips (waiting for clip after recording stopped)", () => {
+    // Bug #698: session disappears between recording-stopped and first clip arriving
+    const sessions: RecordingSession[] = [
+      makeSession({ id: sid("s1"), displayNumber: 1, status: "polling" }),
+    ];
+    const items: TimelineItem[] = [];
+    const panels = getSessionPanels(items, sessions);
+    expect(panels).toHaveLength(1);
+    expect(panels[0]!.sessionId).toBe(sid("s1"));
+    expect(panels[0]!.isRecording).toBe(false);
+    expect(panels[0]!.pendingClips).toHaveLength(0);
+    expect(panels[0]!.archivedClips).toHaveLength(0);
+  });
+
+  it("excludes done sessions with no clips", () => {
+    // Only polling and recording should show with no clips; done sessions should not
+    const sessions: RecordingSession[] = [
+      makeSession({ id: sid("s1"), displayNumber: 1, status: "done" }),
+    ];
+    const items: TimelineItem[] = [];
+    const panels = getSessionPanels(items, sessions);
+    expect(panels).toHaveLength(0);
+  });
 });

@@ -89,6 +89,7 @@ export const getSessionPanels = (
     .filter(
       (session) =>
         session.status === "recording" ||
+        session.status === "polling" ||
         pendingBySession.has(session.id) ||
         archivedBySession.has(session.id)
     )

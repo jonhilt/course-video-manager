@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { BeatIndicator } from "./timeline-indicators";
 import { ClipItem } from "./clip-item";
 import { ClipSectionItem } from "./clip-section-item";
@@ -9,6 +10,7 @@ import { useContextSelector } from "use-context-selector";
 import { VideoEditorContext } from "../video-editor-context";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import type { FrontendId } from "../clip-state-reducer";
 
 /**
  * ClipTimeline component displays the main timeline of clips and clip sections.
@@ -52,10 +54,46 @@ export const ClipTimeline = () => {
     VideoEditorContext,
     (ctx) => ctx.sessions
   );
+  const allItems = useContextSelector(
+    VideoEditorContext,
+    (ctx) => ctx.allItems
+  );
   const onOpenCreateSectionModal = useContextSelector(
     VideoEditorContext,
     (ctx) => ctx.onOpenCreateSectionModal
   );
+
+  /**
+   * When the insertion point references an optimistic clip (filtered out of
+   * `items`), compute the frontendId of the last non-optimistic item that
+   * appears before it in the full item list. This is the "visual anchor" —
+   * the filtered timeline item after which we render InsertionPointWithSession.
+   * Returns null when the insertion point is at the start/end or already
+   * references a clip present in the filtered timeline.
+   */
+  const visualAnchorId = useMemo((): FrontendId | null => {
+    if (insertionPoint.type !== "after-clip") return null;
+    if (items.some((item) => item.frontendId === insertionPoint.frontendClipId))
+      return null;
+
+    // Insertion point references an item not in filtered timeline (optimistic clip)
+    const optIndex = allItems.findIndex(
+      (i) => i.frontendId === insertionPoint.frontendClipId
+    );
+    if (optIndex === -1) return null;
+
+    const lastNonOptimistic = allItems
+      .slice(0, optIndex)
+      .findLast(
+        (i) =>
+          i.type !== "optimistically-added" &&
+          i.type !== "effect-clip-optimistically-added" &&
+          i.type !== "clip-section-optimistically-added"
+      );
+
+    return lastNonOptimistic?.frontendId ?? null;
+  }, [insertionPoint, items, allItems]);
+
   return (
     <div className="lg:flex-1 flex gap-2 h-full order-2 lg:order-1 overflow-y-auto">
       <div className="grid gap-4 w-full p-2 content-start">
@@ -83,27 +121,31 @@ export const ClipTimeline = () => {
               // Render clip section divider
               if (isClipSection(item)) {
                 return (
-                  <ClipSectionItem
-                    key={item.frontendId}
-                    section={item}
-                    isFirstItem={isFirstItem}
-                    isLastItem={isLastItem}
-                    onEditSection={() => {
-                      onEditSection(item.frontendId, item.name);
-                    }}
-                    onAddSectionBefore={() => {
-                      onAddSectionBefore(
-                        item.frontendId,
-                        generateDefaultClipSectionName()
-                      );
-                    }}
-                    onAddSectionAfter={() => {
-                      onAddSectionAfter(
-                        item.frontendId,
-                        generateDefaultClipSectionName()
-                      );
-                    }}
-                  />
+                  <div key={item.frontendId}>
+                    <ClipSectionItem
+                      section={item}
+                      isFirstItem={isFirstItem}
+                      isLastItem={isLastItem}
+                      onEditSection={() => {
+                        onEditSection(item.frontendId, item.name);
+                      }}
+                      onAddSectionBefore={() => {
+                        onAddSectionBefore(
+                          item.frontendId,
+                          generateDefaultClipSectionName()
+                        );
+                      }}
+                      onAddSectionAfter={() => {
+                        onAddSectionAfter(
+                          item.frontendId,
+                          generateDefaultClipSectionName()
+                        );
+                      }}
+                    />
+                    {visualAnchorId === item.frontendId && (
+                      <InsertionPointWithSession />
+                    )}
+                  </div>
                 );
               }
 
@@ -136,19 +178,24 @@ export const ClipTimeline = () => {
                   />
                   {/* Beat indicator dots below clip */}
                   {clip.beatType === "long" && <BeatIndicator />}
-                  {insertionPoint.type === "after-clip" &&
-                    insertionPoint.frontendClipId === clip.frontendId && (
-                      <InsertionPointWithSession />
-                    )}
+                  {/* Render insertion point after this clip when it is the direct or visual anchor */}
+                  {((insertionPoint.type === "after-clip" &&
+                    insertionPoint.frontendClipId === clip.frontendId) ||
+                    visualAnchorId === clip.frontendId) && (
+                    <InsertionPointWithSession />
+                  )}
                 </div>
               );
             })}
 
-            {/* Fallback: show insertion point when it references a clip not in the filtered timeline (e.g., unpaired optimistic clip) */}
+            {/* When insertion point references an optimistic clip with no preceding
+                non-optimistic item, show at top (handled by start case above) or
+                fall back to end if visual anchor is null and clip not found */}
             {insertionPoint.type === "after-clip" &&
               !items.some(
                 (item) => item.frontendId === insertionPoint.frontendClipId
-              ) && <InsertionPointWithSession />}
+              ) &&
+              visualAnchorId === null && <InsertionPointWithSession />}
 
             {insertionPoint.type === "end" && <InsertionPointWithSession />}
           </>

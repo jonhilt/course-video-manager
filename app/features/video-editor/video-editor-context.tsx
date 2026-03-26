@@ -58,6 +58,7 @@ export type VideoEditorContextType = {
 
   // Route-level props
   items: TimelineItem[];
+  allItems: TimelineItem[];
   sessions: RecordingSession[];
   sessionPanels: SessionPanelData[];
   videoPath: string;

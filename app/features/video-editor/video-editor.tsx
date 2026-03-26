@@ -459,6 +459,7 @@ export const VideoEditor = (props: {
 
       // Route-level props
       items: timelineItems,
+      allItems: props.items,
       sessions: props.sessions,
       sessionPanels,
       videoPath: props.videoPath,
