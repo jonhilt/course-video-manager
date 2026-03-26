@@ -288,7 +288,11 @@ export function SectionGrid({
                                 )}
                               >
                                 <SortableContext
-                                  items={lessons.map((l) => l.id)}
+                                  items={lessons.map(
+                                    (l) =>
+                                      (l as unknown as { frontendId?: string })
+                                        .frontendId ?? l.id
+                                  )}
                                   strategy={verticalListSortingStrategy}
                                 >
                                   {hasActiveFilters &&

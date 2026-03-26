@@ -89,7 +89,9 @@ export function SortableLessonItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: lesson.id });
+  } = useSortable({
+    id: (lesson as unknown as { frontendId?: string }).frontendId ?? lesson.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
