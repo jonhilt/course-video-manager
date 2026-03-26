@@ -1,8 +1,6 @@
 import { AddGhostLessonModal } from "@/components/add-ghost-lesson-modal";
 import { ArchiveSectionModal } from "@/components/archive-section-modal";
 import { type DependencyLessonItem } from "@/components/dependency-selector";
-import { EditGhostSectionModal } from "@/components/edit-ghost-section-modal";
-import { EditSectionModal } from "@/components/edit-section-modal";
 import { Badge } from "@/components/ui/badge";
 import {
   ContextMenu,
@@ -16,6 +14,10 @@ import { courseViewReducer } from "@/features/course-view/course-view-reducer";
 import { SortableLessonItem } from "./sortable-lesson-item";
 import { SortableSectionItem } from "./sortable-section-item";
 import { SectionDescriptionEditor } from "./section-description-editor";
+import {
+  useSectionTitleEditor,
+  SectionTitleEditor,
+} from "./section-title-editor";
 import { filterLessons, calcSectionDuration } from "./section-grid-utils";
 import type { LoaderData } from "./course-view-types";
 
@@ -42,6 +44,54 @@ import {
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import { useNavigate, useFetcher } from "react-router";
+
+function SectionTitleRow({
+  section,
+  isGhostSection,
+  showGhostStyle,
+  isReadOnly,
+  editSectionId,
+  dispatch,
+}: {
+  section: { id: string; path: string };
+  isGhostSection: boolean;
+  showGhostStyle: boolean;
+  isReadOnly: boolean;
+  editSectionId: string | null;
+  dispatch: (action: courseViewReducer.Action) => void;
+}) {
+  const {
+    editingTitle,
+    titleValue,
+    setTitleValue,
+    saveTitle,
+    cancelEditing,
+    startEditingTitle,
+    pathPrefix,
+  } = useSectionTitleEditor({
+    sectionId: section.id,
+    sectionPath: section.path,
+    isGhostSection,
+    dispatch,
+    editSectionId,
+  });
+
+  return (
+    <SectionTitleEditor
+      sectionPath={section.path}
+      isGhostSection={isGhostSection}
+      showGhostStyle={showGhostStyle}
+      isReadOnly={isReadOnly}
+      editingTitle={editingTitle}
+      titleValue={titleValue}
+      pathPrefix={pathPrefix}
+      onTitleValueChange={setTitleValue}
+      onCancel={cancelEditing}
+      onSave={saveTitle}
+      onStartEditing={startEditingTitle}
+    />
+  );
+}
 
 export function SectionGrid({
   currentCourse,
@@ -227,15 +277,14 @@ export function SectionGrid({
                                       <GripVertical className="w-4 h-4" />
                                     </button>
                                   )}
-                                  <h2
-                                    className={cn(
-                                      "font-medium text-sm",
-                                      showGhostSectionStyle &&
-                                        "text-muted-foreground/70 italic"
-                                    )}
-                                  >
-                                    {section.path}
-                                  </h2>
+                                  <SectionTitleRow
+                                    section={section}
+                                    isGhostSection={isGhostSection}
+                                    showGhostStyle={showGhostSectionStyle}
+                                    isReadOnly={isReadOnly}
+                                    editSectionId={editSectionId}
+                                    dispatch={dispatch}
+                                  />
                                   {showGhostSectionStyle && (
                                     <Ghost className="w-3.5 h-3.5 text-muted-foreground/40" />
                                   )}
@@ -451,45 +500,6 @@ export function SectionGrid({
                         } as any);
                       }}
                     />
-                    {isGhostSection ? (
-                      <EditGhostSectionModal
-                        sectionId={section.id}
-                        currentTitle={section.path}
-                        open={editSectionId === section.id}
-                        onOpenChange={(open) => {
-                          dispatch({
-                            type: "set-edit-section-id",
-                            sectionId: open ? section.id : null,
-                          });
-                        }}
-                        onRename={(title) => {
-                          dispatch({
-                            type: "rename-section",
-                            frontendId: section.id,
-                            title,
-                          } as any);
-                        }}
-                      />
-                    ) : (
-                      <EditSectionModal
-                        sectionId={section.id}
-                        currentPath={section.path}
-                        open={editSectionId === section.id}
-                        onOpenChange={(open) => {
-                          dispatch({
-                            type: "set-edit-section-id",
-                            sectionId: open ? section.id : null,
-                          });
-                        }}
-                        onRename={(title) => {
-                          dispatch({
-                            type: "rename-section",
-                            frontendId: section.id,
-                            title,
-                          } as any);
-                        }}
-                      />
-                    )}
                   </>
                 )}
               </SortableSectionItem>
