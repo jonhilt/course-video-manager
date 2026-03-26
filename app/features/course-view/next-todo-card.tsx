@@ -22,7 +22,6 @@ export function NextTodoCard({
   data,
   navigate,
   addVideoToLessonId,
-  editLessonId,
   convertToGhostLessonId,
   deleteLessonId,
   createOnDiskLessonId,
@@ -40,7 +39,6 @@ export function NextTodoCard({
   data: LoaderData;
   navigate: ReturnType<typeof useNavigate>;
   addVideoToLessonId: string | null;
-  editLessonId: string | null;
   convertToGhostLessonId: string | null;
   deleteLessonId: string | null;
   createOnDiskLessonId: string | null;
@@ -101,7 +99,6 @@ export function NextTodoCard({
                 data={data}
                 navigate={navigate}
                 addVideoToLessonId={addVideoToLessonId}
-                editLessonId={editLessonId}
                 convertToGhostLessonId={convertToGhostLessonId}
                 deleteLessonId={deleteLessonId}
                 createOnDiskLessonId={createOnDiskLessonId}

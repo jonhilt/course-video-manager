@@ -283,7 +283,6 @@ function ComponentInner(props: Route.ComponentProps) {
     insertAdjacentLessonId,
     insertPosition,
     addVideoToLessonId,
-    editLessonId,
     editSectionId,
     convertToGhostLessonId,
     deleteLessonId,
@@ -424,7 +423,6 @@ function ComponentInner(props: Route.ComponentProps) {
                       data={loaderData}
                       navigate={navigate}
                       addVideoToLessonId={addVideoToLessonId as string | null}
-                      editLessonId={editLessonId as string | null}
                       convertToGhostLessonId={
                         convertToGhostLessonId as string | null
                       }
@@ -478,7 +476,6 @@ function ComponentInner(props: Route.ComponentProps) {
                   insertPosition={insertPosition}
                   editSectionId={editSectionId as string | null}
                   addVideoToLessonId={addVideoToLessonId as string | null}
-                  editLessonId={editLessonId as string | null}
                   convertToGhostLessonId={
                     convertToGhostLessonId as string | null
                   }

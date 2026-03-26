@@ -57,7 +57,6 @@ export function SectionGrid({
   insertPosition,
   editSectionId,
   addVideoToLessonId,
-  editLessonId,
   convertToGhostLessonId,
   deleteLessonId,
   createOnDiskLessonId,
@@ -104,7 +103,6 @@ export function SectionGrid({
   insertPosition: "before" | "after" | null;
   editSectionId: string | null;
   addVideoToLessonId: string | null;
-  editLessonId: string | null;
   convertToGhostLessonId: string | null;
   deleteLessonId: string | null;
   createOnDiskLessonId: string | null;
@@ -300,7 +298,6 @@ export function SectionGrid({
                                       navigate={navigate}
                                       allFlatLessons={allFlatLessons}
                                       addVideoToLessonId={addVideoToLessonId}
-                                      editLessonId={editLessonId}
                                       convertToGhostLessonId={
                                         convertToGhostLessonId
                                       }
