@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { editorSectionsToLoaderSections } from "./use-course-editor";
+import { getLessonDndId } from "@/features/course-view/course-view-types";
 import {
   courseEditorReducer,
   createInitialCourseEditorState,
@@ -192,8 +193,6 @@ describe("editorSectionsToLoaderSections", () => {
     // Simulates: user starts dragging an optimistic lesson, then the
     // lesson-created action fires assigning a databaseId mid-drag.
     // dnd-kit must see the same item id before and after to keep the drag alive.
-    const getDndId = (lesson: { id: string; frontendId?: string }) =>
-      lesson.frontendId ?? lesson.id;
 
     // Before lesson-created: optimistic lesson, no databaseId
     const sectionBefore = createEditorSection({
@@ -206,9 +205,7 @@ describe("editorSectionsToLoaderSections", () => {
     });
     const [beforeLesson] = editorSectionsToLoaderSections([sectionBefore])[0]!
       .lessons;
-    const idBefore = getDndId(
-      beforeLesson as unknown as { id: string; frontendId?: string }
-    );
+    const idBefore = getLessonDndId(beforeLesson!);
 
     // After lesson-created: databaseId is now set
     const sectionAfter = {
@@ -219,9 +216,7 @@ describe("editorSectionsToLoaderSections", () => {
     };
     const [afterLesson] = editorSectionsToLoaderSections([sectionAfter])[0]!
       .lessons;
-    const idAfter = getDndId(
-      afterLesson as unknown as { id: string; frontendId?: string }
-    );
+    const idAfter = getLessonDndId(afterLesson!);
 
     // dnd-kit id must stay the same so the drag is not lost
     expect(idBefore).toBe("temp-frontend-id");

@@ -17,7 +17,7 @@ import { SortableLessonItem } from "./sortable-lesson-item";
 import { SortableSectionItem } from "./sortable-section-item";
 import { SectionDescriptionEditor } from "./section-description-editor";
 import { filterLessons, calcSectionDuration } from "./section-grid-utils";
-import type { LoaderData } from "./course-view-types";
+import { getLessonDndId, type LoaderData } from "./course-view-types";
 
 import { formatSecondsToTimeCode } from "@/services/utils";
 import {
@@ -288,11 +288,7 @@ export function SectionGrid({
                                 )}
                               >
                                 <SortableContext
-                                  items={lessons.map(
-                                    (l) =>
-                                      (l as unknown as { frontendId?: string })
-                                        .frontendId ?? l.id
-                                  )}
+                                  items={lessons.map(getLessonDndId)}
                                   strategy={verticalListSortingStrategy}
                                 >
                                   {hasActiveFilters &&
