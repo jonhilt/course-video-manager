@@ -6,8 +6,6 @@ import {
   DependencySelector,
   type DependencyLessonItem,
 } from "@/components/dependency-selector";
-import { EditGhostLessonModal } from "@/components/edit-ghost-lesson-modal";
-import { EditLessonModal } from "@/components/edit-lesson-modal";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -21,6 +19,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { LessonTitleEditor, useLessonTitleEditor } from "./lesson-title-editor";
 import { courseViewReducer } from "@/features/course-view/course-view-reducer";
 import { VideoThumbnailGrid } from "./video-thumbnail-grid";
 import type { LoaderData, Section, Lesson } from "./course-view-types";
@@ -49,7 +48,6 @@ export function SortableLessonItem({
   data,
   navigate,
   addVideoToLessonId,
-  editLessonId,
   convertToGhostLessonId,
   deleteLessonId,
   createOnDiskLessonId,
@@ -70,7 +68,6 @@ export function SortableLessonItem({
   data: LoaderData;
   navigate: ReturnType<typeof useNavigate>;
   addVideoToLessonId: string | null;
-  editLessonId: string | null;
   convertToGhostLessonId: string | null;
   deleteLessonId: string | null;
   createOnDiskLessonId: string | null;
@@ -109,6 +106,16 @@ export function SortableLessonItem({
   const [editingDesc, setEditingDesc] = useState(false);
   const [descValue, setDescValue] = useState(lesson.description || "");
   const descTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const {
+    editingTitle,
+    titleValue,
+    setTitleValue,
+    setEditingTitle,
+    saveTitle,
+    startEditingTitle,
+    pathPrefix,
+  } = useLessonTitleEditor({ lesson, isGhost, dispatch });
 
   const currentIcon = (lesson.icon ?? "watch") as
     | "watch"
@@ -252,14 +259,19 @@ export function SortableLessonItem({
                   <Play className="w-3 h-3" />
                 )}
               </button>
-              <span
-                className={cn(
-                  "text-sm font-medium",
-                  showGhostStyle && "text-muted-foreground/70 italic"
-                )}
-              >
-                {isGhost ? lesson.title || lesson.path : lesson.path}
-              </span>
+              <LessonTitleEditor
+                lesson={lesson}
+                isGhost={isGhost}
+                isReadOnly={isReadOnly}
+                showGhostStyle={showGhostStyle}
+                editingTitle={editingTitle}
+                titleValue={titleValue}
+                pathPrefix={pathPrefix}
+                onTitleValueChange={setTitleValue}
+                onCancel={() => setEditingTitle(false)}
+                onSave={saveTitle}
+                onStartEditing={startEditingTitle}
+              />
               {showGhostStyle && (
                 <span className="flex items-center text-muted-foreground/60 shrink-0">
                   <Ghost className="w-3 h-3" />
@@ -322,14 +334,7 @@ export function SortableLessonItem({
                       Create on Disk
                     </ContextMenuItem>
                     <ContextMenuSeparator />
-                    <ContextMenuItem
-                      onSelect={() =>
-                        dispatch({
-                          type: "set-edit-lesson-id",
-                          lessonId: lesson.id,
-                        })
-                      }
-                    >
+                    <ContextMenuItem onSelect={startEditingTitle}>
                       <PencilIcon className="w-4 h-4" />
                       Rename
                     </ContextMenuItem>
@@ -347,14 +352,7 @@ export function SortableLessonItem({
                       <Plus className="w-4 h-4" />
                       Add Video
                     </ContextMenuItem>
-                    <ContextMenuItem
-                      onSelect={() =>
-                        dispatch({
-                          type: "set-edit-lesson-id",
-                          lessonId: lesson.id,
-                        })
-                      }
-                    >
+                    <ContextMenuItem onSelect={startEditingTitle}>
                       <PencilIcon className="w-4 h-4" />
                       Rename
                     </ContextMenuItem>
@@ -515,45 +513,6 @@ export function SortableLessonItem({
             });
           }}
         />
-        {isGhost ? (
-          <EditGhostLessonModal
-            lessonId={lesson.id}
-            currentTitle={lesson.title || lesson.path}
-            open={editLessonId === lesson.id}
-            onOpenChange={(open) => {
-              dispatch({
-                type: "set-edit-lesson-id",
-                lessonId: open ? lesson.id : null,
-              });
-            }}
-            onRename={(title) => {
-              dispatch({
-                type: "update-lesson-title",
-                frontendId: lesson.id,
-                title,
-              } as any);
-            }}
-          />
-        ) : (
-          <EditLessonModal
-            lessonId={lesson.id}
-            currentPath={lesson.path}
-            open={editLessonId === lesson.id}
-            onOpenChange={(open) => {
-              dispatch({
-                type: "set-edit-lesson-id",
-                lessonId: open ? lesson.id : null,
-              });
-            }}
-            onRename={(newSlug) => {
-              dispatch({
-                type: "update-lesson-name",
-                frontendId: lesson.id,
-                newSlug,
-              } as any);
-            }}
-          />
-        )}
         {!isGhost && (
           <DeleteLessonModal
             lessonId={lesson.id}
