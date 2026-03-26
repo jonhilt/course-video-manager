@@ -356,6 +356,56 @@ describe("CourseWriteService", () => {
       const updatedG4 = await getLesson(g4.id);
       expect(updatedG4.order).toBe(0);
     });
+
+    it("reorders a single ghost lesson (batch with one element)", async () => {
+      const { run, createSection, createGhostLesson, getLesson } =
+        await setup();
+
+      const section = await createSection("01-intro", 1);
+      const g1 = await createGhostLesson(section.id, "Only", "only", 5);
+
+      await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.reorderLessons(section.id, [g1.id]);
+        })
+      );
+
+      const updated = await getLesson(g1.id);
+      expect(updated.order).toBe(0);
+    });
+  });
+
+  describe("addGhostLesson (adjacent insertion)", () => {
+    it("inserts before the first ghost lesson and shifts others", async () => {
+      const { run, createSection, createGhostLesson, getLesson } =
+        await setup();
+
+      const section = await createSection("01-intro", 1);
+      const g1 = await createGhostLesson(section.id, "First", "first", 0);
+      const g2 = await createGhostLesson(section.id, "Second", "second", 1);
+
+      const result = await run(
+        Effect.gen(function* () {
+          const service = yield* CourseWriteService;
+          return yield* service.addGhostLesson(section.id, "Zeroth", {
+            adjacentLessonId: g1.id,
+            position: "before",
+          });
+        })
+      );
+
+      // The new lesson should have the order of the first lesson (0)
+      const newLesson = await getLesson(result.lessonId);
+      expect(newLesson.order).toBe(0);
+
+      // Existing lessons should have been shifted up
+      const updatedG1 = await getLesson(g1.id);
+      expect(updatedG1.order).toBe(1);
+
+      const updatedG2 = await getLesson(g2.id);
+      expect(updatedG2.order).toBe(2);
+    });
   });
 
   describe("moveToSection", () => {
