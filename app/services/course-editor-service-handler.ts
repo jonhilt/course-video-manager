@@ -50,6 +50,15 @@ export const handleCourseEditorEvent = Effect.fn("handleCourseEditorEvent")(
         return { success: true, path: newPath };
       }
 
+      case "update-section-description": {
+        yield* db.getSectionWithHierarchyById(event.sectionId);
+        yield* db.updateSectionDescription(
+          event.sectionId,
+          event.description.trim()
+        );
+        return { success: true };
+      }
+
       case "delete-section": {
         return yield* service.deleteSection(event.sectionId);
       }

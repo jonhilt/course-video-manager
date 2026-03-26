@@ -11,6 +11,7 @@ const createMockService = (): CourseEditorService => ({
     .fn()
     .mockResolvedValue({ success: true, sectionId: "db-section-new" }),
   updateSectionName: vi.fn().mockResolvedValue({ success: true }),
+  updateSectionDescription: vi.fn().mockResolvedValue({ success: true }),
   deleteSection: vi.fn().mockResolvedValue({ success: true }),
   reorderSections: vi.fn().mockResolvedValue({ success: true }),
   addGhostLesson: vi

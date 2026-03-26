@@ -247,6 +247,17 @@ export const createLessonSectionOperations = (db: DrizzleDB) => {
     );
   });
 
+  const updateSectionDescription = Effect.fn("updateSectionDescription")(
+    function* (sectionId: string, description: string) {
+      return yield* makeDbCall(() =>
+        db
+          .update(sections)
+          .set({ description })
+          .where(eq(sections.id, sectionId))
+      );
+    }
+  );
+
   const getSectionsByIds = Effect.fn("getSectionsByIds")(function* (
     ids: readonly string[]
   ) {
@@ -291,6 +302,7 @@ export const createLessonSectionOperations = (db: DrizzleDB) => {
     deleteSection,
     updateSectionOrder,
     updateSectionPath,
+    updateSectionDescription,
     getSectionsByIds,
     getSectionsByRepoVersionId,
     updateLessonOrder,

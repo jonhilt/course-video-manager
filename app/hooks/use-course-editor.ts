@@ -25,6 +25,7 @@ function transformSections(loaderSections: Section[]): EditorSection[] {
     databaseId: s.id as DatabaseId,
     repoVersionId: s.repoVersionId,
     path: s.path,
+    description: (s as any).description ?? "",
     order: s.order ?? sIndex + 1,
     lessons: s.lessons.map(
       (l, lIndex): EditorLesson => ({
@@ -70,6 +71,7 @@ export function editorSectionsToLoaderSections(
       ({
         id: s.frontendId as string,
         path: s.path,
+        description: s.description,
         order: s.order,
         repoVersionId: s.repoVersionId,
         createdAt: new Date(),
@@ -151,6 +153,7 @@ export function useCourseEditor(
     return {
       "create-section": (_s, effect) => enqueue(effect),
       "rename-section": (_s, effect) => enqueue(effect),
+      "update-section-description": (_s, effect) => enqueue(effect),
       "delete-section": (_s, effect) => enqueue(effect),
       "reorder-sections": (_s, effect) => enqueue(effect),
       "add-ghost-lesson": (_s, effect) => enqueue(effect),

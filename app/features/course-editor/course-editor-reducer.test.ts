@@ -32,6 +32,7 @@ const createSection = (
   databaseId: did(crypto.randomUUID()),
   repoVersionId: "version-1",
   path: "test-section",
+  description: "",
   order: 1,
   lessons: [],
   ...overrides,
@@ -393,6 +394,7 @@ describe("EffectQueue", () => {
       sectionId: "db-section-new",
     }),
     updateSectionName: vi.fn().mockResolvedValue({ success: true }),
+    updateSectionDescription: vi.fn().mockResolvedValue({ success: true }),
     deleteSection: vi.fn().mockResolvedValue({ success: true }),
     reorderSections: vi.fn().mockResolvedValue({ success: true }),
     addGhostLesson: vi
@@ -557,6 +559,7 @@ describe("EffectQueue", () => {
         executionOrder.push("rename");
         return { success: true };
       }),
+      updateSectionDescription: vi.fn().mockResolvedValue({ success: true }),
       deleteSection: vi.fn().mockImplementation(async () => {
         executionOrder.push("delete");
         return { success: true };

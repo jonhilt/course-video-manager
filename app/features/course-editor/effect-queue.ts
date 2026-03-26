@@ -81,6 +81,19 @@ export class EffectQueue {
         break;
       }
 
+      case "update-section-description": {
+        const resolvedId = this.resolveId(effect.sectionId);
+        await this.service.updateSectionDescription(
+          resolvedId,
+          effect.description
+        );
+        this.dispatch({
+          type: "section-description-updated",
+          frontendId: effect.frontendId,
+        });
+        break;
+      }
+
       case "delete-section": {
         const resolvedId = this.resolveId(effect.sectionId);
         await this.service.deleteSection(resolvedId);

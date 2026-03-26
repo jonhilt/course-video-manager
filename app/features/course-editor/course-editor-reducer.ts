@@ -73,6 +73,11 @@ export namespace courseEditorReducer {
   export type Action =
     | { type: "add-section"; title: string; repoVersionId: string }
     | { type: "rename-section"; frontendId: FrontendId; title: string }
+    | {
+        type: "update-section-description";
+        frontendId: FrontendId;
+        description: string;
+      }
     | { type: "delete-section"; frontendId: FrontendId }
     | { type: "reorder-sections"; frontendIds: FrontendId[] }
     | {
@@ -127,6 +132,7 @@ export namespace courseEditorReducer {
         path: string;
       }
     | { type: "section-renamed"; frontendId: FrontendId; path: string }
+    | { type: "section-description-updated"; frontendId: FrontendId }
     | { type: "section-deleted"; frontendId: FrontendId }
     | { type: "sections-reordered" }
     | {
@@ -220,6 +226,12 @@ export namespace courseEditorReducer {
         frontendId: FrontendId;
         sectionId: FrontendId | DatabaseId;
         title: string;
+      }
+    | {
+        type: "update-section-description";
+        frontendId: FrontendId;
+        sectionId: FrontendId | DatabaseId;
+        description: string;
       }
     | {
         type: "delete-section";
@@ -382,6 +394,7 @@ export const courseEditorReducer: EffectReducer<
         databaseId: null,
         repoVersionId: action.repoVersionId,
         path: action.title.trim() || "untitled",
+        description: "",
         order: maxOrder + 1,
         lessons: [],
       };
@@ -411,6 +424,27 @@ export const courseEditorReducer: EffectReducer<
         ...state,
         sections: state.sections.map((s) =>
           s.frontendId === action.frontendId ? { ...s, path: newPath } : s
+        ),
+      };
+    }
+
+    case "update-section-description": {
+      const section = state.sections.find(
+        (s) => s.frontendId === action.frontendId
+      );
+      if (!section) return state;
+      exec({
+        type: "update-section-description",
+        frontendId: action.frontendId,
+        sectionId: section.databaseId ?? section.frontendId,
+        description: action.description,
+      });
+      return {
+        ...state,
+        sections: state.sections.map((s) =>
+          s.frontendId === action.frontendId
+            ? { ...s, description: action.description }
+            : s
         ),
       };
     }
@@ -464,6 +498,7 @@ export const courseEditorReducer: EffectReducer<
         ),
       };
 
+    case "section-description-updated":
     case "section-deleted":
     case "sections-reordered":
       return state;

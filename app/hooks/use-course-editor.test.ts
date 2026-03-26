@@ -28,6 +28,7 @@ const createEditorSection = (
   databaseId: did("db-section-1"),
   repoVersionId: "version-1",
   path: "test-section",
+  description: "",
   order: 1,
   lessons: [],
   ...overrides,
@@ -56,6 +57,7 @@ const createMockService = (): CourseEditorService => ({
     .fn()
     .mockResolvedValue({ success: true, sectionId: "db-new-section" }),
   updateSectionName: vi.fn().mockResolvedValue({ success: true }),
+  updateSectionDescription: vi.fn().mockResolvedValue({ success: true }),
   deleteSection: vi.fn().mockResolvedValue({ success: true }),
   reorderSections: vi.fn().mockResolvedValue({ success: true }),
   addGhostLesson: vi

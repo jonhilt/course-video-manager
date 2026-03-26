@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { courseViewReducer } from "@/features/course-view/course-view-reducer";
 import { SortableLessonItem } from "./sortable-lesson-item";
 import { SortableSectionItem } from "./sortable-section-item";
+import { SectionDescriptionEditor } from "./section-description-editor";
 import { filterLessons, calcSectionDuration } from "./section-grid-utils";
 import type { LoaderData } from "./course-view-types";
 
@@ -216,58 +217,66 @@ export function SectionGrid({
                     <ContextMenu>
                       <ContextMenuTrigger asChild>
                         <div className="cursor-context-menu">
-                          <div className="px-4 py-3 border-b bg-muted/30">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                {!isReadOnly && (
-                                  <button
-                                    className="cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground touch-none"
-                                    {...dragHandleListeners}
-                                  >
-                                    <GripVertical className="w-4 h-4" />
-                                  </button>
-                                )}
-                                <h2
-                                  className={cn(
-                                    "font-medium text-sm",
-                                    showGhostSectionStyle &&
-                                      "text-muted-foreground/70 italic"
+                          <div className="border-b bg-muted/30">
+                            <div className="px-4 py-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {!isReadOnly && (
+                                    <button
+                                      className="cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground touch-none"
+                                      {...dragHandleListeners}
+                                    >
+                                      <GripVertical className="w-4 h-4" />
+                                    </button>
                                   )}
-                                >
-                                  {section.path}
-                                </h2>
-                                {showGhostSectionStyle && (
-                                  <Ghost className="w-3.5 h-3.5 text-muted-foreground/40" />
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                {!isGhostSection && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-[10px]"
-                                  >
-                                    {formatSecondsToTimeCode(sectionDuration)}
-                                  </Badge>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleSection(section.id);
-                                  }}
-                                  className="text-muted-foreground/50 hover:text-muted-foreground transition-colors p-0.5"
-                                >
-                                  <ChevronRight
+                                  <h2
                                     className={cn(
-                                      "w-4 h-4 transition-transform",
-                                      (!collapsedSections.has(section.id) ||
-                                        searchQuery) &&
-                                        "rotate-90"
+                                      "font-medium text-sm",
+                                      showGhostSectionStyle &&
+                                        "text-muted-foreground/70 italic"
                                     )}
-                                  />
-                                </button>
+                                  >
+                                    {section.path}
+                                  </h2>
+                                  {showGhostSectionStyle && (
+                                    <Ghost className="w-3.5 h-3.5 text-muted-foreground/40" />
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  {!isGhostSection && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px]"
+                                    >
+                                      {formatSecondsToTimeCode(sectionDuration)}
+                                    </Badge>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleSection(section.id);
+                                    }}
+                                    className="text-muted-foreground/50 hover:text-muted-foreground transition-colors p-0.5"
+                                  >
+                                    <ChevronRight
+                                      className={cn(
+                                        "w-4 h-4 transition-transform",
+                                        (!collapsedSections.has(section.id) ||
+                                          searchQuery) &&
+                                          "rotate-90"
+                                      )}
+                                    />
+                                  </button>
+                                </div>
                               </div>
                             </div>
+                            <SectionDescriptionEditor
+                              sectionId={section.id}
+                              description={(section as any).description ?? ""}
+                              isReadOnly={isReadOnly}
+                              dispatch={dispatch}
+                            />
                           </div>
                           {(!collapsedSections.has(section.id) ||
                             searchQuery) && (

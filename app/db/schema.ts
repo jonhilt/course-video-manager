@@ -79,6 +79,7 @@ export const sections = createTable("section", {
     length: 255,
   }),
   path: text("path").notNull(),
+  description: text("description").notNull().default(""),
   createdAt: timestamp("created_at", {
     mode: "date",
     withTimezone: true,

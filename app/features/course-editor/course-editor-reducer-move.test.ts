@@ -43,6 +43,7 @@ const createSection = (
   databaseId: did(crypto.randomUUID()),
   repoVersionId: "version-1",
   path: "test-section",
+  description: "",
   order: 1,
   lessons: [],
   ...overrides,

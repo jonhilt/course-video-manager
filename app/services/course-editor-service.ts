@@ -26,6 +26,11 @@ export type CourseEditorEvent =
       title: string;
     }
   | {
+      type: "update-section-description";
+      sectionId: string;
+      description: string;
+    }
+  | {
       type: "delete-section";
       sectionId: string;
     }
@@ -124,6 +129,11 @@ export interface CourseEditorService {
 
   updateSectionName(sectionId: string, title: string): Promise<unknown>;
 
+  updateSectionDescription(
+    sectionId: string,
+    description: string
+  ): Promise<{ success: true }>;
+
   deleteSection(sectionId: string): Promise<{ success: true }>;
 
   reorderSections(sectionIds: string[]): Promise<{ success: true }>;
@@ -221,6 +231,14 @@ export function createCourseEditorService(
         sectionId,
         title,
       });
+    },
+
+    async updateSectionDescription(sectionId, description) {
+      return send({
+        type: "update-section-description",
+        sectionId,
+        description,
+      }) as Promise<{ success: true }>;
     },
 
     async deleteSection(sectionId) {

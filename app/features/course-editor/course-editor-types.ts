@@ -39,6 +39,7 @@ export type EditorSection = {
   databaseId: DatabaseId | null;
   repoVersionId: string;
   path: string;
+  description: string;
   order: number;
   lessons: EditorLesson[];
 };
