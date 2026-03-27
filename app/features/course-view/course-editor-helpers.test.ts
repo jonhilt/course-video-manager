@@ -110,4 +110,79 @@ describe("createLessonDragHandler", () => {
 
     expect(dispatch).not.toHaveBeenCalled();
   });
+
+  it("returns without dispatching when over is null", () => {
+    const dispatch = vi.fn();
+    const handler = createLessonDragHandler(dispatch);
+    const lessons = [
+      { id: "db-1", frontendId: "fe-1", path: "first", title: "First" },
+    ];
+
+    const dragEnd = handler("section-1", lessons);
+    dragEnd({
+      active: { id: "fe-1" },
+      over: null,
+      activatorEvent: {} as Event,
+      collisions: null,
+      delta: { x: 0, y: 0 },
+    } as unknown as DragEndEvent);
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("returns without dispatching when active ID is not found", () => {
+    const dispatch = vi.fn();
+    const handler = createLessonDragHandler(dispatch);
+    const lessons = [
+      { id: "db-1", frontendId: "fe-1", path: "first", title: "First" },
+      { id: "db-2", frontendId: "fe-2", path: "second", title: "Second" },
+    ];
+
+    const dragEnd = handler("section-1", lessons);
+    dragEnd(makeDragEndEvent("nonexistent", "fe-2"));
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("returns without dispatching when over ID is not found", () => {
+    const dispatch = vi.fn();
+    const handler = createLessonDragHandler(dispatch);
+    const lessons = [
+      { id: "db-1", frontendId: "fe-1", path: "first", title: "First" },
+    ];
+
+    const dragEnd = handler("section-1", lessons);
+    dragEnd(makeDragEndEvent("fe-1", "nonexistent"));
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("falls back to id when frontendId is omitted", () => {
+    const dispatch = vi.fn();
+    const handler = createLessonDragHandler(dispatch);
+    const lessons = [
+      { id: "db-1", path: "first", title: "First" },
+      { id: "db-2", path: "second", title: "Second" },
+    ];
+
+    const dragEnd = handler("section-1", lessons);
+    dragEnd(makeDragEndEvent("db-1", "db-2"));
+
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "reorder-lessons",
+        lessonFrontendIds: ["db-2", "db-1"],
+      })
+    );
+  });
+
+  it("returns without dispatching on empty lessons array", () => {
+    const dispatch = vi.fn();
+    const handler = createLessonDragHandler(dispatch);
+
+    const dragEnd = handler("section-1", []);
+    dragEnd(makeDragEndEvent("fe-1", "fe-2"));
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
 });
