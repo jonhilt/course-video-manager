@@ -164,6 +164,55 @@ describe("courseEditorReducer — section operations", () => {
         .getState();
       expect(state.sections[0]!.path).toBe("New Ghost Title");
     });
+
+    it("should fall back to 'untitled' with prefix when title is whitespace", () => {
+      const section = createSection({ path: "03-old-slug" });
+      const state = createTester([section])
+        .send({
+          type: "rename-section",
+          frontendId: section.frontendId,
+          title: "   ",
+        })
+        .getState();
+      expect(state.sections[0]!.path).toBe("03-untitled");
+    });
+
+    it("should fall back to 'untitled' without prefix for ghost section with empty title", () => {
+      const section = createSection({ path: "Ghost Section" });
+      const state = createTester([section])
+        .send({
+          type: "rename-section",
+          frontendId: section.frontendId,
+          title: "",
+        })
+        .getState();
+      expect(state.sections[0]!.path).toBe("untitled");
+    });
+
+    it("should preserve multi-digit section numbers", () => {
+      const section = createSection({ path: "12-advanced-topic" });
+      const state = createTester([section])
+        .send({
+          type: "rename-section",
+          frontendId: section.frontendId,
+          title: "new-topic",
+        })
+        .getState();
+      expect(state.sections[0]!.path).toBe("12-new-topic");
+    });
+
+    it("should return unchanged state if section not found", () => {
+      const section = createSection({ path: "01-slug" });
+      const initial = createTester([section]).getState();
+      const state = createTester([section])
+        .send({
+          type: "rename-section",
+          frontendId: fid("nonexistent-id"),
+          title: "new-title",
+        })
+        .getState();
+      expect(state.sections).toEqual(initial.sections);
+    });
   });
 
   describe("add-section", () => {
