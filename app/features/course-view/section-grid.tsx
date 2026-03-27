@@ -140,6 +140,7 @@ export function SectionGrid({
     sectionId: string,
     lessons: {
       id: string;
+      frontendId?: string;
       title?: string | null;
       path: string;
       dependencies?: string[] | null;

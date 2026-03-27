@@ -11,6 +11,7 @@ import type { DragEndEvent } from "@dnd-kit/core";
 
 type DragItem = {
   id: string;
+  frontendId?: string;
   title?: string | null;
   path: string;
   dependencies?: string[] | null;
@@ -23,8 +24,12 @@ export function createLessonDragHandler(
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const fromIndex = lessons.findIndex((l) => l.id === active.id);
-    const toIndex = lessons.findIndex((l) => l.id === over.id);
+    const fromIndex = lessons.findIndex(
+      (l) => (l.frontendId ?? l.id) === active.id
+    );
+    const toIndex = lessons.findIndex(
+      (l) => (l.frontendId ?? l.id) === over.id
+    );
     if (fromIndex === -1 || toIndex === -1) return;
 
     const newOrder = arrayMove(lessons, fromIndex, toIndex);
