@@ -15,6 +15,13 @@ export interface WritePageState {
   includeTranscript: boolean;
   enabledSections: Set<string>;
   includeCourseStructure: boolean;
+  sourceProjectPath: string;
+  sourceProjectFiles: Array<{
+    path: string;
+    size: number;
+    defaultEnabled: boolean;
+  }>;
+  enabledSourceFiles: Set<string>;
   memory: string;
   memoryEnabled: boolean;
   docCapturingKey: string | null;
@@ -43,6 +50,12 @@ export type WritePageAction =
   | { type: "set-include-transcript"; value: boolean }
   | { type: "set-enabled-sections"; sections: Set<string> }
   | { type: "set-include-course-structure"; value: boolean }
+  | { type: "set-source-project-path"; path: string }
+  | {
+      type: "set-source-project-files";
+      files: Array<{ path: string; size: number; defaultEnabled: boolean }>;
+    }
+  | { type: "set-enabled-source-files"; files: Set<string> }
   | { type: "set-memory"; memory: string }
   | { type: "set-memory-enabled"; value: boolean }
   | { type: "set-doc-capturing-key"; key: string | null }
@@ -102,6 +115,18 @@ export function writePageReducer(
       }
       return { ...state, includeCourseStructure: action.value };
     }
+    case "set-source-project-path":
+      return { ...state, sourceProjectPath: action.path };
+    case "set-source-project-files":
+      return {
+        ...state,
+        sourceProjectFiles: action.files,
+        enabledSourceFiles: new Set(
+          action.files.filter((f) => f.defaultEnabled).map((f) => f.path)
+        ),
+      };
+    case "set-enabled-source-files":
+      return { ...state, enabledSourceFiles: action.files };
     case "set-memory":
       return { ...state, memory: action.memory };
     case "set-memory-enabled": {
@@ -162,18 +187,20 @@ export function createInitialState({
   files,
   clipSections,
   initialMemory,
+  sourceProjectPath,
 }: {
   files: Array<{ path: string; defaultEnabled: boolean }>;
   clipSections: Array<{ id: string }>;
   initialMemory: string;
+  sourceProjectPath: string;
 }): WritePageState {
   const mode: Mode =
-    typeof localStorage !== "undefined"
+    typeof window !== "undefined" && typeof localStorage !== "undefined"
       ? (localStorage.getItem(MODE_STORAGE_KEY) as Mode) || "article"
       : "article";
 
   const model: Model =
-    typeof localStorage !== "undefined"
+    typeof window !== "undefined" && typeof localStorage !== "undefined"
       ? (localStorage.getItem(MODEL_STORAGE_KEY) as Model) || "claude-haiku-4-5"
       : "claude-haiku-4-5";
 
@@ -187,12 +214,12 @@ export function createInitialState({
       : new Set(files.filter((f) => f.defaultEnabled).map((f) => f.path));
 
   const includeCourseStructure =
-    typeof localStorage !== "undefined"
+    typeof window !== "undefined" && typeof localStorage !== "undefined"
       ? localStorage.getItem(COURSE_STRUCTURE_STORAGE_KEY) === "true"
       : false;
 
   const memoryEnabled =
-    typeof localStorage !== "undefined"
+    typeof window !== "undefined" && typeof localStorage !== "undefined"
       ? localStorage.getItem(MEMORY_ENABLED_STORAGE_KEY) === "true"
       : false;
 
@@ -200,6 +227,9 @@ export function createInitialState({
     mode,
     model,
     enabledFiles,
+    sourceProjectPath,
+    sourceProjectFiles: [],
+    enabledSourceFiles: new Set<string>(),
     includeTranscript: true,
     enabledSections: new Set(clipSections.map((s) => s.id)),
     includeCourseStructure,

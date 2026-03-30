@@ -26,7 +26,7 @@ export function FeedbackModal(props: {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prevState = useRef(fetcher.state);
   const [addMore, setAddMore] = useState(() => {
-    if (typeof localStorage !== "undefined") {
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
       return localStorage.getItem(ADD_MORE_STORAGE_KEY) === "true";
     }
     return false;

@@ -65,6 +65,7 @@ export const LiveMediaStream = (props: LiveMediaStreamProps) => {
         ref={videoRef}
         muted
         className={cn(
+          "w-full aspect-video",
           "ring-4",
           "ring-muted-foreground",
           "rounded-lg",

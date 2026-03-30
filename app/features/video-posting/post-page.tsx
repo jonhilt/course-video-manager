@@ -72,13 +72,13 @@ export function PostPage({
 }) {
   // Title and description with localStorage persistence
   const [title, setTitle] = useState(() => {
-    if (typeof localStorage !== "undefined") {
+    if (typeof window !== "undefined") {
       return localStorage.getItem(POST_TITLE_STORAGE_KEY(videoId)) ?? "";
     }
     return "";
   });
   const [description, setDescription] = useState(() => {
-    if (typeof localStorage !== "undefined") {
+    if (typeof window !== "undefined") {
       return localStorage.getItem(POST_DESCRIPTION_STORAGE_KEY(videoId)) ?? "";
     }
     return "";

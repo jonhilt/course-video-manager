@@ -227,7 +227,10 @@ export const appendFromObsImpl = (
     const { videoId, filePath, insertionPoint } = event.input;
 
     // Convert Windows path to WSL path if provided
-    const resolvedFilePath = filePath ? windowsToWSL(filePath) : undefined;
+    const resolvedFilePath =
+      filePath && /^[A-Za-z]:\\/.test(filePath)
+        ? windowsToWSL(filePath)
+        : filePath;
 
     // Get all clips (including archived) to find the last clip with this input video
     const allClipsIncludingArchived = yield* Effect.promise(() =>

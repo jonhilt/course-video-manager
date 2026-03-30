@@ -91,17 +91,17 @@ The description should have the following structure:
 4. **Standard Promotional Footer** (Fourth section, always include)
    - Always include this promotional section at the end of the description:
 
-   Sign up for the AI Hero newsletter:
+   Sign up for the Practical ASP.NET newsletter:
 
-   https://aihero.dev/newsletter
+   https://jonhilton.net/newsletter/
 
-   Follow Matt on Twitter
+   Follow Jon on Twitter
 
-   https://twitter.com/mattpocockuk
+   https://x.com/jonhilt
 
-   Join the Discord:
+   Join the community:
 
-   https://aihero.dev/discord
+   https://community.practicaldotnet.io
 
    - Add a blank line before this section
 

@@ -245,12 +245,30 @@ export const DEFAULT_CHECKED_EXTENSIONS = [
 
 export const ALWAYS_EXCLUDED_DIRECTORIES = ["node_modules", ".vite"];
 
+export const SOURCE_PROJECT_EXCLUDED_DIRECTORIES = [
+  ...ALWAYS_EXCLUDED_DIRECTORIES,
+  ".git",
+  "bin",
+  "obj",
+  "dist",
+  "build",
+  ".next",
+  ".nuxt",
+  "coverage",
+  "__pycache__",
+  ".cache",
+  ".vs",
+  ".idea",
+  "packages",
+];
+
 export const DEFAULT_UNCHECKED_PATHS = ["readme.md", "speaker-notes.md"];
 
 export const acquireTextWritingContext = Effect.fn("acquireVideoContext")(
   function* (props: {
     videoId: string;
     enabledFiles: string[] | undefined;
+    enabledSourceFiles?: string[];
     includeTranscript?: boolean;
     enabledSections?: string[];
   }) {
@@ -425,6 +443,68 @@ export const acquireTextWritingContext = Effect.fn("acquireVideoContext")(
             content: f.content,
           }));
       }
+    }
+
+    // Read source project files if configured
+    if (
+      video.sourceProjectPath &&
+      props.enabledSourceFiles &&
+      props.enabledSourceFiles.length > 0
+    ) {
+      const sourceProjectPath = video.sourceProjectPath;
+      const projectName = path.basename(sourceProjectPath);
+      const sourceFiles = yield* Effect.forEach(
+        props.enabledSourceFiles,
+        (relativePath) => {
+          return Effect.gen(function* () {
+            const filePath = path.join(sourceProjectPath, relativePath);
+            const exists = yield* fs.exists(filePath);
+            if (!exists) return NOT_A_FILE;
+            const stat = yield* fs.stat(filePath);
+            if (stat.type !== "File") return NOT_A_FILE;
+
+            const imageExtensions = [
+              ".png",
+              ".jpg",
+              ".jpeg",
+              ".gif",
+              ".svg",
+              ".webp",
+              ".bmp",
+            ];
+            const isImage = imageExtensions.some((ext) =>
+              filePath.endsWith(ext)
+            );
+
+            if (isImage) {
+              const fileContent = yield* fs.readFile(filePath);
+              return {
+                type: "image" as const,
+                path: `${projectName}/${relativePath}`,
+                content: fileContent,
+              };
+            } else {
+              const fileContent = yield* fs.readFileString(filePath);
+              return {
+                type: "text" as const,
+                filePath: `${projectName}/${relativePath}`,
+                fileContent,
+              };
+            }
+          });
+        }
+      ).pipe(Effect.map(Array.filter((r) => r !== NOT_A_FILE)));
+
+      textFiles = textFiles.concat(
+        sourceFiles
+          .filter((f) => f.type === "text")
+          .map((f) => ({ path: f.filePath, content: f.fileContent }))
+      );
+      imageFiles = imageFiles.concat(
+        sourceFiles
+          .filter((f) => f.type === "image")
+          .map((f) => ({ path: f.path, content: f.content }))
+      );
     }
 
     const includeTranscript = props.includeTranscript ?? true;

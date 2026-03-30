@@ -260,6 +260,20 @@ export const createVideoOperations = (
     return videoResult;
   });
 
+  const updateVideoSourceProjectPath = Effect.fn(
+    "updateVideoSourceProjectPath"
+  )(function* (opts: { videoId: string; sourceProjectPath: string }) {
+    yield* makeDbCall(() =>
+      db
+        .update(videos)
+        .set({
+          sourceProjectPath: opts.sourceProjectPath || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(videos.id, opts.videoId))
+    );
+  });
+
   const updateVideoPath = Effect.fn("updateVideoPath")(function* (opts: {
     videoId: string;
     path: string;
@@ -556,6 +570,7 @@ export const createVideoOperations = (
     hasOriginalFootagePathAlreadyBeenUsed,
     updateVideo,
     deleteVideo,
+    updateVideoSourceProjectPath,
     updateVideoPath,
     updateVideoLesson,
     updateVideoArchiveStatus,

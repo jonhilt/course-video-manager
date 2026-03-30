@@ -45,7 +45,7 @@ export const SocialPagePanel = (props: SocialPagePanelProps) => {
 
   // Social caption state with localStorage persistence
   const [socialCaption, setSocialCaption] = useState(() => {
-    if (typeof localStorage !== "undefined") {
+    if (typeof window !== "undefined") {
       return localStorage.getItem(SOCIAL_CAPTION_STORAGE_KEY(videoId)) ?? "";
     }
     return "";
@@ -180,7 +180,10 @@ export const SocialPagePanel = (props: SocialPagePanelProps) => {
   };
 
   const handlePostToLinkedIn = () => {
-    copyAndNavigate("https://www.linkedin.com/feed/", "LinkedIn");
+    copyAndNavigate(
+      "https://www.linkedin.com/feed/?shareActive=true",
+      "LinkedIn"
+    );
   };
 
   return (

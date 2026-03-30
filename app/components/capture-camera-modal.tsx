@@ -15,8 +15,8 @@ type CaptureCameraModalProps = {
   onCapture: (dataUrl: string) => void;
 };
 
-const CAPTURE_WIDTH = 1280;
-const CAPTURE_HEIGHT = 720;
+const CAPTURE_WIDTH = 1920;
+const CAPTURE_HEIGHT = 1080;
 
 function useOBSCameraStream(active: boolean) {
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);

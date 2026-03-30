@@ -4,6 +4,7 @@ import {
   type IconType,
   SiAstro,
   SiBiome,
+  SiBlazor,
   SiBower,
   SiBun,
   SiC,
@@ -14,6 +15,7 @@ import {
   SiCssmodules,
   SiDart,
   SiDocker,
+  SiDotnet,
   SiDocusaurus,
   SiDotenv,
   SiEditorconfig,
@@ -97,7 +99,7 @@ import {
   type BundledLanguage,
   type CodeOptionsMultipleThemes,
   codeToHtml,
-} from "shiki/bundle/web";
+} from "shiki/bundle/full";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -108,7 +110,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-export type { BundledLanguage } from "shiki/bundle/web";
+export type { BundledLanguage } from "shiki/bundle/full";
 
 const filenameIconMap = {
   ".env": SiDotenv,
@@ -118,6 +120,9 @@ const filenameIconMap = {
   "bun.lockb": SiBun,
   "*.c": SiC,
   "*.cpp": SiCplusplus,
+  "*.cs": SiDotnet,
+  "*.cshtml": SiBlazor,
+  "*.csproj": SiDotnet,
   ".circleci/config.yml": SiCircleci,
   "*.coffee": SiCoffeescript,
   "*.module.css": SiCssmodules,
@@ -155,6 +160,7 @@ const filenameIconMap = {
   "*.prisma": SiPrisma,
   "*.pug": SiPug,
   "*.py": SiPython,
+  "*.razor": SiBlazor,
   "*.r": SiR,
   "*.rb": SiRuby,
   "*.jsx": SiReact,

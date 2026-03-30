@@ -285,6 +285,9 @@ export const ComponentInner = (props: Route.ComponentProps) => {
   };
 
   const clipStateRef = useRef(initialState);
+  const speechDetectorStateRef = useRef<{ type: string }>({
+    type: "warming-up",
+  });
   const revalidator = useRevalidator();
 
   const effectHandlers = useMemo(
@@ -293,6 +296,7 @@ export const ComponentInner = (props: Route.ComponentProps) => {
         videoId: props.loaderData.video.id,
         clipService,
         clipStateRef,
+        speechDetectorStateRef,
         revalidate: () => revalidator.revalidate(),
         whiteNoiseAssetPath: props.loaderData.whiteNoiseAssetPath,
       }),
@@ -317,6 +321,8 @@ export const ComponentInner = (props: Route.ComponentProps) => {
       });
     },
   });
+
+  speechDetectorStateRef.current = obsConnector.speechDetectorState;
 
   // Sync OBS recording state to clip-state-reducer sessions
   const prevOBSStateTypeRef = useRef(obsConnector.state.type);

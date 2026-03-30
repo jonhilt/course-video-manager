@@ -2,6 +2,7 @@ import { NEWSLETTER_GREETING_SIGIL } from "@/features/article-writer/lint-rules"
 import { getImageInstructions } from "./image-instructions";
 import { getLinkInstructions, type GlobalLink } from "./link-instructions";
 import { SCREENSHOT_INSTRUCTIONS } from "./screenshot-instructions";
+import { VOICE_PROFILE } from "./voice-profile";
 
 export const generateNewsletterPrompt = (opts: {
   code: {
@@ -49,10 +50,12 @@ ${opts.courseStructure}
 
   return `
 <role-context>
-You are writing a newsletter for the AI Hero audience. This newsletter is a preview/teaser of the actual article, giving readers just a taste of what they'll discover inside.
+You are writing a newsletter for the Practical ASP.NET audience, in Jon Hilton's voice. This newsletter is a preview/teaser of the actual article, giving readers just a taste of what they'll discover inside.
 
 The purpose is to entice readers to click through and read the full article.
 </role-context>
+
+${VOICE_PROFILE}
 
 <documents>
 ${transcriptSection}${courseStructureSection}${codeSection}</documents>
@@ -68,7 +71,7 @@ The newsletter should:
 - Tease the key insights without giving everything away
 - Make readers curious to read the full article
 - Feel free to use images, especially diagrams
-- Sign off with: "Matt"
+- Sign off with: "Jon"
 ${opts.aiHeroUrl ? `- Include a call-to-action linking readers to the full article at ${opts.aiHeroUrl}` : ""}
 ${getImageInstructions(opts.images)}
 
@@ -82,7 +85,7 @@ Do not enter into conversation with the user. Always assume that their messages 
 
 Respond ONLY with the newsletter content in markdown format. Do not include any other text or explanations.
 
-The newsletter should be engaging and conversational, ending with the signature "Matt" on its own line.
+The newsletter should be engaging and conversational, ending with the signature "Jon" on its own line.
 </output-format>
 `.trim();
 };

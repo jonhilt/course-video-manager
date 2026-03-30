@@ -48,13 +48,23 @@ export function useAudioBoost(
     const gain = context.createGain();
     gain.gain.value = Math.pow(10, boostDb / 20);
 
+    // Limiter prevents digital clipping when the boost pushes peaks above 0 dBFS
+    const limiter = context.createDynamicsCompressor();
+    limiter.threshold.value = -1;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.01;
+
     source.connect(gain);
-    gain.connect(context.destination);
+    gain.connect(limiter);
+    limiter.connect(context.destination);
     gainNodeRef.current = gain;
 
     return () => {
       source.disconnect();
       gain.disconnect();
+      limiter.disconnect();
       gainNodeRef.current = null;
     };
   }, [videoRef, boostDb]);

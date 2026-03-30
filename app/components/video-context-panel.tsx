@@ -5,16 +5,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { SectionWithWordCount } from "@/features/article-writer/types";
+import { FileSection } from "@/components/file-section";
 import { FileTree } from "@/components/FileTree";
-import { StandaloneFileTree } from "@/components/StandaloneFileTree";
 import {
-  ClipboardIcon,
   CheckIcon,
+  ClipboardIcon,
   LinkIcon,
   ExternalLinkIcon,
   Trash2Icon,
   PlusIcon,
   FolderOpenIcon,
+  CodeIcon,
 } from "lucide-react";
 import { memo, useState } from "react";
 
@@ -83,6 +84,13 @@ export type VideoContextPanelProps = {
   // Copy transcript
   onCopyTranscript?: () => void;
 
+  // Source project
+  sourceProjectPath?: string;
+  onSourceProjectPathChange?: (path: string) => void;
+  sourceProjectFiles?: FileMetadata[];
+  enabledSourceFiles?: Set<string>;
+  onEnabledSourceFilesChange?: (files: Set<string>) => void;
+
   // Memory
   memory?: string;
   onMemoryChange?: (memory: string) => void;
@@ -116,6 +124,11 @@ export const VideoContextPanel = memo(function VideoContextPanel({
   videoSlot,
   onRevealInFileSystem,
   onCopyTranscript,
+  sourceProjectPath,
+  onSourceProjectPathChange,
+  sourceProjectFiles,
+  enabledSourceFiles,
+  onEnabledSourceFilesChange,
   memory,
   onMemoryChange,
   memoryEnabled,
@@ -307,127 +320,87 @@ export const VideoContextPanel = memo(function VideoContextPanel({
                 <hr className="border-border my-6" />
               </>
             )}
-            {/* File tree - lesson-connected videos */}
-            {!isStandalone && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 py-1 px-2">
-                  <Checkbox
-                    id="include-files"
-                    checked={
-                      files.length === 0
-                        ? false
-                        : enabledFiles.size === files.length
-                          ? true
-                          : enabledFiles.size > 0
-                            ? "indeterminate"
-                            : false
-                    }
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        onEnabledFilesChange(new Set(files.map((f) => f.path)));
-                      } else {
-                        onEnabledFilesChange(new Set());
+            <FileSection
+              files={files}
+              enabledFiles={enabledFiles}
+              onEnabledFilesChange={onEnabledFilesChange}
+              onFileClick={onFileClick}
+              onOpenFolderClick={onOpenFolderClick}
+              onAddFromClipboardClick={onAddFromClipboardClick}
+              isStandalone={isStandalone}
+              onEditFile={onEditFile}
+              onDeleteFile={onDeleteFile}
+            />
+            {/* Source project */}
+            {onSourceProjectPathChange && (
+              <>
+                <hr className="border-border my-6" />
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 py-1 px-2">
+                    <CodeIcon className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm flex-1">Source Project</span>
+                  </div>
+                  <div className="px-2">
+                    <input
+                      type="text"
+                      className="w-full text-xs px-2 py-1.5 rounded border border-border bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder="Path to demo project folder…"
+                      defaultValue={sourceProjectPath ?? ""}
+                      onBlur={(e) =>
+                        onSourceProjectPathChange(e.target.value.trim())
                       }
-                    }}
-                  />
-                  <label
-                    htmlFor="include-files"
-                    className="text-sm flex-1 cursor-pointer"
-                  >
-                    Files
-                  </label>
-                  {onOpenFolderClick && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={onOpenFolderClick}
-                      title="Open folder"
-                    >
-                      <FolderOpenIcon className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  {onAddFromClipboardClick && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7"
-                      onClick={onAddFromClipboardClick}
-                    >
-                      <ClipboardIcon className="h-3 w-3 mr-1" />
-                      Add from Clipboard
-                    </Button>
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          onSourceProjectPathChange(
+                            (e.target as HTMLInputElement).value.trim()
+                          );
+                        }
+                      }}
+                    />
+                  </div>
+                  {sourceProjectFiles && sourceProjectFiles.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-2 py-1 px-2">
+                        <Checkbox
+                          id="include-source-files"
+                          checked={
+                            sourceProjectFiles.length === 0
+                              ? false
+                              : enabledSourceFiles?.size ===
+                                  sourceProjectFiles.length
+                                ? true
+                                : (enabledSourceFiles?.size ?? 0) > 0
+                                  ? "indeterminate"
+                                  : false
+                          }
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              onEnabledSourceFilesChange?.(
+                                new Set(sourceProjectFiles.map((f) => f.path))
+                              );
+                            } else {
+                              onEnabledSourceFilesChange?.(new Set());
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor="include-source-files"
+                          className="text-sm flex-1 cursor-pointer"
+                        >
+                          Files ({sourceProjectFiles.length})
+                        </label>
+                      </div>
+                      <FileTree
+                        files={sourceProjectFiles}
+                        enabledFiles={enabledSourceFiles ?? new Set()}
+                        onEnabledFilesChange={
+                          onEnabledSourceFilesChange ?? (() => {})
+                        }
+                      />
+                    </>
                   )}
                 </div>
-                <FileTree
-                  files={files}
-                  enabledFiles={enabledFiles}
-                  onEnabledFilesChange={onEnabledFilesChange}
-                  onFileClick={onFileClick}
-                />
-              </div>
-            )}
-            {/* Standalone file tree */}
-            {isStandalone && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 py-1 px-2">
-                  <Checkbox
-                    id="include-standalone-files"
-                    checked={
-                      files.length === 0
-                        ? false
-                        : enabledFiles.size === files.length
-                          ? true
-                          : enabledFiles.size > 0
-                            ? "indeterminate"
-                            : false
-                    }
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        onEnabledFilesChange(new Set(files.map((f) => f.path)));
-                      } else {
-                        onEnabledFilesChange(new Set());
-                      }
-                    }}
-                  />
-                  <label
-                    htmlFor="include-standalone-files"
-                    className="text-sm flex-1 cursor-pointer"
-                  >
-                    Files
-                  </label>
-                  {onOpenFolderClick && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={onOpenFolderClick}
-                      title="Open folder"
-                    >
-                      <FolderOpenIcon className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                  {onAddFromClipboardClick && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7"
-                      onClick={onAddFromClipboardClick}
-                    >
-                      <ClipboardIcon className="h-3 w-3 mr-1" />
-                      Add from Clipboard
-                    </Button>
-                  )}
-                </div>
-                <StandaloneFileTree
-                  files={files}
-                  enabledFiles={enabledFiles}
-                  onEnabledFilesChange={onEnabledFilesChange}
-                  onEditFile={onEditFile ?? (() => {})}
-                  onDeleteFile={onDeleteFile ?? (() => {})}
-                  onFileClick={onFileClick}
-                />
-              </div>
+              </>
             )}
           </>
         )}

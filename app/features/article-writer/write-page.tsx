@@ -29,14 +29,10 @@ import {
   loadMessagesFromStorage,
   saveMessagesToStorage,
 } from "./write-utils";
-import {
-  replaceChooseScreenshotWithImage,
-  updateChooseScreenshotClipIndex,
-  removeChooseScreenshot,
-  hasUnresolvedScreenshots,
-} from "./choose-screenshot-mutations";
+import { hasUnresolvedScreenshots } from "./choose-screenshot-mutations";
 import { preprocessChooseScreenshotMarkdown } from "./choose-screenshot-markdown";
 import { ChooseScreenshot } from "./choose-screenshot";
+import { useChooseScreenshotHandlers } from "./use-choose-screenshot-handlers";
 import { WriteChat } from "./write-chat";
 import { WriteModals } from "./write-modals";
 import { DocumentPanel } from "./document-panel";
@@ -75,6 +71,7 @@ export interface WritePageProps {
       hasExplainerFolder: boolean;
     } | null;
     repoId: string | null;
+    sourceProjectPath: string;
     memory: string;
   };
 }
@@ -93,12 +90,18 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
     courseStructure,
     nextLessonWithoutVideo,
     repoId,
+    sourceProjectPath: initialSourceProjectPath,
     memory: initialMemory,
   } = loaderData;
 
   const [state, dispatch] = useReducer(
     writePageReducer,
-    { files, clipSections, initialMemory },
+    {
+      files,
+      clipSections,
+      initialMemory,
+      sourceProjectPath: initialSourceProjectPath,
+    },
     createInitialState
   );
 
@@ -106,6 +109,9 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
     mode,
     model,
     enabledFiles,
+    sourceProjectPath,
+    sourceProjectFiles,
+    enabledSourceFiles,
     includeTranscript,
     enabledSections,
     includeCourseStructure,
@@ -154,6 +160,46 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
       }
     };
   }, [memory, repoId]);
+
+  // Source project path save + file fetching
+  const updateSourceProjectFetcher = useFetcher();
+  const isSourceProjectInitialMount = useRef(true);
+
+  const handleSourceProjectPathChange = useCallback(
+    (newPath: string) => {
+      dispatch({ type: "set-source-project-path", path: newPath });
+      updateSourceProjectFetcher.submit(
+        { sourceProjectPath: newPath },
+        {
+          method: "post",
+          action: `/api/videos/${videoId}/update-source-project`,
+        }
+      );
+    },
+    [videoId]
+  );
+
+  useEffect(() => {
+    if (isSourceProjectInitialMount.current) {
+      isSourceProjectInitialMount.current = false;
+    }
+    if (!sourceProjectPath) {
+      dispatch({ type: "set-source-project-files", files: [] });
+      return;
+    }
+    fetch(`/api/videos/${videoId}/source-project-files`)
+      .then((res) => res.json())
+      .then(
+        (data: {
+          files: Array<{ path: string; size: number; defaultEnabled: boolean }>;
+        }) => {
+          dispatch({ type: "set-source-project-files", files: data.files });
+        }
+      )
+      .catch(() => {
+        dispatch({ type: "set-source-project-files", files: [] });
+      });
+  }, [sourceProjectPath, videoId]);
 
   const isDocumentMode =
     mode === "article" || mode === "skill-building" || mode === "newsletter";
@@ -213,72 +259,13 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
     });
 
   // ChooseScreenshot support for document panel
-  const handleDocCapture = useCallback(
-    async (
-      clipIndex: number,
-      alt: string,
-      timestamp: number,
-      videoFilename: string
-    ) => {
-      const key = `doc-${clipIndex}-${alt}`;
-      dispatch({ type: "set-doc-capturing-key", key });
-      try {
-        const res = await fetch(`/api/videos/${videoId}/capture-screenshot`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ timestamp, videoFilename }),
-        });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || "Failed to capture screenshot");
-        }
-        const { imagePath } = await res.json();
-        const currentDoc = documentRef.current;
-        if (currentDoc) {
-          updateDocument(
-            replaceChooseScreenshotWithImage(
-              currentDoc,
-              clipIndex,
-              alt,
-              imagePath
-            )
-          );
-        }
-      } catch (err) {
-        console.error("Screenshot capture failed:", err);
-      } finally {
-        dispatch({ type: "set-doc-capturing-key", key: null });
-      }
-    },
-    [videoId, documentRef, updateDocument]
-  );
-
-  const handleDocClipIndexChange = useCallback(
-    (currentIndex: number, newIndex: number, alt: string) => {
-      const currentDoc = documentRef.current;
-      if (currentDoc) {
-        updateDocument(
-          updateChooseScreenshotClipIndex(
-            currentDoc,
-            currentIndex,
-            newIndex,
-            alt
-          )
-        );
-      }
-    },
-    [documentRef, updateDocument]
-  );
-
-  const handleDocRemove = useCallback(
-    (clipIndex: number, alt: string) => {
-      const currentDoc = documentRef.current;
-      if (currentDoc) {
-        updateDocument(removeChooseScreenshot(currentDoc, clipIndex, alt));
-      }
-    },
-    [documentRef, updateDocument]
-  );
+  const { handleDocCapture, handleDocClipIndexChange, handleDocRemove } =
+    useChooseScreenshotHandlers({
+      videoId,
+      documentRef,
+      updateDocument,
+      dispatch,
+    });
 
   const {
     writeToReadmeFetcher: docWriteToReadmeFetcher,
@@ -394,6 +381,7 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
       clipSections.length > 0 ? enabledSections.size > 0 : includeTranscript;
     const base = {
       enabledFiles: Array.from(enabledFiles),
+      enabledSourceFiles: Array.from(enabledSourceFiles),
       model,
       includeTranscript: transcriptEnabled,
       enabledSections: Array.from(enabledSections),
@@ -407,6 +395,7 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
     enabledSections,
     includeTranscript,
     enabledFiles,
+    enabledSourceFiles,
     model,
     includeCourseStructure,
     courseStructure,
@@ -612,6 +601,13 @@ export function WritePage({ videoId, loaderData }: WritePageProps) {
             repoId
               ? (m: string) => dispatch({ type: "set-memory", memory: m })
               : undefined
+          }
+          sourceProjectPath={sourceProjectPath}
+          onSourceProjectPathChange={handleSourceProjectPathChange}
+          sourceProjectFiles={sourceProjectFiles}
+          enabledSourceFiles={enabledSourceFiles}
+          onEnabledSourceFilesChange={(files: Set<string>) =>
+            dispatch({ type: "set-enabled-source-files", files })
           }
           memoryEnabled={memoryEnabled}
           onMemoryEnabledChange={handleMemoryEnabledChange}

@@ -41,7 +41,7 @@ export function useDocumentFlow(opts: {
     tool: "writeDocument" | "editDocument";
     toolCallId: string;
     output: string;
-  }) => Promise<void>;
+  }) => void | PromiseLike<void>;
 }) {
   const { videoId, mode, isDocumentMode, messages, status, addToolOutput } =
     opts;

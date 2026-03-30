@@ -62,6 +62,9 @@ const chatSchema = Schema.Struct({
   }),
   courseStructure: Schema.optional(courseStructureSchema),
   aiHeroUrl: Schema.optional(Schema.String),
+  enabledSourceFiles: Schema.optionalWith(Schema.Array(Schema.String), {
+    default: () => [],
+  }),
   memory: Schema.optional(Schema.String),
 });
 
@@ -82,6 +85,7 @@ export const action = async (args: Route.ActionArgs) => {
     const videoContext = yield* acquireTextWritingContext({
       videoId,
       enabledFiles,
+      enabledSourceFiles: [...parsed.enabledSourceFiles],
       includeTranscript,
       enabledSections,
     });

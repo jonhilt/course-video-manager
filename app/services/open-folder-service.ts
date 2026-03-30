@@ -9,6 +9,8 @@ export class OpenFolderError extends Data.TaggedError("OpenFolderError")<{
   message: string;
 }> {}
 
+const isMac = process.platform === "darwin";
+
 const wslPathToWindows = (
   wslPath: string
 ): Effect.Effect<string, OpenFolderError> =>
@@ -31,17 +33,30 @@ export class OpenFolderService extends Effect.Service<OpenFolderService>()(
       const openInExplorer = Effect.fn("openInExplorer")(function* (
         path: string
       ) {
-        const windowsPath = yield* wslPathToWindows(path);
-        yield* Effect.tryPromise({
-          try: async () => {
-            await execAsync(`explorer.exe "${windowsPath}"`);
-          },
-          catch: (e) =>
-            new OpenFolderError({
-              cause: e,
-              message: `Failed to open Explorer: ${e}`,
-            }),
-        });
+        if (isMac) {
+          yield* Effect.tryPromise({
+            try: async () => {
+              await execAsync(`open "${path}"`);
+            },
+            catch: (e) =>
+              new OpenFolderError({
+                cause: e,
+                message: `Failed to open Finder: ${e}`,
+              }),
+          });
+        } else {
+          const windowsPath = yield* wslPathToWindows(path);
+          yield* Effect.tryPromise({
+            try: async () => {
+              await execAsync(`explorer.exe "${windowsPath}"`);
+            },
+            catch: (e) =>
+              new OpenFolderError({
+                cause: e,
+                message: `Failed to open Explorer: ${e}`,
+              }),
+          });
+        }
       });
 
       const openInVSCode = Effect.fn("openInVSCode")(function* (path: string) {

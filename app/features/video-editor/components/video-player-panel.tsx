@@ -123,6 +123,10 @@ export const VideoPlayerPanel = () => {
     VideoEditorContext,
     (ctx) => ctx.scrubSeekTime
   );
+  const currentTimeInClip = useContextSelector(
+    VideoEditorContext,
+    (ctx) => ctx.currentTimeInClip
+  );
   const dispatch = useContextSelector(
     VideoEditorContext,
     (ctx) => ctx.dispatch
@@ -354,7 +358,9 @@ export const VideoPlayerPanel = () => {
               min={currentClip.sourceStartTime}
               max={currentClip.sourceEndTime}
               step={0.01}
-              value={scrubSeekTime ?? currentClip.sourceStartTime}
+              value={
+                scrubSeekTime ?? currentClip.sourceStartTime + currentTimeInClip
+              }
               onChange={(e: ChangeEvent<HTMLInputElement>) => {
                 dispatch({
                   type: "scrub-to-time",

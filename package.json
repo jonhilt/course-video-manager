@@ -32,6 +32,7 @@
     "@effect/cluster": "^0.46.4",
     "@effect/platform": "^0.90.0",
     "@effect/platform-node": "^0.94.0",
+    "@effect/sql": "^0.51.0",
     "@icons-pack/react-simple-icons": "^13.6.0",
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-avatar": "^1.1.10",

@@ -44,7 +44,7 @@ export const NewsletterPagePanel = (props: NewsletterPagePanelProps) => {
 
   // Newsletter content state with localStorage persistence
   const [newsletterContent, setNewsletterContent] = useState(() => {
-    if (typeof localStorage !== "undefined") {
+    if (typeof window !== "undefined") {
       return localStorage.getItem(NEWSLETTER_STORAGE_KEY(videoId)) ?? "";
     }
     return "";
@@ -62,7 +62,7 @@ export const NewsletterPagePanel = (props: NewsletterPagePanelProps) => {
 
   // AI Hero URL input - pre-filled from localStorage slug if available
   const [aiHeroUrl, setAiHeroUrl] = useState(() => {
-    if (typeof localStorage !== "undefined") {
+    if (typeof window !== "undefined") {
       const slug = localStorage.getItem(`ai-hero-slug-${videoId}`);
       return slug ? `https://aihero.dev/${slug}` : "";
     }

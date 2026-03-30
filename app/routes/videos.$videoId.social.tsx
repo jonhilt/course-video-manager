@@ -1,7 +1,6 @@
 "use client";
 
 import { DBFunctionsService } from "@/services/db-service.server";
-import { FeatureFlagService } from "@/services/feature-flag-service";
 import { sortByOrder } from "@/lib/sort-by-order";
 import { runtimeLive } from "@/services/layer.server";
 import type { SectionWithWordCount } from "@/features/article-writer/types";
@@ -35,11 +34,8 @@ export const loader = async (args: Route.LoaderArgs) => {
   return Effect.gen(function* () {
     const db = yield* DBFunctionsService;
     const fs = yield* FileSystem.FileSystem;
-    const featureFlags = yield* FeatureFlagService;
     const video = yield* db.getVideoWithClipsById(videoId);
-    const showSocialShareButtons = featureFlags.isEnabled(
-      "ENABLE_SOCIAL_SHARE_BUTTONS"
-    );
+    const showSocialShareButtons = true;
 
     const globalLinks = yield* db.getLinks();
 

@@ -9,7 +9,7 @@
 export const SILENCE_THRESHOLD_DB = -38;
 
 /** Minimum duration of silence (in seconds) to count as a gap */
-export const SILENCE_DURATION_SECONDS = 0.8;
+export const SILENCE_DURATION_SECONDS = 1.0;
 
 /** Minimum clip length (in seconds) — clips shorter than this are discarded */
 export const MINIMUM_CLIP_LENGTH_SECONDS = 1;

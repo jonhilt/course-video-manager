@@ -1,4 +1,5 @@
-import { createReadStream, statSync } from "fs";
+import { createReadStream } from "fs";
+import { stat as fsStat } from "fs/promises";
 import type { Route } from "./+types/view-video";
 
 export const loader = async (args: Route.LoaderArgs) => {
@@ -13,8 +14,8 @@ export const loader = async (args: Route.LoaderArgs) => {
   }
 
   try {
-    const stat = statSync(videoPath);
-    const fileSize = stat.size;
+    const fileStat = await fsStat(videoPath);
+    const fileSize = fileStat.size;
 
     const range = request.headers.get("range");
 

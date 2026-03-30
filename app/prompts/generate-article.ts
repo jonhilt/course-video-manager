@@ -2,6 +2,7 @@ import { getImageInstructions } from "./image-instructions";
 import { getLinkInstructions, type GlobalLink } from "./link-instructions";
 import { SCREENSHOT_INSTRUCTIONS } from "./screenshot-instructions";
 import { CODE_SAMPLES, STYLE_GUIDE_BASE } from "./style-guide";
+import { VOICE_PROFILE } from "./voice-profile";
 
 const taskInstructions = `
 ${STYLE_GUIDE_BASE}
@@ -59,6 +60,8 @@ ${opts.courseStructure}
 
   return `
 You are a helpful assistant being asked to format a transcript of a video to accompany it for easier reading. The video is a screencast from a coding lesson, where the viewer can see the code.
+
+${VOICE_PROFILE}
 
 ## Documents
 

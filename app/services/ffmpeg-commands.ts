@@ -43,22 +43,26 @@ export class FFmpegCommandsService extends Effect.Service<FFmpegCommandsService>
           "-"
         );
 
+        // Use nice to lower CPU priority so silence detection yields to OBS during recording
+        const command =
+          process.platform === "darwin"
+            ? Command.make("nice", "-n", "10", "ffmpeg", ...args)
+            : Command.make("ffmpeg", ...args);
+
         return yield* cpuSemaphore.withPermits(1)(
           Effect.scoped(
             Effect.gen(function* () {
-              const process = yield* Command.start(
-                Command.make("ffmpeg", ...args)
-              );
+              const proc = yield* Command.start(command);
               // ffmpeg exits non-zero with -f null, but we still get the output
               // silencedetect info is written to stderr
               const [stdout, stderr] = yield* Effect.all(
                 [
-                  process.stdout.pipe(Stream.decodeText(), Stream.mkString),
-                  process.stderr.pipe(Stream.decodeText(), Stream.mkString),
+                  proc.stdout.pipe(Stream.decodeText(), Stream.mkString),
+                  proc.stderr.pipe(Stream.decodeText(), Stream.mkString),
                 ],
                 { concurrency: 2 }
               );
-              yield* process.exitCode.pipe(Effect.ignore);
+              yield* proc.exitCode.pipe(Effect.ignore);
               return stdout + stderr;
             })
           )
@@ -147,6 +151,27 @@ export class FFmpegCommandsService extends Effect.Service<FFmpegCommandsService>
 
         const filterComplex = filterParts.join(";");
 
+        // macOS uses VideoToolbox hardware encoder; other platforms use NVENC
+        const videoEncoderArgs =
+          process.platform === "darwin"
+            ? ["-c:v", "h264_videotoolbox", "-q:v", "65"]
+            : [
+                "-c:v",
+                "h264_nvenc",
+                "-preset",
+                "slow",
+                "-rc:v",
+                "vbr",
+                "-cq:v",
+                "19",
+                "-b:v",
+                "15387k",
+                "-maxrate",
+                "20000k",
+                "-bufsize",
+                "30000k",
+              ];
+
         const args = [
           "-y",
           "-hide_banner",
@@ -157,20 +182,7 @@ export class FFmpegCommandsService extends Effect.Service<FFmpegCommandsService>
           "[outv]",
           "-map",
           "[outa]",
-          "-c:v",
-          "h264_nvenc",
-          "-preset",
-          "slow",
-          "-rc:v",
-          "vbr",
-          "-cq:v",
-          "19",
-          "-b:v",
-          "15387k",
-          "-maxrate",
-          "20000k",
-          "-bufsize",
-          "30000k",
+          ...videoEncoderArgs,
           "-fps_mode",
           "cfr",
           "-r",

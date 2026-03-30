@@ -33,6 +33,78 @@ export type AIResponseProps = HTMLAttributes<HTMLDivElement> & {
   preprocessMarkdown?: (md: string) => string;
 };
 
+/**
+ * Remark plugin that preserves code fence meta strings (e.g. `title="Program.cs"`)
+ * by copying them to `data.hProperties`, which remark-rehype passes through as
+ * HTML attributes on the `<code>` element.
+ */
+function remarkCodeMeta() {
+  return (tree: { type: string; children?: unknown[] }) => {
+    function visit(node: Record<string, unknown>) {
+      if (node.type === "code" && typeof node.meta === "string") {
+        const data = (node.data ?? {}) as Record<string, unknown>;
+        data.hProperties = {
+          ...(data.hProperties as Record<string, unknown>),
+          "data-meta": node.meta,
+        };
+        node.data = data;
+      }
+      if (Array.isArray(node.children)) {
+        node.children.forEach(visit);
+      }
+    }
+    visit(tree as Record<string, unknown>);
+  };
+}
+
+function parseTitleFromMeta(meta: string): string | undefined {
+  const match = meta.match(/title=["']([^"']+)["']/);
+  return match?.[1];
+}
+
+const languageToFilename = (language: string): string => {
+  const map: Record<string, string> = {
+    csharp: "Example.cs",
+    razor: "Example.razor",
+    cshtml: "Example.cshtml",
+    html: "index.html",
+    css: "styles.css",
+    javascript: "index.js",
+    js: "index.js",
+    typescript: "index.ts",
+    ts: "index.ts",
+    jsx: "index.jsx",
+    tsx: "index.tsx",
+    json: "data.json",
+    xml: "document.xml",
+    sql: "query.sql",
+    bash: "script.sh",
+    sh: "script.sh",
+    shell: "script.sh",
+    powershell: "script.ps1",
+    yaml: "config.yaml",
+    yml: "config.yaml",
+    python: "main.py",
+    py: "main.py",
+    go: "main.go",
+    rust: "main.rs",
+    java: "Main.java",
+    markdown: "document.md",
+    md: "document.md",
+    scss: "styles.scss",
+    sass: "styles.sass",
+    less: "styles.less",
+    dockerfile: "Dockerfile",
+    docker: "Dockerfile",
+    graphql: "schema.graphql",
+    toml: "config.toml",
+    vue: "Component.vue",
+    svelte: "Component.svelte",
+  };
+
+  return map[language] ?? `example.${language}`;
+};
+
 const getComponents = (imageBasePath: string): Options["components"] => ({
   p: ({ node, children, className, ...props }) => (
     <p className={cn("mb-4", className)} {...props}>
@@ -108,13 +180,7 @@ const getComponents = (imageBasePath: string): Options["components"] => ({
       {children}
     </h6>
   ),
-  pre: ({ node, className, children }) => {
-    let language = "javascript";
-
-    if (typeof node?.properties?.className === "string") {
-      language = node.properties.className.replace("language-", "");
-    }
-
+  pre: ({ className, children }) => {
     const childrenIsCode =
       typeof children === "object" &&
       children !== null &&
@@ -125,11 +191,29 @@ const getComponents = (imageBasePath: string): Options["components"] => ({
       return <pre>{children}</pre>;
     }
 
+    const codeProps = children.props as {
+      children: string;
+      className?: string;
+      "data-meta"?: string;
+    };
+
+    let language = "javascript";
+    const codeClassName = codeProps.className ?? "";
+    const langMatch = codeClassName.match(/language-(\S+)/);
+    if (langMatch) {
+      language = langMatch[1]!;
+    }
+
+    const meta = codeProps["data-meta"];
+    const filename =
+      (meta ? parseTitleFromMeta(meta) : undefined) ??
+      languageToFilename(language);
+
     const data: CodeBlockProps["data"] = [
       {
         language,
-        filename: "index.js",
-        code: (children.props as { children: string }).children,
+        filename,
+        code: codeProps.children,
       },
     ];
 
@@ -257,7 +341,7 @@ export const AIResponse = memo(
       >
         <ReactMarkdown
           components={components}
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkCodeMeta]}
           rehypePlugins={rehypePlugins}
           {...options}
         >

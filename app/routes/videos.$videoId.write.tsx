@@ -105,6 +105,7 @@ export const loader = async (args: Route.LoaderArgs) => {
           sectionPath: string;
           hasExplainerFolder: boolean;
         },
+        sourceProjectPath: video.sourceProjectPath ?? "",
         memory: "",
       };
     }
@@ -208,6 +209,7 @@ export const loader = async (args: Route.LoaderArgs) => {
             hasExplainerFolder: nextLessonHasExplainerFolder,
           }
         : null,
+      sourceProjectPath: video.sourceProjectPath ?? "",
       memory: repoWithSections?.memory ?? "",
     };
   }).pipe(

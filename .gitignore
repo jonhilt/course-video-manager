@@ -15,4 +15,5 @@ plans-backup.json
 .data/
 
 # Generated assets
-/assets/
+/assets/.claude/settings.local.json
+app/prompts/voice-profile.ts

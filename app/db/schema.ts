@@ -130,6 +130,7 @@ export const videos = createTable("video", {
   }),
   path: text("path").notNull(),
   originalFootagePath: text("original_footage_path").notNull(),
+  sourceProjectPath: text("source_project_path"),
   archived: boolean("archived").notNull().default(false),
   createdAt: timestamp("created_at", {
     mode: "date",

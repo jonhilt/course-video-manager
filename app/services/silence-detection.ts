@@ -6,8 +6,8 @@ import {
   MINIMUM_CLIP_LENGTH_SECONDS,
 } from "@/silence-detection-constants";
 
-const AUTO_EDITED_START_PADDING = 0; // frames
-const AUTO_EDITED_END_PADDING = 0.08; // frames
+const AUTO_EDITED_START_PADDING = 0.15; // seconds — catch soft onsets (breaths, soft consonants)
+const AUTO_EDITED_END_PADDING = 0.35; // seconds — breathing room for trailing consonants
 
 interface SpeakingClip {
   startFrame: number;

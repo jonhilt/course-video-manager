@@ -12,7 +12,7 @@ const STORAGE_KEY = "banned-phrases";
  */
 export function useBannedPhrases() {
   const [phrases, setPhrases] = useState<BannedPhrase[]>(() => {
-    if (typeof localStorage === "undefined") {
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
       return DEFAULT_BANNED_PHRASES;
     }
     const stored = localStorage.getItem(STORAGE_KEY);

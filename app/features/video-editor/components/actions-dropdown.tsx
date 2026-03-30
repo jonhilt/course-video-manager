@@ -21,6 +21,7 @@ import {
   Combine,
   CopyIcon,
   DownloadIcon,
+  FileVideoIcon,
   FilmIcon,
   FolderOpen,
   Loader2,
@@ -229,6 +230,20 @@ export const ActionsDropdown = (props: {
                 <span className="font-medium">DaVinci Resolve</span>
                 <span className="text-xs text-muted-foreground">
                   Create a new timeline with clips
+                </span>
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onSelect={() => {
+                window.open(`/videos/${props.videoId}/export-fcpxml`, "_blank");
+              }}
+            >
+              <FileVideoIcon className="w-4 h-4 mr-2" />
+              <div className="flex flex-col">
+                <span className="font-medium">FCPXML</span>
+                <span className="text-xs text-muted-foreground">
+                  Download timeline for DaVinci Resolve / Final Cut
                 </span>
               </div>
             </DropdownMenuItem>

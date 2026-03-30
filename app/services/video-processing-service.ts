@@ -15,7 +15,9 @@ const TRANSCRIPTION_PERMITS = 20;
 const AUTO_EDITED_VIDEO_FINAL_END_PADDING = 0.5;
 
 const FUSCRIPT_LOCATION =
-  "/mnt/d/Program Files/Blackmagic Design/DaVinci Resolve/fuscript.exe";
+  process.platform === "darwin"
+    ? "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/Libraries/Fusion/fuscript"
+    : "/mnt/d/Program Files/Blackmagic Design/DaVinci Resolve/fuscript.exe";
 
 const transcribeClipsSchema = Schema.Array(
   Schema.Struct({
@@ -82,9 +84,11 @@ export class VideoProcessingService extends Effect.Service<VideoProcessingServic
               Effect.orElseSucceed(() => path.join(homedir(), "Videos"))
             );
 
-            // Find the most recent .mp4 file
+            // Find the most recent video file
             const files = yield* effectFs.readDirectory(obsDir);
-            const mp4Files = files.filter((f) => f.endsWith(".mp4"));
+            const mp4Files = files.filter(
+              (f) => f.endsWith(".mp4") || f.endsWith(".mov")
+            );
             if (mp4Files.length === 0) {
               return {
                 clips: [] as {
@@ -404,22 +408,25 @@ export class VideoProcessingService extends Effect.Service<VideoProcessingServic
       const runDavinciResolveScript = Effect.fn("runDavinciResolveScript")(
         function* (script: string, env: Record<string, string>) {
           const scriptPath = path.resolve(
-            __dirname,
+            import.meta.dirname,
             "../../resources/resolve",
             script
           );
 
-          // Convert to Windows UNC path for fuscript
-          const windowsScriptPath = scriptPath.replace(
-            /^\/home\/(\w+)/,
-            (_, user) =>
-              `\\\\\\\\wsl.localhost\\\\Ubuntu-24.04\\\\home\\\\${user}`
-          );
+          // Convert to Windows UNC path for fuscript when running under WSL
+          const resolvedScriptPath =
+            process.platform === "darwin"
+              ? scriptPath
+              : scriptPath.replace(
+                  /^\/home\/(\w+)/,
+                  (_, user) =>
+                    `\\\\\\\\wsl.localhost\\\\Ubuntu-24.04\\\\home\\\\${user}`
+                );
 
           const command = Command.make(
             FUSCRIPT_LOCATION,
             "-q",
-            windowsScriptPath
+            resolvedScriptPath
           ).pipe(Command.env(env));
 
           return yield* Effect.scoped(

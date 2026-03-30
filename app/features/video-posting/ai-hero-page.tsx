@@ -77,7 +77,7 @@ export function AiHeroPage({
 }) {
   // Title with localStorage persistence
   const [title, setTitle] = useState(() => {
-    if (typeof localStorage !== "undefined") {
+    if (typeof window !== "undefined") {
       return localStorage.getItem(AI_HERO_TITLE_STORAGE_KEY(videoId)) ?? "";
     }
     return "";
@@ -85,7 +85,7 @@ export function AiHeroPage({
 
   // Body with localStorage persistence
   const [body, setBody] = useState(() => {
-    if (typeof localStorage !== "undefined") {
+    if (typeof window !== "undefined") {
       return localStorage.getItem(AI_HERO_BODY_STORAGE_KEY(videoId)) ?? "";
     }
     return "";
@@ -93,7 +93,7 @@ export function AiHeroPage({
 
   // SEO description with localStorage persistence
   const [seoDescription, setSeoDescription] = useState(() => {
-    if (typeof localStorage !== "undefined") {
+    if (typeof window !== "undefined") {
       return (
         localStorage.getItem(AI_HERO_SEO_DESCRIPTION_STORAGE_KEY(videoId)) ?? ""
       );
@@ -104,7 +104,7 @@ export function AiHeroPage({
   // Editable slug with localStorage persistence
   const slugInputTouched = useRef(false);
   const [slug, setSlug] = useState(() => {
-    if (typeof localStorage !== "undefined") {
+    if (typeof window !== "undefined") {
       const stored = localStorage.getItem(
         AI_HERO_FORM_SLUG_STORAGE_KEY(videoId)
       );
@@ -404,11 +404,7 @@ export function AiHeroPage({
         {(hasLocalImages || isUploadingImages) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isUploadingImages}
-              >
+              <Button variant="outline" size="sm" disabled={isUploadingImages}>
                 {isUploadingImages ? (
                   <>
                     <Loader2Icon className="h-4 w-4 animate-spin" />

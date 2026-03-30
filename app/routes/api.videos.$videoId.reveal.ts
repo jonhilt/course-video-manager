@@ -8,9 +8,8 @@ import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
 
-/**
- * Converts a WSL path to a Windows path using wslpath
- */
+const isMac = process.platform === "darwin";
+
 const wslPathToWindows = (wslPath: string): Effect.Effect<string, Error> => {
   return Effect.tryPromise({
     try: async () => {
@@ -18,6 +17,15 @@ const wslPathToWindows = (wslPath: string): Effect.Effect<string, Error> => {
       return stdout.trim();
     },
     catch: (e) => new Error(`Failed to convert path: ${e}`),
+  });
+};
+
+const revealInFinder = (path: string): Effect.Effect<void, Error> => {
+  return Effect.tryPromise({
+    try: async () => {
+      await execAsync(`open -R "${path}"`);
+    },
+    catch: (e) => new Error(`Failed to reveal file in Finder: ${e}`),
   });
 };
 
@@ -57,11 +65,12 @@ export const action = async (args: Route.ActionArgs) => {
       );
     }
 
-    // Convert WSL path to Windows path
-    const windowsPath = yield* wslPathToWindows(exportPath);
-
-    // Reveal in Windows Explorer
-    yield* revealInExplorer(windowsPath);
+    if (isMac) {
+      yield* revealInFinder(exportPath);
+    } else {
+      const windowsPath = yield* wslPathToWindows(exportPath);
+      yield* revealInExplorer(windowsPath);
+    }
 
     return { success: true };
   }).pipe(

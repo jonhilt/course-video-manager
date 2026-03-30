@@ -102,7 +102,7 @@ export const useConnectToOBSVirtualCamera = (props: {
       while (!unmounted) {
         try {
           stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
+            video: { width: { ideal: 1920 }, height: { ideal: 1080 } },
             audio: true,
           });
 
@@ -147,8 +147,7 @@ export const useConnectToOBSVirtualCamera = (props: {
           try {
             const obsStream = await navigator.mediaDevices.getUserMedia({
               video: {
-                deviceId: obsVirtualcamDevice.deviceId,
-                width: 1280,
+                deviceId: { exact: obsVirtualcamDevice.deviceId },
               },
               audio: true,
             });

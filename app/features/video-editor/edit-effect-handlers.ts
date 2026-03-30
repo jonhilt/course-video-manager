@@ -17,6 +17,7 @@ export interface EditEffectHandlersDeps {
   videoId: string;
   clipService: ClipService;
   clipStateRef: React.RefObject<ClipReducerState>;
+  speechDetectorStateRef: React.RefObject<{ type: string }>;
   revalidate: () => void;
   whiteNoiseAssetPath: string;
 }
@@ -28,6 +29,7 @@ export function createEditEffectHandlers(
     videoId,
     clipService,
     clipStateRef,
+    speechDetectorStateRef,
     revalidate,
     whiteNoiseAssetPath,
   } = deps;
@@ -226,6 +228,9 @@ export function createEditEffectHandlers(
     },
     "start-session-polling": (_state, effect, dispatch) => {
       let unmounted = false;
+      const FAST_INTERVAL = 500;
+      const SLOW_INTERVAL = 2000;
+      let consecutiveEmptyPolls = 0;
 
       (async () => {
         while (!unmounted) {
@@ -236,6 +241,17 @@ export function createEditEffectHandlers(
           if (session?.status === "done") {
             break;
           }
+
+          // Skip polling while actively speaking — no new silence boundary yet
+          const speechState = speechDetectorStateRef.current.type;
+          if (
+            speechState === "speaking-detected" ||
+            speechState === "long-enough-speaking-for-clip-detected"
+          ) {
+            await new Promise((resolve) => setTimeout(resolve, FAST_INTERVAL));
+            continue;
+          }
+
           try {
             const { insertionPoint, items } = clipStateRef.current;
             const clips = await clipService.appendFromObs({
@@ -250,11 +266,18 @@ export function createEditEffectHandlers(
                 clips: clips as DB.Clip[],
                 outputPath: effect.outputPath,
               });
+              consecutiveEmptyPolls = 0;
+            } else {
+              consecutiveEmptyPolls++;
             }
           } catch (e) {
             // Errors are swallowed; polling continues
           }
-          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          // Back off when idle: after 3 empty polls, slow down
+          const interval =
+            consecutiveEmptyPolls > 3 ? SLOW_INTERVAL : FAST_INTERVAL;
+          await new Promise((resolve) => setTimeout(resolve, interval));
         }
       })();
 

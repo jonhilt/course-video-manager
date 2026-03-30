@@ -16,6 +16,7 @@ import {
   ArrowLeftIcon,
   DownloadIcon,
   PencilIcon,
+  UploadIcon,
 } from "lucide-react";
 import { useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -42,7 +43,7 @@ export const loader = async (args: Route.LoaderArgs) => {
     const db = yield* DBFunctionsService;
     const thumbnails = yield* db.getThumbnailsByVideoId(videoId);
 
-    return { videoId, thumbnails };
+    return { videoId, thumbnails, cacheKey: Date.now() };
   }).pipe(
     Effect.tapErrorCause((e) => Console.dir(e, { depth: null })),
     Effect.catchAll(() => {
@@ -83,9 +84,25 @@ function YouTubePreview({
 }
 
 export default function ThumbnailsPage({ loaderData }: Route.ComponentProps) {
-  const { videoId, thumbnails } = loaderData;
+  const { videoId, thumbnails, cacheKey } = loaderData;
   const { state, dispatch } = useThumbnailReducer(thumbnails);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || !file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        dispatch({ type: "photo-captured", dataUrl: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+      // Reset so the same file can be re-selected
+      e.target.value = "";
+    },
+    [dispatch]
+  );
 
   // Draw all layers onto the canvas compositor
   useEffect(() => {
@@ -227,7 +244,7 @@ export default function ThumbnailsPage({ loaderData }: Route.ComponentProps) {
                   >
                     {thumbnail.filePath ? (
                       <img
-                        src={`/api/thumbnails/${thumbnail.id}/image`}
+                        src={`/api/thumbnails/${thumbnail.id}/image?v=${cacheKey}`}
                         alt="Thumbnail"
                         className="w-full aspect-video object-cover"
                       />
@@ -309,10 +326,26 @@ export default function ThumbnailsPage({ loaderData }: Route.ComponentProps) {
             </Link>
             <h2 className="text-xl font-semibold">Thumbnails</h2>
           </div>
-          <Button onClick={() => dispatch({ type: "open-camera" })}>
-            <CameraIcon />
-            Capture Face
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <UploadIcon />
+              Upload Photo
+            </Button>
+            <Button onClick={() => dispatch({ type: "open-camera" })}>
+              <CameraIcon />
+              Capture Face
+            </Button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
         </div>
 
         {(state.capturedPhoto || state.diagramImage) && (
@@ -348,7 +381,7 @@ export default function ThumbnailsPage({ loaderData }: Route.ComponentProps) {
                   className="flex w-full items-center gap-2 rounded border border-dashed px-3 py-2 text-sm text-muted-foreground hover:border-muted-foreground hover:text-muted-foreground"
                 >
                   <CameraIcon className="size-4" />
-                  <span>Capture a face photo</span>
+                  <span>Capture or upload a face photo</span>
                 </button>
               )}
 
@@ -517,8 +550,8 @@ export default function ThumbnailsPage({ loaderData }: Route.ComponentProps) {
               <div className="text-center">
                 <p className="text-lg font-medium">No thumbnails yet</p>
                 <p className="text-sm mt-1">
-                  Capture a face photo or paste a diagram to start creating
-                  thumbnails.
+                  Capture or upload a face photo, or paste a diagram to start
+                  creating thumbnails.
                 </p>
               </div>
             </div>
