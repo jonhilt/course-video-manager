@@ -11,7 +11,8 @@ export namespace uploadReducer {
     | "ai-hero"
     | "export"
     | "dropbox-publish"
-    | "publish";
+    | "publish"
+    | "blog";
   export type BufferStage = "copying" | "syncing" | "sending-webhook";
   export type ExportStage =
     | "queued"
@@ -67,13 +68,19 @@ export namespace uploadReducer {
     courseId: string;
   }
 
+  export interface BlogUploadEntry extends BaseUploadEntry {
+    uploadType: "blog";
+    blogSlug: string | null;
+  }
+
   export type UploadEntry =
     | YouTubeUploadEntry
     | BufferUploadEntry
     | AiHeroUploadEntry
     | ExportUploadEntry
     | DropboxPublishUploadEntry
-    | PublishUploadEntry;
+    | PublishUploadEntry
+    | BlogUploadEntry;
 
   export interface State {
     uploads: Record<string, UploadEntry>;
@@ -106,6 +113,7 @@ export namespace uploadReducer {
         uploadId: string;
         youtubeVideoId?: string;
         aiHeroSlug?: string;
+        blogSlug?: string;
       }
     | { type: "UPLOAD_ERROR"; uploadId: string; errorMessage: string }
     | { type: "RETRY"; uploadId: string }
@@ -182,6 +190,9 @@ export const uploadReducer = (
             newDraftVersionId: null,
             courseId: action.courseId ?? "",
           };
+          break;
+        case "blog":
+          entry = { ...base, uploadType: "blog", blogSlug: null };
           break;
         default:
           entry = { ...base, uploadType: "youtube", youtubeVideoId: null };
@@ -362,6 +373,13 @@ export const uploadReducer = (
             courseId: upload.courseId,
           };
           break;
+        case "blog":
+          entry = {
+            ...base,
+            uploadType: "blog",
+            blogSlug: action.blogSlug ?? null,
+          };
+          break;
       }
 
       // Activate any jobs waiting on this upload
@@ -471,6 +489,9 @@ export const uploadReducer = (
             newDraftVersionId: null,
             courseId: upload.courseId,
           };
+          break;
+        case "blog":
+          entry = { ...base, uploadType: "blog", blogSlug: null };
           break;
         default:
           entry = {
