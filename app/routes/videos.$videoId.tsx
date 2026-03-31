@@ -87,7 +87,7 @@ export const loader = async (args: Route.LoaderArgs) => {
   );
 };
 
-type Tab = "edit" | "write" | "post" | "social" | "ai-hero" | "newsletter";
+type Tab = "edit" | "write" | "post" | "social" | "blog" | "newsletter";
 
 const topTabs: {
   id: "edit" | "write" | "post";
@@ -108,15 +108,12 @@ const postSubTabs: {
 }[] = [
   { id: "post", label: "YouTube", path: "post", icon: YoutubeIcon },
   { id: "social", label: "X / LinkedIn", path: "social", icon: SendIcon },
-  { id: "ai-hero", label: "AI Hero", path: "ai-hero", icon: NewspaperIcon },
+  { id: "blog", label: "Blog", path: "blog", icon: NewspaperIcon },
   { id: "newsletter", label: "Newsletter", path: "newsletter", icon: MailIcon },
 ];
 
 const isPostTab = (tab: Tab): boolean =>
-  tab === "post" ||
-  tab === "social" ||
-  tab === "ai-hero" ||
-  tab === "newsletter";
+  tab === "post" || tab === "social" || tab === "blog" || tab === "newsletter";
 
 export default function VideoLayout({ loaderData }: Route.ComponentProps) {
   const {
@@ -144,8 +141,8 @@ export default function VideoLayout({ loaderData }: Route.ComponentProps) {
       ? "post"
       : location.pathname.endsWith("/social")
         ? "social"
-        : location.pathname.endsWith("/ai-hero")
-          ? "ai-hero"
+        : location.pathname.endsWith("/blog")
+          ? "blog"
           : location.pathname.endsWith("/newsletter")
             ? "newsletter"
             : "edit";
