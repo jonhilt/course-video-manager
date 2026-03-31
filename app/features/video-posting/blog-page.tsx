@@ -227,12 +227,12 @@ export function BlogPage({ videoId }: { videoId: string }) {
               Published to Blog
             </p>
             <a
-              href={`https://jonhilton.net/${publishedSlug}`}
+              href={`http://localhost:4321/${publishedSlug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 truncate"
             >
-              View on blog
+              View on blog (local)
               <ExternalLinkIcon className="h-3 w-3 shrink-0" />
             </a>
           </div>

@@ -1,0 +1,25 @@
+# Ralph State
+issue: 2
+criteria_total: 8
+criteria_completed: 8
+current_criterion: 8
+status: review
+
+# Criteria
+1. [x] Blog tab appears in post sub-tabs (replacing AI Hero tab)
+2. [x] Form has title, slug (auto-derived from title, manually overridable), body (markdown textarea), and SEO description (with 160 char counter) fields
+3. [x] All form fields persist to localStorage between navigations
+4. [x] Clicking "Publish to Blog" streams SSE progress events and shows upload state
+5. [x] MDX file is written to {BLOG_REPO_PATH}/src/content/blog/{current-year}/{slug}.mdx with correct frontmatter
+6. [x] File is git committed and pushed to main on the blog-astro repo
+7. [x] MDX assembly function has tests covering: standard case, special characters in title requiring YAML escaping, empty description, body containing MDX components
+8. [x] Upload reducer has tests for "blog" upload type: start → progress → success, start → error, retry, dismiss
+
+# Progress Log
+- Criterion 1: e8e9224 — replaced AI Hero tab with Blog tab in parent layout
+- Criterion 2: f7afd51 — created BlogPage component with form fields
+- Criterion 3: 042bdfc — added localStorage persistence for all form fields
+- Criteria 5+6: 215fa4a — blog publish service with MDX assembly + git commit/push + SSE API route
+- Criterion 4: 21b63b1 — SSE blog client, upload reducer blog type, publish button, refactored upload-context
+- Criterion 7: 68db598 — MDX assembly tests (4 cases)
+- Criterion 8: a55ea02 — upload reducer blog tests (11 tests)

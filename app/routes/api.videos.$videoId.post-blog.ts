@@ -53,10 +53,11 @@ export const action = async (args: Route.ActionArgs) => {
               sendEvent("error", { message: e.message });
             })
           ),
-          Effect.catchAll(() =>
+          Effect.catchAll((e) =>
             Effect.sync(() => {
+              console.error("Blog publish error:", e);
               sendEvent("error", {
-                message: "Blog publish failed unexpectedly",
+                message: `Blog publish failed: ${e instanceof Error ? e.message : String(e)}`,
               });
             })
           ),

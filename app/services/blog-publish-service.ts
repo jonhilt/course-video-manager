@@ -95,25 +95,39 @@ export const publishToBlog = (opts: {
         }),
     });
 
-    yield* Effect.try({
-      try: () =>
-        execFileSync("git", ["commit", "-m", `Add blog post: ${opts.title}`], {
+    // Commit — skip if nothing staged (file unchanged)
+    const hasStagedChanges = yield* Effect.try({
+      try: () => {
+        execFileSync("git", ["diff", "--cached", "--quiet"], {
           cwd: blogRepoPath,
-          encoding: "utf-8",
-        }),
-      catch: (cause) =>
-        new BlogPublishError({
-          message: `git commit failed: ${cause instanceof Error ? cause.message : String(cause)}`,
-          code: "git_commit_failed",
-        }),
+        });
+        return false; // exit 0 = no changes
+      },
+      catch: () => true, // exit 1 = has changes
     });
+
+    if (hasStagedChanges) {
+      yield* Effect.try({
+        try: () =>
+          execFileSync(
+            "git",
+            ["commit", "-m", `Add blog post: ${opts.title}`],
+            { cwd: blogRepoPath, encoding: "utf-8" }
+          ),
+        catch: (cause) =>
+          new BlogPublishError({
+            message: `git commit failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+            code: "git_commit_failed",
+          }),
+      });
+    }
 
     opts.onProgress?.(60);
 
-    // git push
+    // git push (to the current branch's upstream)
     yield* Effect.try({
       try: () =>
-        execFileSync("git", ["push", "origin", "main"], {
+        execFileSync("git", ["push"], {
           cwd: blogRepoPath,
           encoding: "utf-8",
         }),
