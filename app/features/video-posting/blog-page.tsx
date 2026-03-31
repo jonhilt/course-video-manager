@@ -5,6 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
+const BLOG_TITLE_STORAGE_KEY = (videoId: string) => `blog-title-${videoId}`;
+const BLOG_BODY_STORAGE_KEY = (videoId: string) => `blog-body-${videoId}`;
+const BLOG_SEO_DESCRIPTION_STORAGE_KEY = (videoId: string) =>
+  `blog-seo-description-${videoId}`;
+const BLOG_SLUG_STORAGE_KEY = (videoId: string) => `blog-slug-${videoId}`;
+
 const slugify = (text: string): string => {
   return text
     .toLowerCase()
@@ -15,11 +21,27 @@ const slugify = (text: string): string => {
     .replace(/^-|-$/g, "");
 };
 
-export function BlogPage(_props: { videoId: string }) {
-  const [title, setTitle] = useState("");
+export function BlogPage({ videoId }: { videoId: string }) {
+  // Title with localStorage persistence
+  const [title, setTitle] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(BLOG_TITLE_STORAGE_KEY(videoId)) ?? "";
+    }
+    return "";
+  });
 
+  // Slug with localStorage persistence
   const slugInputTouched = useRef(false);
-  const [slug, setSlug] = useState("");
+  const [slug, setSlug] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(BLOG_SLUG_STORAGE_KEY(videoId));
+      if (stored) {
+        slugInputTouched.current = true;
+        return stored;
+      }
+    }
+    return slugify(title);
+  });
 
   // Auto-derive slug from title when user hasn't manually edited it
   useEffect(() => {
@@ -28,9 +50,51 @@ export function BlogPage(_props: { videoId: string }) {
     }
   }, [title]);
 
-  const [body, setBody] = useState("");
+  // Body with localStorage persistence
+  const [body, setBody] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(BLOG_BODY_STORAGE_KEY(videoId)) ?? "";
+    }
+    return "";
+  });
 
-  const [seoDescription, setSeoDescription] = useState("");
+  // SEO description with localStorage persistence
+  const [seoDescription, setSeoDescription] = useState(() => {
+    if (typeof window !== "undefined") {
+      return (
+        localStorage.getItem(BLOG_SEO_DESCRIPTION_STORAGE_KEY(videoId)) ?? ""
+      );
+    }
+    return "";
+  });
+
+  // Auto-save to localStorage
+  useEffect(() => {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(BLOG_TITLE_STORAGE_KEY(videoId), title);
+    }
+  }, [title, videoId]);
+
+  useEffect(() => {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(BLOG_BODY_STORAGE_KEY(videoId), body);
+    }
+  }, [body, videoId]);
+
+  useEffect(() => {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(
+        BLOG_SEO_DESCRIPTION_STORAGE_KEY(videoId),
+        seoDescription
+      );
+    }
+  }, [seoDescription, videoId]);
+
+  useEffect(() => {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(BLOG_SLUG_STORAGE_KEY(videoId), slug);
+    }
+  }, [slug, videoId]);
 
   const isSeoDescriptionTooLong = seoDescription.length > 160;
 
