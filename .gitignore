@@ -16,4 +16,8 @@ plans-backup.json
 
 # Generated assets
 /assets/.claude/settings.local.json
+
+# Per-developer Claude Code local settings (never commit; can contain tokens)
+/.claude/settings.local.json
+/CLAUDE.local.md
 app/prompts/voice-profile.ts
